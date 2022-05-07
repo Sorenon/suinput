@@ -3,6 +3,7 @@ use windows_sys::Win32::Foundation::GetLastError;
 pub mod hooks;
 pub mod raw_input;
 pub mod hid;
+pub mod paths;
 
 #[derive(Debug, thiserror::Error, Clone, Copy)]
 pub enum Error {
@@ -25,6 +26,8 @@ pub type Result<T> = std::result::Result<T, Error>;
     Some inputs are only provided if the process is focused
     If the user is making a gesture (eg pinch or zoom) clicks will not be sent
     If GetMessageW is filtered by a hWnd, scroll inertia will not work
+
+    Winit with Poll set does not receive scroll inertia even if we call GetMessageW
 
     Always:
     Clicks (Quick tap: Mouse left click, Quick tap then hold: Mouse left click, Quick tap two contacts: Mouse right click)

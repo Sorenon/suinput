@@ -2,7 +2,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::UnhookWindowsHookEx;
 use winit::{
     event::{DeviceEvent, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder, dpi::LogicalPosition,
+    window::WindowBuilder,
 };
 
 fn main() -> Result<(), anyhow::Error> {
@@ -28,7 +28,7 @@ fn main() -> Result<(), anyhow::Error> {
                     event: WindowEvent::MouseWheel { delta, .. },
                     window_id,
                 } if window_id == window.id() => {
-                    println!("Winit Scroll Event {delta:?}");
+                    // println!("Winit Scroll Event {delta:?}");
                 }
                 Event::DeviceEvent {
                     event: DeviceEvent::MouseWheel { delta },
@@ -36,10 +36,10 @@ fn main() -> Result<(), anyhow::Error> {
                 } => {
                     panic!("Winit Raw Input Scroll Event {device_id:?}-{delta:?}");
                 }
-                Event::WindowEvent { event: WindowEvent::ReceivedCharacter(char), .. } => {
-                    window.set_cursor_position(LogicalPosition::new(0, 10)).unwrap();
-                    println!("{char}");
-                }
+                // Event::WindowEvent { event: WindowEvent::ReceivedCharacter(char), .. } => {
+                //     window.set_cursor_position(LogicalPosition::new(0, 10)).unwrap();
+                //     println!("{char}");
+                // }
                 _ => (),
             }
         });

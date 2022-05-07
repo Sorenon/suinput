@@ -1,10 +1,24 @@
+pub mod event;
 pub mod input_mapper;
 pub mod interaction_profile;
-pub mod event;
-pub mod event2;
+pub mod keyboard;
 
+/**
+ * Instead of using static enum parameters, SuInput often uses Path variables
+ *
+ * Types of Path:
+ *
+ * /interaction_profiles/<vendor_name>/<type_name>
+ *
+ * /devices/<vendor_name>/<name>
+ *
+ * /inputs/<source>[_<position]/<component>
+ *
+ * /outputs/<{source>[_<position>]/<component>
+ *
+ */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Path(u32);
+pub struct Path(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Time(pub u64);

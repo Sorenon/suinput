@@ -1,7 +1,9 @@
 use std::{ffi::OsString, mem::size_of, os::windows::prelude::OsStringExt};
 
 use suinput::{
-    event::HIDScanCode, event::MouseButton, event::MouseEvent, event2::DriverManager, Vec2D,
+    event::{ButtonEvent, DriverManager, EventType, InputComponentEvent, Move2D},
+    keyboard::HIDScanCode,
+    Time,
 };
 use windows_sys::Win32::{
     Devices::HumanInterfaceDevice::MOUSE_MOVE_ABSOLUTE,
@@ -18,7 +20,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{Error, Result};
+use crate::{paths::Paths, Error, Result};
 
 /**
  * Returns a list of all raw input devices
@@ -121,7 +123,7 @@ pub fn get_ri_device_info(raw_input_device: HANDLE) -> Result<RIDeviceInfo> {
                     usage: info.usUsage,
                 }
             }
-            _ => unreachable!(),
+            _ => unreachable!("{}", device_info.dwType),
         });
     }
 }
@@ -215,8 +217,11 @@ pub mod window {
     };
 
     use suinput::{
-        event::{HIDScanCode, KeyboardEvent},
-        event2::{DeviceEvent, DriverManager, DummyDriverManager},
+        event::{
+            ButtonEvent, DeviceEvent, DriverManager, DummyDriverManager, EventType,
+            InputComponentEvent,
+        },
+        keyboard::{self, HIDScanCode},
     };
     use windows_sys::Win32::{
         Foundation::{HANDLE, HWND},
@@ -225,14 +230,14 @@ pub mod window {
             Input::{RIM_TYPEHID, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE},
             WindowsAndMessaging::{
                 CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageTime, GetMessageW,
-                RegisterClassW, GIDC_ARRIVAL, RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1, WM_INPUT,
-                WM_INPUT_DEVICE_CHANGE, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE,
-                WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_OVERLAPPED,
+                RegisterClassW, ShowWindow, GIDC_ARRIVAL, RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1,
+                WM_CHAR, WM_INPUT, WM_INPUT_DEVICE_CHANGE, WNDCLASSW, WS_EX_LAYERED,
+                WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_OVERLAPPED,
             },
         },
     };
 
-    use crate::Result;
+    use crate::{paths::Paths, Result};
     use crate::{raw_input::get_ri_device_info, Error};
 
     use super::{get_raw_input_data, RIDeviceInfo};
@@ -277,6 +282,7 @@ pub mod window {
                 return Err(Error::win32());
             }
 
+            ShowWindow(hwnd, 1);
             return Ok(hwnd);
         }
     }
@@ -289,20 +295,22 @@ pub mod window {
             let mut ri_devices = HashMap::<HANDLE, RIDeviceInfo>::new();
             let mut keyboard_states = HashMap::<HANDLE, HashSet<HIDScanCode>>::new();
 
-            let driver_manager = DummyDriverManager;
+            let mut driver_manager = DummyDriverManager::default();
+            let paths = Paths::new(&mut driver_manager);
+            let keyboard_paths = keyboard::Paths::new(&mut driver_manager);
 
             driver_manager.send_device_event(DeviceEvent::DeviceActivated {
                 id: 0,
-                ty: "standard_mouse/mouse".to_string(),
+                ty: paths.mouse,
             });
 
             driver_manager.send_device_event(DeviceEvent::DeviceActivated {
                 id: 0,
-                ty: "standard_keyboard/keyboard".to_string(),
+                ty: paths.keyboard,
             });
 
             let mut msg = std::mem::zeroed();
-            while GetMessageW(&mut msg, 0, 0, 0) > 0 {
+            while GetMessageW(&mut msg, window, 0, 0) > 0 {
                 //TODO brush up on my overflow maths and figure this out
                 //https://devblogs.microsoft.com/oldnewthing/20140122-00/?p=2013
                 let _time = GetTickCount();
@@ -315,8 +323,8 @@ pub mod window {
                             let rid_device_info = get_ri_device_info(raw_input_device).unwrap();
 
                             let device_type = match rid_device_info {
-                                RIDeviceInfo::Mouse { .. } => "standard_mouse/mouse",
-                                RIDeviceInfo::Keyboard { .. } => "standard_keyboard/keyboard",
+                                RIDeviceInfo::Mouse { .. } => paths.mouse,
+                                RIDeviceInfo::Keyboard { .. } => paths.keyboard,
                                 RIDeviceInfo::GenericHID { .. } => todo!(),
                             };
 
@@ -324,7 +332,7 @@ pub mod window {
 
                             driver_manager.send_device_event(DeviceEvent::DeviceActivated {
                                 id: raw_input_device as _,
-                                ty: device_type.to_string(),
+                                ty: device_type,
                             });
                         } else {
                             ri_devices.remove(&raw_input_device).unwrap();
@@ -344,49 +352,33 @@ pub mod window {
                             let rid_device_info = get_ri_device_info(raw_input_device).unwrap();
 
                             let device_type = match rid_device_info {
-                                RIDeviceInfo::Mouse { .. } => "standard_mouse/mouse",
-                                RIDeviceInfo::Keyboard { .. } => "standard_keyboard/keyboard",
-                                RIDeviceInfo::GenericHID { .. } => todo!(),
+                                RIDeviceInfo::Mouse { .. } => paths.mouse,
+                                RIDeviceInfo::Keyboard { .. } => paths.keyboard,
+                                RIDeviceInfo::GenericHID { .. } => {
+                                    //Precision touch pads sometimes send a ctrl key
+                                    // panic!("`{raw_input_device}`_`{rid_device_info:?}`")
+                                    //TODO improve this
+                                    paths.keyboard
+                                }
                             };
 
                             ri_devices.insert(raw_input_device, rid_device_info);
 
                             driver_manager.send_device_event(DeviceEvent::DeviceActivated {
                                 id: raw_input_device as _,
-                                ty: device_type.to_string(),
+                                ty: device_type,
                             });
                         }
 
                         match raw_input_data.header.dwType {
-                            RIM_TYPEMOUSE => super::process_mouse(raw_input_data, &driver_manager),
+                            RIM_TYPEMOUSE => {
+                                super::process_mouse(raw_input_data, &driver_manager, &paths)
+                            }
                             RIM_TYPEKEYBOARD => {
                                 let keyboard = raw_input_data.data.keyboard;
                                 let flags = keyboard.Flags as u32;
-                                let mode = if flags & RI_KEY_BREAK == 0 {
-                                    "Down"
-                                } else {
-                                    "Up"
-                                };
 
-                                let message = {
-                                    use windows_sys::Win32::UI::WindowsAndMessaging::*;
-                                    match keyboard.Message {
-                                        WM_ACTIVATE => "WM_ACTIVATE",
-                                        WM_APPCOMMAND => "WM_APPCOMMAND",
-                                        WM_CHAR => "WM_CHAR",
-                                        WM_DEADCHAR => "WM_CHAR",
-                                        WM_HOTKEY => "WM_CHAR",
-                                        WM_KEYDOWN => "WM_CHAR",
-                                        WM_KEYUP => "WM_CHAR",
-                                        WM_KILLFOCUS => "WM_CHAR",
-                                        WM_SETFOCUS => "WM_CHAR",
-                                        WM_SYSDEADCHAR => "WM_CHAR",
-                                        WM_SYSKEYDOWN => "WM_CHAR",
-                                        WM_SYSKEYUP => "WM_CHAR",
-                                        WM_UNICHAR => "WM_CHAR",
-                                        _ => "Unknown",
-                                    }
-                                };
+                                assert_eq!(keyboard.Message, WM_CHAR);
 
                                 let e0 = flags & RI_KEY_E0 != 0;
                                 let e1 = flags & RI_KEY_E1 != 0;
@@ -398,24 +390,12 @@ pub mod window {
                                     e1,
                                 );
 
-                                println!(
-                                    "Keyboard({}): {:?} {} {:X} {:X} {} e0:{} e1:{}",
-                                    raw_input_device as usize,
-                                    hid_scan_code,
-                                    message,
-                                    keyboard.MakeCode,
-                                    keyboard.VKey,
-                                    mode,
-                                    e0,
-                                    e1
-                                );
-
                                 //https://github.com/rust-lang/rust/issues/87335 pls
                                 let hid_scan_code =
                                     if let Some(hid_scan_code) = hid_scan_code.ok().flatten() {
                                         hid_scan_code
                                     } else {
-                                        return;
+                                        continue;
                                     };
 
                                 let keyboard_state = if let Some(keyboard_state) =
@@ -431,11 +411,26 @@ pub mod window {
                                     //Key pressed
                                     if !keyboard_state.contains(&hid_scan_code) {
                                         keyboard_state.insert(hid_scan_code);
-                                        let event = KeyboardEvent::Press(hid_scan_code);
+                                        let event = InputComponentEvent {
+                                            device: raw_input_device as usize,
+                                            path: keyboard_paths.get(hid_scan_code),
+                                            time: suinput::Time(0),
+                                            data: EventType::Button(ButtonEvent::Press),
+                                        };
+                                        driver_manager.send_component_event(event);
                                     }
                                 } else {
                                     //Key released
-                                    let event = KeyboardEvent::Release(hid_scan_code);
+                                    if keyboard_state.contains(&hid_scan_code) {
+                                        keyboard_state.remove(&hid_scan_code);
+                                        let event = InputComponentEvent {
+                                            device: raw_input_device as usize,
+                                            path: keyboard_paths.get(hid_scan_code),
+                                            time: suinput::Time(0),
+                                            data: EventType::Button(ButtonEvent::Release),
+                                        };
+                                        driver_manager.send_component_event(event);
+                                    }
                                 };
                             }
                             RIM_TYPEHID => {
@@ -453,16 +448,19 @@ pub mod window {
     }
 }
 
-fn process_mouse(raw_input_data: RAWINPUT, driver_manager: &dyn DriverManager) {
+fn process_mouse(raw_input_data: RAWINPUT, driver_manager: &dyn DriverManager, paths: &Paths) {
     let mouse = unsafe { raw_input_data.data.mouse };
 
     if mouse.usFlags & (MOUSE_MOVE_ABSOLUTE as u16) == 0 {
         if mouse.lLastX != 0 || mouse.lLastY != 0 {
-            let event = MouseEvent::Move(Vec2D {
-                x: mouse.lLastX as f32,
-                y: mouse.lLastY as f32,
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_move,
+                time: Time(0),
+                data: EventType::Move2D(Move2D {
+                    value: (mouse.lLastX as f64, mouse.lLastY as f64),
+                }),
             });
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
         }
     } else {
         unimplemented!(
@@ -478,53 +476,99 @@ fn process_mouse(raw_input_data: RAWINPUT, driver_manager: &dyn DriverManager) {
     if data.usButtonFlags != 0 {
         let flags = data.usButtonFlags as u32;
         if flags & RI_MOUSE_BUTTON_1_DOWN != 0 {
-            let event = MouseEvent::Press(MouseButton::Left);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_left_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Press),
+            });
         } else if flags & RI_MOUSE_BUTTON_1_UP != 0 {
-            let event = MouseEvent::Release(MouseButton::Left);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_left_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Release),
+            });
         }
         if flags & RI_MOUSE_BUTTON_2_DOWN != 0 {
-            let event = MouseEvent::Press(MouseButton::Right);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_right_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Press),
+            });
         } else if flags & RI_MOUSE_BUTTON_2_UP != 0 {
-            let event = MouseEvent::Release(MouseButton::Right);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_right_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Release),
+            });
         }
         if flags & RI_MOUSE_BUTTON_3_DOWN != 0 {
-            let event = MouseEvent::Press(MouseButton::Middle);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_middle_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Press),
+            });
         } else if flags & RI_MOUSE_BUTTON_3_UP != 0 {
-            let event = MouseEvent::Release(MouseButton::Middle);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_middle_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Release),
+            });
         }
         if flags & RI_MOUSE_BUTTON_4_DOWN != 0 {
-            let event = MouseEvent::Press(MouseButton::Button4);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_button4_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Press),
+            });
         } else if flags & RI_MOUSE_BUTTON_4_UP != 0 {
-            let event = MouseEvent::Release(MouseButton::Button4);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_button4_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Release),
+            });
         }
         if flags & RI_MOUSE_BUTTON_5_DOWN != 0 {
-            let event = MouseEvent::Press(MouseButton::Button5);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_button5_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Press),
+            });
         } else if flags & RI_MOUSE_BUTTON_5_UP != 0 {
-            let event = MouseEvent::Release(MouseButton::Button5);
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_button5_click,
+                time: Time(0),
+                data: EventType::Button(ButtonEvent::Release),
+            });
         }
         if flags & RI_MOUSE_WHEEL != 0 {
-            let event = MouseEvent::Scroll(Vec2D {
-                x: 0.,
-                y: (data.usButtonData as i16) as f32 / WHEEL_DELTA as f32,
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_scroll,
+                time: Time(0),
+                data: EventType::Move2D(Move2D {
+                    value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
+                }),
             });
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
         }
         if flags & RI_MOUSE_HWHEEL != 0 {
-            let event = MouseEvent::Scroll(Vec2D {
-                x: (data.usButtonData as i16) as f32 / WHEEL_DELTA as f32,
-                y: 0.,
+            driver_manager.send_component_event(InputComponentEvent {
+                device: raw_input_data.header.hDevice as _,
+                path: paths.mouse_scroll,
+                time: Time(0),
+                data: EventType::Move2D(Move2D {
+                    value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
+                }),
             });
-            println!("Mouse({}) {:?}", raw_input_data.header.hDevice, event);
         }
     }
 }
@@ -572,7 +616,10 @@ fn raw_input_to_hid_scancode(
             // 0x5E => keyboard power
             // 0x5F => sleep,
             // 0x63 => wake,
-            _ => panic!("{make_code}"),
+            _ => {
+                println!("{make_code}");
+                return Err(Error::Win32(0));
+            }
         }
     } else {
         match make_code {
@@ -659,7 +706,7 @@ fn raw_input_to_hid_scancode(
             0x51 => HIDScanCode::Keypad3,        //
             0x52 => HIDScanCode::Keypad0,        //
             0x53 => HIDScanCode::KeypadDecimal,  //
-            0x54 => HIDScanCode::PrintScreen, //Technically this should be SysRq but modern keyboards just bind SysRq to Alt+PrintScreen
+            0x54 => HIDScanCode::PrintScreen, //Technically this should be SysRq but modern keyboards just bind SysRq as Alt+PrintScreen
             // 0x55 =>
             0x56 => HIDScanCode::NonUSHash,
             0x57 => HIDScanCode::F11, //
@@ -692,8 +739,8 @@ fn raw_input_to_hid_scancode(
             0x73 => HIDScanCode::International1,
             //0x74
             //0x75
-            0x76 => HIDScanCode::LANG5,
-            // 0x76 => HIDScanCode::F24, CONFLICT!
+            0x76 => HIDScanCode::F24,
+            // 0x76 => HIDScanCode::LANG5 <-- CONFLICT
             0x77 => HIDScanCode::LANG4,
             0x78 => HIDScanCode::LANG3,
             0x79 => HIDScanCode::International4,
@@ -718,7 +765,10 @@ fn raw_input_to_hid_scancode(
 
             // 0xF2 => Self::HanguelEnglish,
             // 0xF1 => Self::Hanja,
-            _ => panic!("{make_code} {v_key}"),
+            _ => {
+                println!("{make_code} {v_key}");
+                return Err(Error::Win32(0));
+            }
         }
     };
 

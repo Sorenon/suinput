@@ -32,7 +32,7 @@ unsafe extern "system" fn call_wnd_proc(a: i32, b: usize, cwp_ptr: isize) -> isi
         if GetPhysicalCursorPos(&mut point) == 0 {
             panic!("{}", Error::win32());
         }
-        println!("1.{}, {}", point.x, point.y);
+        // println!("1.{}, {}", point.x, point.y);
     }
 
     CallNextHookEx(0, a, b, cwp_ptr)
@@ -47,7 +47,7 @@ unsafe extern "system" fn call_get_message(code: i32, remove: usize, msg_ptr: is
             if GetPhysicalCursorPos(&mut point) == 0 {
                 panic!("{}", Error::win32());
             }
-            println!("2.{}, {}", point.x, point.y);
+            // println!("2.{}, {}", point.x, point.y);
         }
     }
 

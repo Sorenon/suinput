@@ -1,257 +1,78 @@
-use crate::Vec2D;
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy)]
-pub enum CursorEvent {
-    CursorMove(Vec2D),
+use crate::{Path, Time};
+
+#[derive(Debug, Default)]
+pub struct DummyDriverManager(HashMap<String, Path>, HashMap<Path, String>);
+
+pub trait DriverManager {
+    fn send_device_event(&self, device_event: DeviceEvent);
+    fn send_component_event(&self, component_event: InputComponentEvent);
+    fn get_path(&mut self, path_string: &str) -> Path;
+    fn get_path_string(&self, path: Path) -> Option<String>;
+}
+
+impl DriverManager for DummyDriverManager {
+    fn send_device_event(&self, device_event: DeviceEvent) {
+        println!("{:?}", device_event);
+    }
+
+    fn send_component_event(&self, component_event: InputComponentEvent) {
+        println!("Input Event {{ device: {:?}, path: '{}', data: {:?} }}",
+            component_event.device,
+            self.get_path_string(component_event.path).unwrap(),
+            component_event.data,
+        );
+    }
+
+    fn get_path(&mut self, path_string: &str) -> Path {
+        if let Some(&path) = self.0.get(path_string) {
+            path
+        } else {
+            let path = Path(self.0.len() as u32);
+            self.0.insert(path_string.to_owned(), path);
+            self.1.insert(path, path_string.to_owned());
+            path
+        }
+    }
+
+    fn get_path_string(&self, path: Path) -> Option<String> {
+        self.1.get(&path).map(|inner| inner.clone())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum DeviceEvent {
+    DeviceActivated { id: usize, ty: Path },
+    DeviceDeactivated { id: usize },
+}
+
+#[derive(Debug, Clone)]
+pub struct InputComponentEvent {
+    pub device: usize,
+    pub path: Path,
+    pub time: Time,
+    pub data: EventType,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum MouseButton {
-    Left,
-    Middle,
-    Right,
-    Button4,
-    Button5,
+pub enum EventType {
+    Button(ButtonEvent),
+    Move2D(Move2D),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum MouseEvent {
-    Press(MouseButton),
-    Release(MouseButton),
-    Scroll(crate::Vec2D),
-    Move(crate::Vec2D),
+pub enum ButtonEvent {
+    Press,
+    Release,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum KeyboardEvent {
-    Press(HIDScanCode),
-    Release(HIDScanCode),
+pub struct Move2D {
+    pub value: (f64, f64),
 }
 
-
-///All physical HID keyboard scan codes according to https://usb.org/sites/default/files/documents/hut1_12v2.pdf
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, num_derive::FromPrimitive)]
-pub enum HIDScanCode {
-    A = 4,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    N,
-    M,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-    Key1,
-    Key2,
-    Key3,
-    Key4,
-    Key5,
-    Key6,
-    Key7,
-    Key8,
-    Key9,
-    Key0,
-    Enter,
-    Escape,
-    Backspace,
-    Tab,
-    Space,
-    Minus,
-    Equals,
-    LeftBracket,
-    RightBracket,
-    Backslash,
-    NonUSHash,
-    Semicolon,
-    Apostrophe,
-    Grave,
-    Comma,
-    Period,
-    ForwardSlash,
-    CapsLock,
-    F1,
-    F2,
-    F3,
-    F4,
-    F5,
-    F6,
-    F7,
-    F8,
-    F9,
-    F10,
-    F11,
-    F12,
-    PrintScreen,
-    ScrollLock,
-    Pause,
-    Insert,
-    Home,
-    PageUp,
-    Delete,
-    End,
-    PageDown,
-    Right,
-    Left,
-    Down,
-    Up,
-    KeypadNumLock,
-    KeypadDivide,
-    KeypadMultiply,
-    KeypadMinus,
-    KeypadPlus,
-    KeypadEnter,
-    Keypad1,
-    Keypad2,
-    Keypad3,
-    Keypad4,
-    Keypad5,
-    Keypad6,
-    Keypad7,
-    Keypad8,
-    Keypad9,
-    Keypad0,
-    KeypadDecimal,
-    KeypadNonUSBackslash,
-    App,
-    KeypadEquals = 103,
-    F13,
-    F14,
-    F15,
-    F16,
-    F17,
-    F18,
-    F19,
-    F20,
-    F21,
-    F22,
-    F23,
-    F24,
-
-    Execute,
-    Help,
-    Menu,
-    Select,
-    Stop,
-    Again,
-    Undo,
-    Cut,
-    Copy,
-    Paste,
-    Find,
-    Mute,
-    VolumeUp,
-    VolumeDown,
-
-    LockingCapsLock,
-    LockingNumLock,
-    LockingScrollLock,
-
-    KeypadComma,
-    KeypadEqualSign, //??
-
-    International1,
-    International2,
-    International3,
-    International4,
-    International5,
-    International6,
-    International7,
-    International8,
-    International9,
-    LANG1,
-    LANG2,
-    LANG3,
-    LANG4,
-    LANG5,
-    LANG6,
-    LANG7,
-    LANG8,
-    LANG9,
-
-    AltErase,
-    SysReq,
-
-    Cancel,
-    Clear,
-    Prior,
-    Return,
-    Seperator,
-    Out,
-    Oper,
-    ClearAgain,
-    CrSel,
-    ExSel,
-
-    Keypad00 = 176,
-    Keypad000,
-    ThousandsSeparator,
-    DecimalSeparator,
-    CurrencyUnit,
-    CurrencySubunit,
-    KeypadOpenParentheses,
-    KeypadCloseParentheses,
-    KeypadOpenBrace,
-    KeypadCloseBrace,
-    KeypadTab,
-    KeypadBackspace,
-    KeypadA,
-    KeypadB,
-    KeypadC,
-    KeypadD,
-    KeypadE,
-    KeypadF,
-    KeypadXOR,
-    KeypadAccent,
-    KeypadPercentage,
-    KeypadLessThan,
-    KeypadGreaterThan,
-    KeypadAmpersand,
-    KeypadAND,
-    KeypadVerticalBar,
-    KeypadOR,
-    KeypadColon,
-    KeypadHash,
-    KeypadSpace,
-    KeypadAt,
-    KeypadExclamation,
-    KeypadMemoryStore,
-    KeypadMemoryRecall,
-    KeypadMemoryClear,
-    KeypadMemoryAdd,
-    KeypadMemorySubtract,
-    KeypadMemoryMultiply,
-    KeypadMemoryDivide,
-    KeypadPlusMinus,
-    KeypadClear,
-    KeypadClearEntry,
-    KeypadBinary,
-    KeypadOctal,
-    KeypadDenary,
-    KeypadHexadecimal,
-
-    LeftControl = 224,
-    LeftShift,
-    LeftAlt,
-    LeftGui,
-    RightControl,
-    RightShift,
-    RightAlt,
-    RightGui,
+#[derive(Debug, Clone, Copy)]
+pub struct Cursor {
+    pub normalized_screen_coords: (f64, f64),
 }
