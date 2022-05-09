@@ -1,9 +1,13 @@
-use windows_sys::Win32::Foundation::GetLastError;
+use std::{ops::Deref, thread::JoinHandle};
 
-pub mod hooks;
-pub mod raw_input;
+use suinput::driver_interface::DriverRuntimeInterface;
+use windows_sys::Win32::Foundation::{GetLastError, HANDLE};
+
 pub mod hid;
+pub mod hooks;
 pub mod paths;
+pub mod raw_input;
+pub mod raw_input_driver;
 
 #[derive(Debug, thiserror::Error, Clone, Copy)]
 pub enum Error {
@@ -37,3 +41,41 @@ pub type Result<T> = std::result::Result<T, Error>;
     Focused Only:
     Pan (Double contact)
 */
+
+pub struct WindowsDesktopDriver {
+    pub runtime_interface: DriverRuntimeInterface,
+    pub raw_input_thread: JoinHandle<()>,
+    pub hooks: (HANDLE, HANDLE),
+    running: bool,
+}
+
+impl WindowsDesktopDriver {
+    pub fn initialize(runtime_interface: DriverRuntimeInterface) -> Result<Self> {
+        let hooks = hooks::inject_hooks(&runtime_interface)?;
+
+        let runtime_interface_clone = runtime_interface.clone();
+        let raw_input_thread =
+            std::thread::spawn(move || raw_input_driver::run(runtime_interface_clone.0.deref()));
+
+        Ok(Self {
+            runtime_interface,
+            raw_input_thread,
+            hooks,
+            running: true,
+        })
+    }
+
+    pub fn destroy(&mut self) {
+        hooks::remove_hooks(self.hooks);
+        self.running = false;
+    }
+}
+
+impl Drop for WindowsDesktopDriver {
+    fn drop(&mut self) {
+        if self.running {
+            println!("WARNING Windows Driver was dropped before being destroyed");
+            self.destroy();
+        }
+    }
+}

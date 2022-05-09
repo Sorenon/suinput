@@ -1,5 +1,13 @@
+use std::{
+    sync::{Arc, RwLock},
+    thread::JoinHandle,
+};
+
+use event::{GenericDriverEvent, PathManager};
+use flume::{Receiver, Sender};
+
+pub mod driver_interface;
 pub mod event;
-pub mod input_mapper;
 pub mod interaction_profile;
 pub mod keyboard;
 
@@ -14,11 +22,11 @@ pub mod keyboard;
  *
  * /inputs/<source>[_<position]/<component>
  *
- * /outputs/<{source>[_<position>]/<component>
+ * /outputs/<source>[_<position>]/<component>
  *
  */
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Path(pub u32);
+pub struct SuPath(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Time(pub u64);
@@ -32,29 +40,30 @@ pub struct Vec2D {
     pub y: f32,
 }
 
-fn main() {
-    let mapper = input_mapper::InputMapper::new();
+pub struct SuInputRuntime {
+    pub driver2runtime_sender: Sender<GenericDriverEvent>,
+    pub driver2runtime_receiver: Receiver<GenericDriverEvent>,
+    pub paths: Arc<RwLock<PathManager>>,
+    pub thread: JoinHandle<()>,
+}
 
-    mapper.tick(
-        [
-            (
-                Time(0),
-                Path(124),
-                input_mapper::InputEvent::Button {
-                    state: true,
-                    changed: true,
-                },
-            ),
-            (
-                Time(1000),
-                Path(124),
-                input_mapper::InputEvent::Button {
-                    state: false,
-                    changed: true,
-                },
-            ),
-        ]
-        .into_iter(),
-        Time(1100),
-    );
+impl SuInputRuntime {
+    pub fn new() -> Self {
+        let (driver2runtime_sender, driver2runtime_receiver) =
+            flume::bounded::<event::GenericDriverEvent>(100);
+
+        let driver2runtime_receiver_clone = driver2runtime_receiver.clone();
+        let thread = std::thread::spawn(move || {
+            while let Ok(packet) = driver2runtime_receiver_clone.recv() {
+                println!("{:?}", packet)
+            }
+        });
+
+        Self {
+            driver2runtime_sender,
+            driver2runtime_receiver,
+            paths: Arc::new(RwLock::new(PathManager::default())),
+            thread,
+        }
+    }
 }

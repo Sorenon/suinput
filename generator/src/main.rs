@@ -48,20 +48,20 @@ fn main() -> anyhow::Result<()> {
     writeln!(out, "    }}")?;
     writeln!(out, "}}\n")?;
 
-    writeln!(out, "use crate::{{Path, event::DriverManager}};")?;
-    writeln!(out, "pub struct Paths {{")?;
+    writeln!(out, "use crate::{{SuPath, driver_interface::DriverRuntimeInterface}};")?;
+    writeln!(out, "pub struct KeyboardPaths {{")?;
     for (_, name) in &keys {
         let mut name_sc = name.to_snake_case();
         if name_sc == "return" {
             name_sc = "r#return".to_string();
         }
 
-        writeln!(out, "    pub {}: Path,", name_sc)?;
+        writeln!(out, "    pub {}: SuPath,", name_sc)?;
     }
     writeln!(out, "}}\n")?;
 
-    writeln!(out, "impl Paths {{")?;
-    writeln!(out,"    pub fn new(driver_manager: &mut dyn DriverManager) -> Self {{")?;
+    writeln!(out, "impl KeyboardPaths {{")?;
+    writeln!(out,"    pub fn new(driver_manager: &dyn DriverRuntimeInterface) -> Self {{")?;
     writeln!(out, "        Self {{")?;
     for (_, name) in &keys {
         let name_sc = name.to_snake_case();
@@ -71,12 +71,12 @@ fn main() -> anyhow::Result<()> {
             &name_sc
         };
 
-        writeln!(out,"            {name_sc_sanitized}: driver_manager.get_path(\"/input/button_{name_sc}/click\"),")?;
+        writeln!(out,"            {name_sc_sanitized}: driver_manager.get_path(\"/input/button_{name_sc}/click\").unwrap(),")?;
     }
     writeln!(out, "        }}")?;
     writeln!(out, "    }}")?;
     writeln!(out, "\n")?;
-    writeln!(out,"    pub fn get(&self, hid_scan_code: HIDScanCode) -> Path {{")?;
+    writeln!(out,"    pub fn get(&self, hid_scan_code: HIDScanCode) -> SuPath {{")?;
     writeln!(out, "        match hid_scan_code {{")?;
     for (_, name) in &keys {
         let name_sc = name.to_snake_case();

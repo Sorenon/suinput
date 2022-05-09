@@ -1,64 +1,87 @@
 use std::collections::HashMap;
 
-use crate::{Path, Time};
+use crate::{SuPath, Time};
 
 #[derive(Debug, Default)]
-pub struct DummyDriverManager(HashMap<String, Path>, HashMap<Path, String>);
+pub struct PathManager(HashMap<String, SuPath>, HashMap<SuPath, String>);
 
-pub trait DriverManager {
-    fn send_device_event(&self, device_event: DeviceEvent);
-    fn send_component_event(&self, component_event: InputComponentEvent);
-    fn get_path(&mut self, path_string: &str) -> Path;
-    fn get_path_string(&self, path: Path) -> Option<String>;
+#[derive(Debug)]
+pub enum PathFormatError {
+    MissingLeadingSlash,
+    IllegalEndingSlash,
+    IllegalCharacter,
+    DoubleSlash,
+    PeriodOnlyWord,
 }
 
-impl DriverManager for DummyDriverManager {
-    fn send_device_event(&self, device_event: DeviceEvent) {
-        println!("{:?}", device_event);
-    }
-
-    fn send_component_event(&self, component_event: InputComponentEvent) {
-        println!("Input Event {{ device: {:?}, path: '{}', data: {:?} }}",
-            component_event.device,
-            self.get_path_string(component_event.path).unwrap(),
-            component_event.data,
-        );
-    }
-
-    fn get_path(&mut self, path_string: &str) -> Path {
+impl PathManager {
+    pub fn get_path(&mut self, path_string: &str) -> Result<SuPath, PathFormatError> {
         if let Some(&path) = self.0.get(path_string) {
-            path
-        } else {
-            let path = Path(self.0.len() as u32);
-            self.0.insert(path_string.to_owned(), path);
-            self.1.insert(path, path_string.to_owned());
-            path
+            return Ok(path);
         }
+
+        let mut words = path_string.split('/');
+        if !words.next().unwrap().is_empty() {
+            return Err(PathFormatError::MissingLeadingSlash);
+        }
+
+        for word in &mut words {
+            if word.is_empty() {
+                if words.next().is_none() {
+                    return Err(PathFormatError::IllegalEndingSlash);
+                }
+                return Err(PathFormatError::DoubleSlash);
+            }
+            if word.contains(|c| {
+                if let 'a'..='z' | '0'..='9' | '.' | '-' | '_' = c {
+                    false
+                } else {
+                    true
+                }
+            }) {
+                return Err(PathFormatError::IllegalCharacter);
+            }
+            if !word.contains(|c| c != '.') {
+                return Err(PathFormatError::PeriodOnlyWord);
+            }
+        }
+
+        let path = SuPath(self.0.len() as u32);
+        self.0.insert(path_string.to_owned(), path);
+        self.1.insert(path, path_string.to_owned());
+        Ok(path)
     }
 
-    fn get_path_string(&self, path: Path) -> Option<String> {
+    pub fn get_path_string(&self, path: SuPath) -> Option<String> {
         self.1.get(&path).map(|inner| inner.clone())
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum DeviceEvent {
-    DeviceActivated { id: usize, ty: Path },
-    DeviceDeactivated { id: usize },
-}
-
-#[derive(Debug, Clone)]
-pub struct InputComponentEvent {
-    pub device: usize,
-    pub path: Path,
-    pub time: Time,
-    pub data: EventType,
+#[derive(Debug, Clone, Copy)]
+pub enum GenericDriverEvent {
+    Device(DeviceEvent),
+    Input(InputEvent),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum EventType {
+pub enum DeviceEvent {
+    DeviceActivated { id: usize, ty: SuPath },
+    DeviceDeactivated { id: usize },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InputEvent {
+    pub device: usize,
+    pub path: SuPath,
+    pub time: Time,
+    pub data: InputComponentEvent,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InputComponentEvent {
     Button(ButtonEvent),
     Move2D(Move2D),
+    Cursor(Cursor)
 }
 
 #[derive(Debug, Clone, Copy)]
