@@ -29,5 +29,6 @@ pub trait DriverInterface: Send + Sync {
     fn poll(&self);
     //TODO
     fn get_component_state(&self, device: usize, path: SuPath) -> ();
+    fn set_windows(&mut self, windows: &[usize]) {}
     fn destroy(&mut self);
 }

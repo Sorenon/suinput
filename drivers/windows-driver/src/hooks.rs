@@ -1,3 +1,5 @@
+use std::{collections::HashMap, mem::ManuallyDrop};
+
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use suinput::{
@@ -9,8 +11,9 @@ use windows_sys::Win32::{
     Foundation::HANDLE,
     System::Threading::GetCurrentThreadId,
     UI::WindowsAndMessaging::{
-        CallNextHookEx, GetPhysicalCursorPos, SetWindowsHookExW, UnhookWindowsHookEx, CWPSTRUCT,
-        MSG, PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR, WM_SETCURSOR,
+        CallNextHookEx, GetPhysicalCursorPos, GetWindowThreadProcessId, SetWindowsHookExW,
+        UnhookWindowsHookEx, CWPSTRUCT, MSG, PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR,
+        WM_SETCURSOR,
     },
 };
 
@@ -24,42 +27,73 @@ struct HookState {
     cursor_device: u64,
 }
 
-/**
- * Inject a hook into the application's window to get cursor move and text events
- */
-pub fn inject_hooks(interface: &DriverRuntimeInterface) -> Result<(HANDLE, HANDLE), Error> {
-    assert!(HOOK_STATE.read().is_none());
+pub struct Hooks {
+    hooks: HashMap<u32, (HANDLE, HANDLE)>,
+}
 
-    *HOOK_STATE.write() = Some(HookState {
-        interface: interface.clone(),
-        cursor_move: interface.get_path("/input/cursor/point").unwrap(),
-        cursor_device: interface.register_new_device(
-            interface
-                .get_path("/device/standard/system_cursor")
-                .unwrap(),
-        ),
-    });
+impl Hooks {
+    pub fn new(interface: &DriverRuntimeInterface) -> Self {
+        assert!(HOOK_STATE.read().is_none());
 
-    unsafe {
-        let thread = GetCurrentThreadId();
-        let hook_handle = SetWindowsHookExW(WH_CALLWNDPROC, Some(call_wnd_proc), 0, thread);
-        if hook_handle == 0 {
-            return Err(Error::win32());
+        *HOOK_STATE.write() = Some(HookState {
+            interface: interface.clone(),
+            cursor_move: interface.get_path("/input/cursor/point").unwrap(),
+            cursor_device: interface.register_new_device(
+                interface
+                    .get_path("/device/standard/system_cursor")
+                    .unwrap(),
+            ),
+        });
+
+        Self {
+            hooks: HashMap::new(),
         }
-        let hook_handle2 = SetWindowsHookExW(WH_GETMESSAGE, Some(call_get_message), 0, thread);
-        if hook_handle2 == 0 {
-            return Err(Error::win32());
+    }
+
+    pub fn set_windows(&mut self, windows: &[usize]) -> Result<(), Error> {
+        let mut old_hooks = HashMap::new();
+        std::mem::swap(&mut old_hooks, &mut self.hooks);
+
+        for &window in windows {
+            let thread_id =
+                unsafe { GetWindowThreadProcessId(window as isize, std::ptr::null_mut()) };
+            if self.hooks.contains_key(&thread_id) {
+                continue;
+            }
+            if let Some(hooks) = old_hooks.remove(&thread_id) {
+                self.hooks.insert(thread_id, hooks);
+            } else {
+                unsafe {
+                    let hook_handle =
+                        SetWindowsHookExW(WH_CALLWNDPROC, Some(call_wnd_proc), 0, thread_id);
+                    if hook_handle == 0 {
+                        return Err(Error::win32());
+                    }
+                    let hook_handle2 =
+                        SetWindowsHookExW(WH_GETMESSAGE, Some(call_get_message), 0, thread_id);
+                    if hook_handle2 == 0 {
+                        return Err(Error::win32());
+                    }
+                    self.hooks.insert(thread_id, (hook_handle, hook_handle2));
+                }
+            }
         }
-        Ok((hook_handle, hook_handle2))
+
+        for (thread, hooks) in old_hooks {
+            unsafe {
+                UnhookWindowsHookEx(hooks.0);
+                UnhookWindowsHookEx(hooks.1);
+            }
+        }
+
+        Ok(())
     }
 }
 
-pub fn remove_hooks(hooks: (HANDLE, HANDLE)) {
-    *HOOK_STATE.write() = None;
-
-    unsafe {
-        UnhookWindowsHookEx(hooks.0);
-        UnhookWindowsHookEx(hooks.1);
+impl Drop for Hooks {
+    fn drop(&mut self) {
+        *HOOK_STATE.write() = None;
+        self.set_windows(&[]).unwrap();
     }
 }
 
@@ -90,6 +124,7 @@ unsafe extern "system" fn call_wnd_proc(a: i32, b: usize, cwp_ptr: isize) -> isi
 
 unsafe extern "system" fn call_get_message(code: i32, remove: usize, msg_ptr: isize) -> isize {
     //TODO figure out if it would be better to use this for cursor movement instead
+    //TODO experiment with hooking WM_CHAR
     if remove as u32 == PM_REMOVE {
         let msg = &*(msg_ptr as usize as *const MSG);
 

@@ -1,5 +1,6 @@
 use std::{ops::Deref, thread::JoinHandle};
 
+use hooks::Hooks;
 use suinput::{
     driver_interface::{DriverInterface, DriverRuntimeInterface},
     SuPath,
@@ -51,21 +52,21 @@ pub type Result<T> = std::result::Result<T, Error>;
     Pan (Double contact)
 */
 
-pub struct WindowsDesktopDriver {
+pub struct Win32DesktopDriver {
     runtime_interface: DriverRuntimeInterface,
     raw_input_thread: Option<JoinHandle<()>>,
-    hooks: Option<(HANDLE, HANDLE)>,
+    hooks: Option<Hooks>,
     running: bool,
 }
 
-impl WindowsDesktopDriver {
+impl Win32DesktopDriver {
     pub fn initialize(
         runtime_interface: DriverRuntimeInterface,
         cursor: bool,
         mouse_and_keyboard: bool,
     ) -> Result<Self> {
         let hooks = if cursor {
-            Some(hooks::inject_hooks(&runtime_interface)?)
+            Some(Hooks::new(&runtime_interface))
         } else {
             None
         };
@@ -88,7 +89,7 @@ impl WindowsDesktopDriver {
     }
 }
 
-impl DriverInterface for WindowsDesktopDriver {
+impl DriverInterface for Win32DesktopDriver {
     fn poll(&self) {
         todo!()
     }
@@ -97,15 +98,19 @@ impl DriverInterface for WindowsDesktopDriver {
         todo!()
     }
 
-    fn destroy(&mut self) {
-        if let Some(hooks) = self.hooks {
-            hooks::remove_hooks(hooks);
+    fn set_windows(&mut self, windows: &[usize]) {
+        if let Some(hooks) = &mut self.hooks {
+            hooks.set_windows(windows).unwrap();
         }
+    }
+
+    fn destroy(&mut self) {
+        std::mem::drop(self.hooks.take());
         self.running = false;
     }
 }
 
-impl Drop for WindowsDesktopDriver {
+impl Drop for Win32DesktopDriver {
     fn drop(&mut self) {
         if self.running {
             println!("WARNING Windows Driver was dropped before being destroyed");

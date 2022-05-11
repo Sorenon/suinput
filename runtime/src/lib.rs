@@ -14,37 +14,42 @@ use suinput::{
 };
 use thunderdome::Arena;
 
-type DriverResponseSenders = Arc<Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>>;
-
-//TODO make SuInputRuntime Send + Sync
+//Should the runtime API be multithreaded friendly without the need for external locks?
+//Pros:
+//Increases FFI stability due to lack of Fearless Concurrency
+//Simplifies engine integration
+//Cons:
+//Increases implementation complexity
+//Might only be needed for the action api
 pub struct SuInputRuntime {
     driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
     paths: Arc<RwLock<PathManager>>,
     thread: JoinHandle<()>,
-    devices: Arc<RwLock<Arena<SuPath>>>,
+    shared_state: Arc<RuntimeState>,
     drivers: Vec<Box<dyn DriverInterface>>,
-    driver_response_senders: DriverResponseSenders,
+}
+
+#[derive(Default)]
+struct RuntimeState {
+    devices: RwLock<Arena<SuPath>>,
+    driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
 }
 
 impl SuInputRuntime {
     pub fn new() -> Self {
         let (driver2runtime_sender, driver2runtime_receiver) = flume::bounded(100);
 
-        let devices = Arc::new(RwLock::new(Arena::new()));
-        let driver_response_senders = DriverResponseSenders::default();
-        let input_thread = spawn_thread(
-            driver_response_senders.clone(),
-            driver2runtime_receiver,
-            devices.clone(),
-        );
+        let shared_state = Arc::<RuntimeState>::default();
+        let input_thread = spawn_thread(driver2runtime_receiver, shared_state.clone());
 
         Self {
             driver2runtime_sender,
             paths: Arc::new(RwLock::new(PathManager::default())),
             thread: input_thread,
-            devices,
+            // devices,
             drivers: Vec::new(),
-            driver_response_senders,
+            // driver_response_senders,
+            shared_state,
         }
     }
 
@@ -57,7 +62,8 @@ impl SuInputRuntime {
         let (runtime2driver_sender, runtime2driver_receiver) = flume::bounded(1);
 
         {
-            self.driver_response_senders
+            self.shared_state
+                .driver_response_senders
                 .lock()
                 .push(runtime2driver_sender);
         }
@@ -75,9 +81,15 @@ impl SuInputRuntime {
                 Ok(self.drivers.len() - 1)
             }
             Err(err) => {
-                self.driver_response_senders.lock().pop();
+                self.shared_state.driver_response_senders.lock().pop();
                 Err(err)
             }
+        }
+    }
+
+    pub fn set_windows(&mut self, windows: &[usize]) {
+        for driver in &mut self.drivers {
+            driver.set_windows(windows);
         }
     }
 
@@ -89,9 +101,8 @@ impl SuInputRuntime {
 }
 
 fn spawn_thread(
-    driver_response_senders: DriverResponseSenders,
     driver2runtime_receiver: Receiver<(usize, Driver2RuntimeEvent)>,
-    devices: Arc<RwLock<Arena<SuPath>>>,
+    state: Arc<RuntimeState>,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
         while let Ok((driver, event)) = driver2runtime_receiver.recv() {
@@ -99,19 +110,16 @@ fn spawn_thread(
 
             match event {
                 Driver2RuntimeEvent::RegisterDevice(ty) => {
-                    //Current task: Device ID persistence
+                    //TODO: Device ID persistence
+                    let device_id = state.devices.write().insert(ty);
 
-                    println!("s");
-
-                    let device_id = devices.write().insert(ty);
-                    driver_response_senders
+                    state
+                        .driver_response_senders
                         .lock()
                         .get(driver)
                         .unwrap()
                         .send(Driver2RuntimeEventResponse::DeviceId(device_id.to_bits()))
                         .unwrap();
-
-                    println!("s2");
                 }
                 _ => (),
             }

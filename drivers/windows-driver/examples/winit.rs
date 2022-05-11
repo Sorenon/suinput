@@ -9,6 +9,7 @@ use suinput::{
 use winit::{
     event::{DeviceEvent, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    platform::windows::WindowExtWindows,
     window::WindowBuilder,
 };
 
@@ -59,7 +60,9 @@ fn main() -> Result<(), anyhow::Error> {
     )));
 
     let mut windows_driver =
-        windows_driver::WindowsDesktopDriver::initialize(runtime_interface, true, true)?;
+        windows_driver::Win32DesktopDriver::initialize(runtime_interface, true, true)?;
+
+    windows_driver.set_windows(&[window.hwnd() as _]);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

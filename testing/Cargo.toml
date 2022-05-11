@@ -9,3 +9,5 @@ runtime = { path = "../runtime" }
 windows-driver = { path = "../drivers/windows-driver" }
 winit = "0.26"
 anyhow = "1.0"
+bevy = "0.7.0"
+raw-window-handle = "0.4"
