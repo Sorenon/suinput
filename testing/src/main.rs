@@ -1,9 +1,4 @@
-use std::sync::Arc;
-
-use suinput::{
-    driver_interface::{DriverRuntimeInterface, EmbeddedDriverRuntimeInterface},
-    SuInputRuntime,
-};
+use runtime::SuInputRuntime;
 use winit::{
     dpi::LogicalPosition,
     event::{Event, WindowEvent},
@@ -15,14 +10,11 @@ fn main() -> anyhow::Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;
 
-    let runtime = SuInputRuntime::new();
+    let mut runtime = SuInputRuntime::new();
 
-    let mut windows_driver = windows_driver::WindowsDesktopDriver::initialize(
-        DriverRuntimeInterface(Arc::new(EmbeddedDriverRuntimeInterface {
-            paths: runtime.paths,
-            sender: runtime.driver2runtime_sender,
-        })),
-    )?;
+    runtime.add_driver(|runtime_interface| {
+        windows_driver::WindowsDesktopDriver::initialize(runtime_interface, true, true)
+    })?;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -32,7 +24,7 @@ fn main() -> anyhow::Result<()> {
                 window_id,
             } if window_id == window.id() => {
                 *control_flow = ControlFlow::Exit;
-                windows_driver.destroy();
+                runtime.destroy();
             }
             Event::WindowEvent {
                 event: WindowEvent::ReceivedCharacter(char),
@@ -41,7 +33,7 @@ fn main() -> anyhow::Result<()> {
                 window
                     .set_cursor_position(LogicalPosition::new(0, 10))
                     .unwrap();
-                println!("{char}");
+                println!("c-{char}");
             }
             _ => (),
         }

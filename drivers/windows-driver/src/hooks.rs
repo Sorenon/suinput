@@ -1,6 +1,5 @@
-use std::sync::RwLock;
-
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use suinput::{
     driver_interface::DriverRuntimeInterface,
     event::{Cursor, InputComponentEvent, InputEvent},
@@ -22,17 +21,23 @@ static HOOK_STATE: Lazy<RwLock<Option<HookState>>> = Lazy::new(|| RwLock::new(No
 struct HookState {
     interface: DriverRuntimeInterface,
     cursor_move: SuPath,
+    cursor_device: u64,
 }
 
 /**
  * Inject a hook into the application's window to get cursor move and text events
  */
 pub fn inject_hooks(interface: &DriverRuntimeInterface) -> Result<(HANDLE, HANDLE), Error> {
-    assert!(HOOK_STATE.read().unwrap().is_none());
+    assert!(HOOK_STATE.read().is_none());
 
-    *HOOK_STATE.write().unwrap() = Some(HookState {
+    *HOOK_STATE.write() = Some(HookState {
         interface: interface.clone(),
         cursor_move: interface.get_path("/input/cursor/point").unwrap(),
+        cursor_device: interface.register_new_device(
+            interface
+                .get_path("/device/standard/system_cursor")
+                .unwrap(),
+        ),
     });
 
     unsafe {
@@ -50,7 +55,7 @@ pub fn inject_hooks(interface: &DriverRuntimeInterface) -> Result<(HANDLE, HANDL
 }
 
 pub fn remove_hooks(hooks: (HANDLE, HANDLE)) {
-    *HOOK_STATE.write().unwrap() = None;
+    *HOOK_STATE.write() = None;
 
     unsafe {
         UnhookWindowsHookEx(hooks.0);
@@ -71,7 +76,7 @@ unsafe extern "system" fn call_wnd_proc(a: i32, b: usize, cwp_ptr: isize) -> isi
         let hook_state = hook_state_guard.as_ref().unwrap();
 
         hook_state.interface.send_component_event(InputEvent {
-            device: 0,
+            device: hook_state.cursor_device,
             path: hook_state.cursor_move,
             time: Time(0),
             data: InputComponentEvent::Cursor(Cursor {

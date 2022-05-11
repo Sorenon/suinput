@@ -1,9 +1,14 @@
 use std::{ops::Deref, thread::JoinHandle};
 
-use suinput::driver_interface::DriverRuntimeInterface;
+use suinput::{
+    driver_interface::{DriverInterface, DriverRuntimeInterface},
+    SuPath,
+};
 use windows_sys::Win32::Foundation::{GetLastError, HANDLE};
 
+//TODO replace with hid_cm
 pub mod hid;
+pub mod hid_cm;
 pub mod hooks;
 pub mod paths;
 pub mod raw_input;
@@ -13,6 +18,8 @@ pub mod raw_input_driver;
 pub enum Error {
     #[error("Win32 error 0x{0:0X}")]
     Win32(u32),
+    #[error("CfgMgr error 0x{0:0X}")]
+    CfgMgr(u32),
 }
 
 impl Error {
@@ -33,6 +40,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
     Winit with Poll set does not receive scroll inertia even if we call GetMessageW
 
+    On zoom the touchpad hid interface sends a virtual ctrl key
+
     Always:
     Clicks (Quick tap: Mouse left click, Quick tap then hold: Mouse left click, Quick tap two contacts: Mouse right click)
     Mouse Move (Single contact)
@@ -43,19 +52,32 @@ pub type Result<T> = std::result::Result<T, Error>;
 */
 
 pub struct WindowsDesktopDriver {
-    pub runtime_interface: DriverRuntimeInterface,
-    pub raw_input_thread: JoinHandle<()>,
-    pub hooks: (HANDLE, HANDLE),
+    runtime_interface: DriverRuntimeInterface,
+    raw_input_thread: Option<JoinHandle<()>>,
+    hooks: Option<(HANDLE, HANDLE)>,
     running: bool,
 }
 
 impl WindowsDesktopDriver {
-    pub fn initialize(runtime_interface: DriverRuntimeInterface) -> Result<Self> {
-        let hooks = hooks::inject_hooks(&runtime_interface)?;
+    pub fn initialize(
+        runtime_interface: DriverRuntimeInterface,
+        cursor: bool,
+        mouse_and_keyboard: bool,
+    ) -> Result<Self> {
+        let hooks = if cursor {
+            Some(hooks::inject_hooks(&runtime_interface)?)
+        } else {
+            None
+        };
 
         let runtime_interface_clone = runtime_interface.clone();
-        let raw_input_thread =
-            std::thread::spawn(move || raw_input_driver::run(runtime_interface_clone.0.deref()));
+        let raw_input_thread = if mouse_and_keyboard {
+            Some(std::thread::spawn(move || {
+                raw_input_driver::run(runtime_interface_clone.0.deref())
+            }))
+        } else {
+            None
+        };
 
         Ok(Self {
             runtime_interface,
@@ -64,9 +86,21 @@ impl WindowsDesktopDriver {
             running: true,
         })
     }
+}
 
-    pub fn destroy(&mut self) {
-        hooks::remove_hooks(self.hooks);
+impl DriverInterface for WindowsDesktopDriver {
+    fn poll(&self) {
+        todo!()
+    }
+
+    fn get_component_state(&self, device: usize, path: SuPath) -> () {
+        todo!()
+    }
+
+    fn destroy(&mut self) {
+        if let Some(hooks) = self.hooks {
+            hooks::remove_hooks(hooks);
+        }
         self.running = false;
     }
 }

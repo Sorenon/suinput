@@ -58,20 +58,8 @@ impl PathManager {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum GenericDriverEvent {
-    Device(DeviceEvent),
-    Input(InputEvent),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum DeviceEvent {
-    DeviceActivated { id: usize, ty: SuPath },
-    DeviceDeactivated { id: usize },
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct InputEvent {
-    pub device: usize,
+    pub device: u64,
     pub path: SuPath,
     pub time: Time,
     pub data: InputComponentEvent,

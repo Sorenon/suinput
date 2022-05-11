@@ -1,7 +1,8 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
+use parking_lot::RwLock;
 use suinput::{
-    driver_interface::{DriverRuntimeInterface, DriverRuntimeInterfaceTrait},
+    driver_interface::{DriverInterface, DriverRuntimeInterface, DriverRuntimeInterfaceTrait},
     event::PathManager,
     SuPath,
 };
@@ -12,11 +13,20 @@ use winit::{
 };
 
 #[derive(Debug)]
-pub struct DummyDriverManager(pub Arc<RwLock<PathManager>>);
+pub struct DummyDriverManager(pub Arc<RwLock<PathManager>>, pub RwLock<Vec<SuPath>>);
 
 impl DriverRuntimeInterfaceTrait for DummyDriverManager {
-    fn send_device_event(&self, device_event: suinput::event::DeviceEvent) {
-        println!("{:?}", device_event);
+    fn register_new_device(&self, device_type: SuPath) -> u64 {
+        let mut vec = self.1.try_write().unwrap();
+        vec.push(device_type);
+        (vec.len() - 1) as u64
+    }
+
+    fn disconnect_device(&self, device_id: u64) {
+        println!(
+            "{device_id} ({:?}) disconnected ",
+            self.1.try_read().unwrap().get(device_id as usize)
+        );
     }
 
     fn send_component_event(&self, component_event: suinput::event::InputEvent) {
@@ -29,11 +39,11 @@ impl DriverRuntimeInterfaceTrait for DummyDriverManager {
     }
 
     fn get_path(&self, path_string: &str) -> Result<SuPath, suinput::event::PathFormatError> {
-        self.0.try_write().unwrap().get_path(path_string)
+        self.0.write().get_path(path_string)
     }
 
     fn get_path_string(&self, path: SuPath) -> Option<String> {
-        self.0.try_read().unwrap().get_path_string(path)
+        self.0.read().get_path_string(path)
     }
 }
 
@@ -43,9 +53,13 @@ fn main() -> Result<(), anyhow::Error> {
 
     let path_manager = Arc::new(RwLock::new(PathManager::default()));
 
-    let runtime_interface = DriverRuntimeInterface(Arc::new(DummyDriverManager(path_manager)));
+    let runtime_interface = DriverRuntimeInterface(Arc::new(DummyDriverManager(
+        path_manager,
+        RwLock::new(Vec::new()),
+    )));
 
-    let mut windows_driver = windows_driver::WindowsDesktopDriver::initialize(runtime_interface)?;
+    let mut windows_driver =
+        windows_driver::WindowsDesktopDriver::initialize(runtime_interface, true, true)?;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -58,7 +72,7 @@ fn main() -> Result<(), anyhow::Error> {
                 windows_driver.destroy();
             }
             Event::WindowEvent {
-                event: WindowEvent::MouseWheel { delta, .. },
+                event: WindowEvent::MouseWheel { delta: _, .. },
                 window_id,
             } if window_id == window.id() => {
                 // println!("Winit Scroll Event {delta:?}");

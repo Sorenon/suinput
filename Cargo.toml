@@ -1,14 +1,15 @@
 [workspace]
 members = [
-    "windows-driver",
+    "drivers/windows-driver",
+    "drivers/openxr-driver",
     "generator",
     "testing",
+    "runtime",
 ]
 
 [package]
 name = "suinput"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-flume = "0.10.12"

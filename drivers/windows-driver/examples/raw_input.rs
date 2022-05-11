@@ -6,7 +6,10 @@ fn main() -> anyhow::Result<()> {
     for i_device in devices {
         println!("{}, {}", i_device.hDevice, i_device.dwType);
         println!("{:?}", get_ri_device_info(i_device.hDevice)?);
-        println!("-{:?}", get_rid_device_interface_name(i_device.hDevice));
+        println!(
+            "{}",
+            get_rid_device_interface_name(i_device.hDevice)?.to_string_lossy()
+        )
     }
 
     Ok(())

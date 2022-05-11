@@ -1,11 +1,3 @@
-use std::{
-    sync::{Arc, RwLock},
-    thread::JoinHandle,
-};
-
-use event::{GenericDriverEvent, PathManager};
-use flume::{Receiver, Sender};
-
 pub mod driver_interface;
 pub mod event;
 pub mod interaction_profile;
@@ -38,32 +30,4 @@ pub struct ActionHandle(u64);
 pub struct Vec2D {
     pub x: f32,
     pub y: f32,
-}
-
-pub struct SuInputRuntime {
-    pub driver2runtime_sender: Sender<GenericDriverEvent>,
-    pub driver2runtime_receiver: Receiver<GenericDriverEvent>,
-    pub paths: Arc<RwLock<PathManager>>,
-    pub thread: JoinHandle<()>,
-}
-
-impl SuInputRuntime {
-    pub fn new() -> Self {
-        let (driver2runtime_sender, driver2runtime_receiver) =
-            flume::bounded::<event::GenericDriverEvent>(100);
-
-        let driver2runtime_receiver_clone = driver2runtime_receiver.clone();
-        let thread = std::thread::spawn(move || {
-            while let Ok(packet) = driver2runtime_receiver_clone.recv() {
-                println!("{:?}", packet)
-            }
-        });
-
-        Self {
-            driver2runtime_sender,
-            driver2runtime_receiver,
-            paths: Arc::new(RwLock::new(PathManager::default())),
-            thread,
-        }
-    }
 }

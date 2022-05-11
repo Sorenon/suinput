@@ -1,13 +1,9 @@
 use std::{ffi::OsString, mem::size_of, os::windows::prelude::OsStringExt};
 
 use suinput::{
-    driver_interface::DriverRuntimeInterfaceTrait,
-    event::{ButtonEvent, InputComponentEvent, InputEvent, Move2D},
     keyboard::HIDScanCode,
-    Time,
 };
 use windows_sys::Win32::{
-    Devices::HumanInterfaceDevice::MOUSE_MOVE_ABSOLUTE,
     Foundation::{GetLastError, ERROR_INSUFFICIENT_BUFFER, HANDLE, HWND},
     UI::{
         Input::{
@@ -17,11 +13,10 @@ use windows_sys::Win32::{
             RIDI_DEVICEINFO, RIDI_DEVICENAME, RID_DEVICE_INFO, RID_INPUT, RIM_TYPEHID,
             RIM_TYPEKEYBOARD, RIM_TYPEMOUSE,
         },
-        WindowsAndMessaging::*,
     },
 };
 
-use crate::{paths::CommonPaths, Error, Result};
+use crate::{Error, Result};
 
 /**
  * Returns a list of all raw input devices
@@ -208,135 +203,6 @@ pub fn get_rid_device_interface_name(raw_input_device: HANDLE) -> Result<OsStrin
             buffer.set_len(size as usize);
 
             Ok(OsString::from_wide(&buffer))
-        }
-    }
-}
-
-pub fn process_mouse(
-    raw_input_data: RAWINPUT,
-    driver_manager: &dyn DriverRuntimeInterfaceTrait,
-    paths: &CommonPaths,
-) {
-    let mouse = unsafe { raw_input_data.data.mouse };
-
-    if mouse.usFlags & (MOUSE_MOVE_ABSOLUTE as u16) == 0 {
-        if mouse.lLastX != 0 || mouse.lLastY != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_move,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: (mouse.lLastX as f64, mouse.lLastY as f64),
-                }),
-            });
-        }
-    } else {
-        unimplemented!(
-            "Mouse({}) Absolute {} {}",
-            raw_input_data.header.hDevice,
-            mouse.lLastX,
-            mouse.lLastY
-        );
-    }
-
-    let data = unsafe { &mouse.Anonymous.Anonymous };
-
-    if data.usButtonFlags != 0 {
-        let flags = data.usButtonFlags as u32;
-        if flags & RI_MOUSE_BUTTON_1_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_left_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
-        } else if flags & RI_MOUSE_BUTTON_1_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_left_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
-        }
-        if flags & RI_MOUSE_BUTTON_2_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_right_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
-        } else if flags & RI_MOUSE_BUTTON_2_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_right_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
-        }
-        if flags & RI_MOUSE_BUTTON_3_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_middle_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
-        } else if flags & RI_MOUSE_BUTTON_3_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_middle_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
-        }
-        if flags & RI_MOUSE_BUTTON_4_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_button4_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
-        } else if flags & RI_MOUSE_BUTTON_4_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_button4_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
-        }
-        if flags & RI_MOUSE_BUTTON_5_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_button5_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
-        } else if flags & RI_MOUSE_BUTTON_5_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_button5_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
-        }
-        if flags & RI_MOUSE_WHEEL != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_scroll,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
-                }),
-            });
-        }
-        if flags & RI_MOUSE_HWHEEL != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: raw_input_data.header.hDevice as _,
-                path: paths.mouse_scroll,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
-                }),
-            });
         }
     }
 }
