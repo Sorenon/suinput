@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
     ffi::OsStr,
-    os::windows::{prelude::OsStrExt, raw},
+    os::windows::prelude::OsStrExt,
 };
 
 use suinput::{
-    driver_interface::DriverRuntimeInterfaceTrait,
+    driver_interface::RuntimeInterfaceTrait,
     event::{ButtonEvent, InputComponentEvent, InputEvent, Move2D},
     keyboard::{self, HIDScanCode, KeyboardPaths},
     Time,
@@ -15,7 +15,7 @@ use windows_sys::Win32::{
     Foundation::{HANDLE, HWND},
     System::{LibraryLoader::GetModuleHandleW, SystemInformation::GetTickCount},
     UI::{
-        Input::{RAWINPUT, RIM_TYPEHID, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE},
+        Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE},
         WindowsAndMessaging::*,
     },
 };
@@ -75,7 +75,7 @@ pub fn create_background_window() -> Result<HWND> {
 }
 
 struct RawInputDriver<'a> {
-    driver_manager: &'a dyn DriverRuntimeInterfaceTrait,
+    driver_manager: &'a dyn RuntimeInterfaceTrait,
     paths: CommonPaths,
     keyboard_paths: KeyboardPaths,
     device_ids: HashMap<HANDLE, u64>,
@@ -98,7 +98,7 @@ impl<'a> RawInputDriver<'a> {
 
             let device_id = self.driver_manager.register_new_device(device_type);
 
-            self.device_ids.insert(raw_input_device, device_id);
+            self.device_ids.insert(raw_input_device, device_id.unwrap());
             self.ri_devices.insert(raw_input_device, rid_device_info);
         } else {
             self.ri_devices.remove(&raw_input_device).unwrap();
@@ -204,7 +204,7 @@ impl<'a> RawInputDriver<'a> {
 
 //TODO investigate using the application window for this with hooks
 //^ This may improve the stability of the Unity plugin
-pub fn run(driver_manager: &dyn DriverRuntimeInterfaceTrait) {
+pub fn run(driver_manager: &dyn RuntimeInterfaceTrait) {
     let window = create_background_window().unwrap();
     raw_input::register_raw_input_classes(window).unwrap();
 
@@ -215,8 +215,8 @@ pub fn run(driver_manager: &dyn DriverRuntimeInterfaceTrait) {
         device_ids: HashMap::new(),
         ri_devices: HashMap::new(),
         keyboard_states: HashMap::new(),
-        system_mouse_id: driver_manager.register_new_device(paths.mouse),
-        system_keyboard_id: driver_manager.register_new_device(paths.keyboard),
+        system_mouse_id: driver_manager.register_new_device(paths.mouse).unwrap(),
+        system_keyboard_id: driver_manager.register_new_device(paths.keyboard).unwrap(),
         paths,
         keyboard_paths,
         driver_manager,
@@ -254,7 +254,7 @@ pub fn run(driver_manager: &dyn DriverRuntimeInterfaceTrait) {
 pub fn process_mouse(
     raw_input_data: RAWINPUT,
     device_id: u64,
-    driver_manager: &dyn DriverRuntimeInterfaceTrait,
+    driver_manager: &dyn RuntimeInterfaceTrait,
     paths: &CommonPaths,
 ) {
     let mouse = unsafe { raw_input_data.data.mouse };

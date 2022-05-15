@@ -8,3 +8,4 @@ suinput = { path = "../" }
 flume = "0.10"
 parking_lot = "0.12"
 thunderdome = "0.5"
+raw-window-handle = "0.4"

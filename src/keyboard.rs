@@ -438,7 +438,7 @@ impl HIDScanCode {
     }
 }
 
-use crate::{SuPath, driver_interface::DriverRuntimeInterfaceTrait};
+use crate::{SuPath, driver_interface::RuntimeInterfaceTrait};
 pub struct KeyboardPaths {
     pub a: SuPath,
     pub b: SuPath,
@@ -657,7 +657,7 @@ pub struct KeyboardPaths {
 }
 
 impl KeyboardPaths {
-    pub fn new(driver_manager: &dyn DriverRuntimeInterfaceTrait) -> Self {
+    pub fn new(driver_manager: &dyn RuntimeInterfaceTrait) -> Self {
         Self {
             a: driver_manager.get_path("/input/button_a/click").unwrap(),
             b: driver_manager.get_path("/input/button_b/click").unwrap(),

@@ -14,9 +14,7 @@ fn initialize_runtime(mut commands: Commands) {
     let mut embedded_runtime = SuInputRuntime::new();
 
     embedded_runtime
-        .add_driver(|runtime_interface| {
-            windows_driver::Win32DesktopDriver::initialize(runtime_interface, true, true)
-        })
+        .add_driver(|runtime_interface| windows_driver::Win32DesktopDriver::new(runtime_interface))
         .unwrap();
 
     commands.insert_resource(embedded_runtime);
@@ -24,16 +22,11 @@ fn initialize_runtime(mut commands: Commands) {
 
 fn check_window_changed(windows: Res<Windows>, mut runtime: ResMut<SuInputRuntime>) {
     if windows.is_changed() {
-        let handles: Vec<usize> = windows
+        let handles: Vec<RawWindowHandle> = windows
             .iter()
-            .filter_map(|window| unsafe {
-                match window.raw_window_handle().get_handle().raw_window_handle() {
-                    RawWindowHandle::Win32(f) => Some(f.hwnd as usize),
-                    _ => None,
-                }
-            })
+            .map(|window| unsafe { window.raw_window_handle().get_handle().raw_window_handle() })
             .collect();
-        runtime.set_windows(&handles);
+        runtime.set_windows_rwh(&handles);
     }
 }
 

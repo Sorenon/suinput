@@ -1,15 +1,14 @@
-use std::{collections::HashMap, mem::ManuallyDrop};
+use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use suinput::{
-    driver_interface::DriverRuntimeInterface,
+    driver_interface::RuntimeInterface,
     event::{Cursor, InputComponentEvent, InputEvent},
     SuPath, Time,
 };
 use windows_sys::Win32::{
     Foundation::HANDLE,
-    System::Threading::GetCurrentThreadId,
     UI::WindowsAndMessaging::{
         CallNextHookEx, GetPhysicalCursorPos, GetWindowThreadProcessId, SetWindowsHookExW,
         UnhookWindowsHookEx, CWPSTRUCT, MSG, PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR,
@@ -22,7 +21,7 @@ use crate::Error;
 static HOOK_STATE: Lazy<RwLock<Option<HookState>>> = Lazy::new(|| RwLock::new(None));
 
 struct HookState {
-    interface: DriverRuntimeInterface,
+    interface: RuntimeInterface,
     cursor_move: SuPath,
     cursor_device: u64,
 }
@@ -32,7 +31,7 @@ pub struct Hooks {
 }
 
 impl Hooks {
-    pub fn new(interface: &DriverRuntimeInterface) -> Self {
+    pub fn new(interface: &RuntimeInterface) -> Self {
         assert!(HOOK_STATE.read().is_none());
 
         *HOOK_STATE.write() = Some(HookState {
@@ -42,7 +41,7 @@ impl Hooks {
                 interface
                     .get_path("/device/standard/system_cursor")
                     .unwrap(),
-            ),
+            ).unwrap(),
         });
 
         Self {
@@ -79,7 +78,7 @@ impl Hooks {
             }
         }
 
-        for (thread, hooks) in old_hooks {
+        for (_, hooks) in old_hooks {
             unsafe {
                 UnhookWindowsHookEx(hooks.0);
                 UnhookWindowsHookEx(hooks.1);

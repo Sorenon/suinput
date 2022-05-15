@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use suinput::{
-    driver_interface::{DriverInterface, DriverRuntimeInterface, DriverRuntimeInterfaceTrait},
+    driver_interface::{
+        DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
+    },
     event::PathManager,
     SuPath,
 };
@@ -16,27 +18,34 @@ use winit::{
 #[derive(Debug)]
 pub struct DummyDriverManager(pub Arc<RwLock<PathManager>>, pub RwLock<Vec<SuPath>>);
 
-impl DriverRuntimeInterfaceTrait for DummyDriverManager {
-    fn register_new_device(&self, device_type: SuPath) -> u64 {
+impl RuntimeInterfaceTrait for DummyDriverManager {
+    fn register_new_device(&self, device_type: SuPath) -> Result<u64, RuntimeInterfaceError> {
         let mut vec = self.1.try_write().unwrap();
         vec.push(device_type);
-        (vec.len() - 1) as u64
+        Ok((vec.len() - 1) as u64)
     }
 
-    fn disconnect_device(&self, device_id: u64) {
+    fn disconnect_device(&self, device_id: u64) -> Result<(), RuntimeInterfaceError> {
         println!(
             "{device_id} ({:?}) disconnected ",
             self.1.try_read().unwrap().get(device_id as usize)
         );
+
+        Ok(())
     }
 
-    fn send_component_event(&self, component_event: suinput::event::InputEvent) {
+    fn send_component_event(
+        &self,
+        component_event: suinput::event::InputEvent,
+    ) -> Result<(), RuntimeInterfaceError> {
         println!(
             "Input Event {{ device: {:?}, path: '{}', data: {:?} }}",
             component_event.device,
             self.get_path_string(component_event.path).unwrap(),
             component_event.data,
         );
+
+        Ok(())
     }
 
     fn get_path(&self, path_string: &str) -> Result<SuPath, suinput::event::PathFormatError> {
@@ -54,13 +63,14 @@ fn main() -> Result<(), anyhow::Error> {
 
     let path_manager = Arc::new(RwLock::new(PathManager::default()));
 
-    let runtime_interface = DriverRuntimeInterface(Arc::new(DummyDriverManager(
+    let runtime_interface = RuntimeInterface(Arc::new(DummyDriverManager(
         path_manager,
         RwLock::new(Vec::new()),
     )));
 
-    let mut windows_driver =
-        windows_driver::Win32DesktopDriver::initialize(runtime_interface, true, true)?;
+    let mut windows_driver = windows_driver::Win32DesktopDriver::new(runtime_interface)?;
+
+    windows_driver.initialize();
 
     windows_driver.set_windows(&[window.hwnd() as _]);
 

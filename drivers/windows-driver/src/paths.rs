@@ -1,4 +1,4 @@
-use suinput::{driver_interface::DriverRuntimeInterfaceTrait, SuPath};
+use suinput::{driver_interface::RuntimeInterfaceTrait, SuPath};
 
 pub struct CommonPaths {
     pub mouse: SuPath,
@@ -13,7 +13,7 @@ pub struct CommonPaths {
 }
 
 impl CommonPaths {
-    pub fn new(driver_manager: &dyn DriverRuntimeInterfaceTrait) -> Self {
+    pub fn new(driver_manager: &dyn RuntimeInterfaceTrait) -> Self {
         Self {
             mouse: driver_manager.get_path("/device/standard/generic_mouse").unwrap(),
             keyboard: driver_manager.get_path("/device/standard/hid_keyboard").unwrap(),

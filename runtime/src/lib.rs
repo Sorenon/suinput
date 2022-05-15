@@ -1,14 +1,20 @@
 use std::{
-    ops::Add,
-    sync::Arc,
+    ops::{Add, Deref},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread::JoinHandle,
     time::{Duration, Instant},
 };
 
 use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
+use raw_window_handle::RawWindowHandle;
 use suinput::{
-    driver_interface::{DriverInterface, DriverRuntimeInterface, DriverRuntimeInterfaceTrait},
+    driver_interface::{
+        DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
+    },
     event::{InputEvent, PathFormatError, PathManager},
     SuPath,
 };
@@ -53,44 +59,51 @@ impl SuInputRuntime {
         }
     }
 
-    //TODO improve this
     pub fn add_driver<F, T, E>(&mut self, f: F) -> Result<usize, E>
     where
-        F: FnOnce(DriverRuntimeInterface) -> Result<T, E>,
+        F: FnOnce(RuntimeInterface) -> Result<T, E>,
         T: DriverInterface + 'static,
     {
         let (runtime2driver_sender, runtime2driver_receiver) = flume::bounded(1);
 
-        {
-            self.shared_state
-                .driver_response_senders
-                .lock()
-                .push(runtime2driver_sender);
-        }
+        let idx = self.drivers.len();
 
-        match f(DriverRuntimeInterface(Arc::new(
-            EmbeddedDriverRuntimeInterface {
-                paths: self.paths.clone(),
-                sender: self.driver2runtime_sender.clone(),
-                idx: self.drivers.len(),
-                receiver: runtime2driver_receiver,
-            },
-        ))) {
-            Ok(driver) => {
-                self.drivers.push(Box::new(driver));
-                Ok(self.drivers.len() - 1)
-            }
-            Err(err) => {
-                self.shared_state.driver_response_senders.lock().pop();
-                Err(err)
-            }
-        }
+        let runtime_interface = Arc::new(EmbeddedDriverRuntimeInterface {
+            ready: AtomicBool::new(false),
+            paths: self.paths.clone(),
+            sender: self.driver2runtime_sender.clone(),
+            idx,
+            receiver: runtime2driver_receiver,
+        });
+
+        let driver = f(RuntimeInterface(runtime_interface.clone()))?;
+
+        self.shared_state
+            .driver_response_senders
+            .lock()
+            .push(runtime2driver_sender);
+        self.drivers.push(Box::new(driver));
+        runtime_interface.ready.store(true, Ordering::Relaxed);
+        self.drivers.get_mut(idx).unwrap().initialize();
+        Ok(idx)
     }
 
     pub fn set_windows(&mut self, windows: &[usize]) {
         for driver in &mut self.drivers {
             driver.set_windows(windows);
         }
+    }
+
+    pub fn set_windows_rwh(&mut self, raw_window_handles: &[RawWindowHandle]) {
+        self.set_windows(
+            &raw_window_handles
+                .iter()
+                .filter_map(|raw_window_handle| match raw_window_handle {
+                    RawWindowHandle::Win32(f) => Some(f.hwnd as usize),
+                    _ => None,
+                })
+                .collect::<Vec<usize>>(),
+        );
     }
 
     pub fn destroy(&mut self) {
@@ -132,39 +145,55 @@ fn spawn_thread(
  */
 #[derive(Debug)]
 pub struct EmbeddedDriverRuntimeInterface {
+    ready: AtomicBool,
     paths: Arc<RwLock<PathManager>>,
     sender: flume::Sender<(usize, Driver2RuntimeEvent)>,
     receiver: flume::Receiver<Driver2RuntimeEventResponse>,
     idx: usize,
 }
 
-impl DriverRuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
-    fn register_new_device(&self, device_type: SuPath) -> u64 {
+impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
+    fn register_new_device(&self, device_type: SuPath) -> Result<u64, RuntimeInterfaceError> {
+        if !self.ready.load(Ordering::Relaxed) {
+            return Err(RuntimeInterfaceError::DriverUninitialized);
+        }
+
         self.sender
             .send((self.idx, Driver2RuntimeEvent::RegisterDevice(device_type)))
             .unwrap();
-
-        println!("r");
 
         match self
             .receiver
             .recv_deadline(Instant::now().add(Duration::from_secs(5)))
             .unwrap()
         {
-            Driver2RuntimeEventResponse::DeviceId(id) => return id,
+            Driver2RuntimeEventResponse::DeviceId(id) => return Ok(id),
         }
     }
 
-    fn disconnect_device(&self, device_id: u64) {
+    fn disconnect_device(&self, device_id: u64) -> Result<(), RuntimeInterfaceError> {
+        if !self.ready.load(Ordering::Relaxed) {
+            return Err(RuntimeInterfaceError::DriverUninitialized);
+        }
+
         self.sender
             .send((self.idx, Driver2RuntimeEvent::DisconnectDevice(device_id)))
-            .unwrap()
+            .unwrap();
+        Ok(())
     }
 
-    fn send_component_event(&self, component_event: InputEvent) {
+    fn send_component_event(
+        &self,
+        component_event: InputEvent,
+    ) -> Result<(), RuntimeInterfaceError> {
+        if !self.ready.load(Ordering::Relaxed) {
+            return Err(RuntimeInterfaceError::DriverUninitialized);
+        }
+
         self.sender
             .send((self.idx, Driver2RuntimeEvent::Input(component_event)))
-            .unwrap()
+            .unwrap();
+        Ok(())
     }
 
     fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
