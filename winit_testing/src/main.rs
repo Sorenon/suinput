@@ -13,6 +13,8 @@ fn main() -> Result<(), anyhow::Error> {
     runtime.add_driver(windows_driver::Win32DesktopDriver::new)?;
     runtime.set_windows(&[window.hwnd() as _]);
 
+    let instance = runtime.create_instance("Test Instance".into());
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {

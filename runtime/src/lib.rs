@@ -9,14 +9,14 @@ pub struct SuInputRuntime(SuInputRuntimeEnum);
 
 #[allow(dead_code)]
 pub(crate) enum SuInputRuntimeEnum {
-    Embedded(Arc<inner::SuInputRuntime>),
+    Embedded(Arc<inner::runtime::Runtime>),
     FFI(/*TODO*/),
 }
 
 impl SuInputRuntime {
     pub fn new_tmp() -> Self {
         SuInputRuntime(SuInputRuntimeEnum::Embedded(Arc::new(
-            inner::SuInputRuntime::new(),
+            inner::runtime::Runtime::new(),
         )))
     }
 
@@ -56,4 +56,21 @@ impl SuInputRuntime {
             SuInputRuntimeEnum::FFI() => todo!(),
         }
     }
+
+    pub fn create_instance(&self, name: String) -> SuInstance {
+        match &self.0 {
+            SuInputRuntimeEnum::Embedded(inner) => {
+                SuInstance(SuInstanceEnum::Embedded(inner.create_instance(name, ())))
+            }
+            SuInputRuntimeEnum::FFI() => todo!(),
+        }
+    }
+}
+
+pub struct SuInstance(SuInstanceEnum);
+
+#[allow(dead_code)]
+pub(crate) enum SuInstanceEnum {
+    Embedded(Arc<inner::instance::Instance>),
+    FFI(/*TODO*/),
 }
