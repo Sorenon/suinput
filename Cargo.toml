@@ -3,13 +3,15 @@ members = [
     "drivers/windows-driver",
     "drivers/openxr-driver",
     "generator",
-    "testing",
+    # "bevy_testing",
+    "winit_testing",
     "runtime",
+    "loader",
 ]
 
 [package]
 name = "suinput"
-version = "0.0.1"
+version = "0.0.1-alpha"
 edition = "2021"
 
 [dependencies]

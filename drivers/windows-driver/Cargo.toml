@@ -1,6 +1,6 @@
 [package]
 name = "windows-driver"
-version = "0.0.1"
+version = "0.0.1-alpha"
 edition = "2021"
 
 [dependencies]
