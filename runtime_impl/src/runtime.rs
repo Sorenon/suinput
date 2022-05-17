@@ -20,8 +20,6 @@ use suinput::{
 };
 use thunderdome::Arena;
 
-use crate::{SuInstance, SuInstanceEnum};
-
 use super::instance::Instance;
 
 pub struct Runtime {
@@ -104,8 +102,8 @@ impl Runtime {
         }
     }
 
-    pub fn create_instance(self: &Arc<Self>, name: String, persistent_unique_id: ()) -> Arc<Instance> {
-        let instance = Arc::new(Instance::new(self, name, persistent_unique_id));
+    pub fn create_instance(self: &Arc<Self>, name: String) -> Arc<Instance> {
+        let instance = Arc::new(Instance::new(self, name, ()));
         self.instances.lock().push(instance.clone());
         instance
     }

@@ -1,0 +1,11 @@
+[package]
+name = "runtime_impl"
+version = "0.0.1-alpha"
+edition = "2021"
+
+[dependencies]
+suinput = { path = "../" }
+flume = "0.10"
+parking_lot = "0.12"
+thunderdome = "0.5"
+raw-window-handle = "0.4"

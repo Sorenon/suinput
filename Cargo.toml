@@ -5,7 +5,8 @@ members = [
     "generator",
     # "bevy_testing",
     "winit_testing",
-    "runtime",
+    "runtime_impl",
+    "runtime_api",
     "loader",
 ]
 

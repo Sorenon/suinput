@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 suinput = { path = "../" }
-runtime = { path = "../runtime" }
+runtime_api = { path = "../runtime_api" }
 loader = { path = "../loader" }
 windows-driver = { path = "../drivers/windows-driver" }
 winit = "0.26"

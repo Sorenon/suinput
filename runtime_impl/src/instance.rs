@@ -36,8 +36,7 @@ impl Instance {
      *
      * Returns false if xrAttachSessionActionSets had already been called for the specified session and the OpenXR layer
      * is not installed. In this case the Instance will have to rely on the developer provided OpenXR fallback driver.
-     * This will occur on most pre-existing game engines, for Unreal and Godot it should be possible to alter the OpenXR plugin to
-     * get around this however on Unity doing so would be more effort than its worth.
+     * This will occur on most pre-existing game engines and will may require altering the engine's OpenXR plugin.
      */
     pub fn bind_openxr(
         &self,

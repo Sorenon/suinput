@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 suinput = { path = "../" }
-runtime = { path = "../runtime" }
+runtime_api = { path = "../runtime_api" }

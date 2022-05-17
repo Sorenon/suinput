@@ -9,8 +9,18 @@ pub struct ActionSet {
     default_priority: u32,
 }
 
+pub enum ActionType {
+    Boolean { sticky: bool },
+    Value,
+    Axis1D,
+    Axis2D { shape: () },
+    Delta1D,
+    Delta2D,
+    Cursor,
+}
+
 impl ActionSet {
-    pub fn create_action(&self, name: String, action_type: ()) {
+    pub fn create_action(&self, name: String, action_type: ActionType) {
         todo!()
     }
 

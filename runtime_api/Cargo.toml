@@ -1,10 +1,11 @@
 [package]
-name = "runtime"
+name = "runtime_api"
 version = "0.0.1-alpha"
 edition = "2021"
 
 [dependencies]
 suinput = { path = "../" }
+runtime_impl = { path = "../runtime_impl" }
 flume = "0.10"
 parking_lot = "0.12"
 thunderdome = "0.5"
