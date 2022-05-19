@@ -1,3 +1,4 @@
+use runtime_api::ActionType;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -14,6 +15,8 @@ fn main() -> Result<(), anyhow::Error> {
     runtime.set_windows(&[window.hwnd() as _]);
 
     let instance = runtime.create_instance("Test Instance".into());
+    let action_set = instance.create_action_set("my_first_action_set".into(), 0);
+    let action = action_set.create_action("my_first_action".into(), ActionType::Boolean);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

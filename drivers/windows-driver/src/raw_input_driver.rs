@@ -6,7 +6,7 @@ use std::{
 
 use suinput::{
     driver_interface::RuntimeInterfaceTrait,
-    event::{ButtonEvent, InputComponentEvent, InputEvent, Move2D},
+    event::{InputComponentEvent, InputEvent, Move2D},
     keyboard::{self, HIDScanCode, KeyboardPaths},
     Time,
 };
@@ -103,7 +103,7 @@ impl<'a> RawInputDriver<'a> {
         } else {
             self.ri_devices.remove(&raw_input_device).unwrap();
             self.driver_manager
-                .disconnect_device(self.device_ids.remove(&raw_input_device).unwrap());
+                .disconnect_device(self.device_ids.remove(&raw_input_device).unwrap()).unwrap();
         }
         Ok(())
     }
@@ -182,9 +182,9 @@ impl<'a> RawInputDriver<'a> {
                     device: device_id,
                     path: self.keyboard_paths.get(hid_scan_code),
                     time: suinput::Time(0),
-                    data: InputComponentEvent::Button(ButtonEvent::Press),
+                    data: InputComponentEvent::Button(true),
                 };
-                self.driver_manager.send_component_event(event);
+                self.driver_manager.send_component_event(event).unwrap();
             }
         } else {
             //Key released
@@ -194,9 +194,9 @@ impl<'a> RawInputDriver<'a> {
                     device: device_id,
                     path: self.keyboard_paths.get(hid_scan_code),
                     time: suinput::Time(0),
-                    data: InputComponentEvent::Button(ButtonEvent::Release),
+                    data: InputComponentEvent::Button(false),
                 };
-                self.driver_manager.send_component_event(event);
+                self.driver_manager.send_component_event(event).unwrap();
             }
         };
     }
@@ -268,7 +268,7 @@ pub fn process_mouse(
                 data: InputComponentEvent::Move2D(Move2D {
                     value: (mouse.lLastX as f64, mouse.lLastY as f64),
                 }),
-            });
+            }).unwrap();
         }
     } else {
         unimplemented!(
@@ -288,75 +288,75 @@ pub fn process_mouse(
                 device: device_id,
                 path: paths.mouse_left_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
+                data: InputComponentEvent::Button(true),
+            }).unwrap();
         } else if flags & RI_MOUSE_BUTTON_1_UP != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_left_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
+                data: InputComponentEvent::Button(false),
+            }).unwrap();
         }
         if flags & RI_MOUSE_BUTTON_2_DOWN != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_right_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
+                data: InputComponentEvent::Button(true),
+            }).unwrap();
         } else if flags & RI_MOUSE_BUTTON_2_UP != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_right_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
+                data: InputComponentEvent::Button(false),
+            }).unwrap();
         }
         if flags & RI_MOUSE_BUTTON_3_DOWN != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_middle_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
+                data: InputComponentEvent::Button(true),
+            }).unwrap();
         } else if flags & RI_MOUSE_BUTTON_3_UP != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_middle_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
+                data: InputComponentEvent::Button(false),
+            }).unwrap();
         }
         if flags & RI_MOUSE_BUTTON_4_DOWN != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_button4_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
+                data: InputComponentEvent::Button(true),
+            }).unwrap();
         } else if flags & RI_MOUSE_BUTTON_4_UP != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_button4_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
+                data: InputComponentEvent::Button(false),
+            }).unwrap();
         }
         if flags & RI_MOUSE_BUTTON_5_DOWN != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_button5_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Press),
-            });
+                data: InputComponentEvent::Button(true),
+            }).unwrap();
         } else if flags & RI_MOUSE_BUTTON_5_UP != 0 {
             driver_manager.send_component_event(InputEvent {
                 device: device_id,
                 path: paths.mouse_button5_click,
                 time: Time(0),
-                data: InputComponentEvent::Button(ButtonEvent::Release),
-            });
+                data: InputComponentEvent::Button(false),
+            }).unwrap();
         }
         if flags & RI_MOUSE_WHEEL != 0 {
             driver_manager.send_component_event(InputEvent {
@@ -366,7 +366,7 @@ pub fn process_mouse(
                 data: InputComponentEvent::Move2D(Move2D {
                     value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
                 }),
-            });
+            }).unwrap();
         }
         if flags & RI_MOUSE_HWHEEL != 0 {
             driver_manager.send_component_event(InputEvent {
@@ -376,7 +376,7 @@ pub fn process_mouse(
                 data: InputComponentEvent::Move2D(Move2D {
                     value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
                 }),
-            });
+            }).unwrap();
         }
     }
 }

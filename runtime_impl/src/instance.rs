@@ -1,11 +1,14 @@
 use std::sync::{Arc, Weak};
 
+use parking_lot::RwLock;
+
 use super::{action_set::ActionSet, runtime::Runtime};
 
 pub struct Instance {
     runtime: Weak<Runtime>,
 
     name: String,
+    // action_sets: RwLock<Vec<Arc<ActionSet>>>,
 }
 
 impl Instance {
@@ -13,20 +16,31 @@ impl Instance {
         Instance {
             runtime: Arc::downgrade(&runtime),
             name,
+            // action_sets: Default::default(),
         }
     }
 
-    pub fn create_action_set(&self, name: String, default_priority: u32) -> Arc<ActionSet> {
-        todo!()
+    pub fn create_action_set(
+        self: &Arc<Self>,
+        name: String,
+        default_priority: u32,
+    ) -> Arc<ActionSet> {
+        let action_set = Arc::new(ActionSet {
+            handle: 0,
+            instance: Arc::downgrade(self),
+            name,
+            default_priority,
+            actions: Default::default(),
+        });
+        // self.action_sets.write().push(action_set.clone());
+        action_set
     }
 
     pub fn create_localization(&self, identifier: String) {
         todo!()
     }
 
-    pub fn create_binding_layout(&self, name: String, layout: ()) {
-
-    }
+    pub fn create_binding_layout(&self, name: String, layout: ()) {}
 
     /**
      * Creates all the needed actions on the xr_instance and attaches them to the xr_session

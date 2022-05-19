@@ -11,7 +11,9 @@ Bevy plugin development
 
 ### Drivers
 PUBLIC  
+MAY CONTAIN UNSAFE  
 Contains the default input drivers
+TODO Examine other HID driver APIs (e.g. Monado)
 
 ### Generator
 INTERNAL  
@@ -26,6 +28,7 @@ Load the external runtime or the embedded runtime if none are found
 
 ## Loader C-API
 PUBLIC  
+UNSAFE  
 TODO  
 Provides an FFI interface for the loader
 
@@ -40,6 +43,7 @@ The actual runtime logic
 
 ### Runtime C-API
 PUBLIC  
+UNSAFE  
 TODO  
 Provides an FFI interface for the runtime
 

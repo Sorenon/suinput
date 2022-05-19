@@ -1,5 +1,5 @@
 use std::{
-    ops::Add,
+    ops::{Add, Deref},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -8,24 +8,28 @@ use std::{
     time::{Duration, Instant},
 };
 
+use dashmap::DashMap;
 use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 
+use regex::Regex;
 use suinput::{
     driver_interface::{
         DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
     },
-    event::{InputEvent, PathFormatError, PathManager},
+    event::{InputEvent, PathFormatError},
     SuPath,
 };
-use thunderdome::Arena;
+use thunderdome::{Arena, Index};
+
+use crate::interaction_profile::{DeviceState, InteractionProfile, InteractionProfileState};
 
 use super::instance::Instance;
 
 pub struct Runtime {
     driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
-    paths: Arc<RwLock<PathManager>>,
-    thread: JoinHandle<()>,
+    paths: Arc<PathManager>,
+    _thread: JoinHandle<()>,
     shared_state: Arc<RuntimeState>,
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
 
@@ -34,7 +38,6 @@ pub struct Runtime {
 
 #[derive(Default)]
 struct RuntimeState {
-    devices: RwLock<Arena<SuPath>>,
     driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
 }
 
@@ -42,13 +45,15 @@ impl Runtime {
     pub fn new() -> Self {
         let (driver2runtime_sender, driver2runtime_receiver) = flume::bounded(100);
 
+        let paths = Arc::new(PathManager::new());
         let shared_state = Arc::<RuntimeState>::default();
-        let input_thread = spawn_thread(driver2runtime_receiver, shared_state.clone());
+        let input_thread =
+            spawn_thread(driver2runtime_receiver, shared_state.clone(), paths.clone());
 
         Self {
             driver2runtime_sender,
-            paths: Arc::new(RwLock::new(PathManager::default())),
-            thread: input_thread,
+            paths,
+            _thread: input_thread,
             // devices,
             drivers: Default::default(),
             // driver_response_senders,
@@ -84,14 +89,9 @@ impl Runtime {
         {
             let mut drivers = self.drivers.write();
             drivers.push(Box::new(driver));
-
             runtime_interface.ready.store(true, Ordering::Relaxed);
-
-            drivers
+            drivers.get_mut(idx).unwrap().initialize();
         }
-        .get_mut(idx)
-        .unwrap()
-        .initialize();
 
         Ok(idx)
     }
@@ -118,28 +118,80 @@ impl Runtime {
 fn spawn_thread(
     driver2runtime_receiver: Receiver<(usize, Driver2RuntimeEvent)>,
     state: Arc<RuntimeState>,
+    paths: Arc<PathManager>,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
+        let mut devices = Arena::<(SuPath, DeviceState)>::new();
+
+        let mut kbd_mse_csr_profile = InteractionProfileState::new(
+            InteractionProfile::new_keyboard_mouse_cursor_profile(&paths),
+        );
+
         while let Ok((driver, event)) = driver2runtime_receiver.recv() {
-            println!("{:?}", event);
+            // println!("{:?}", event);
 
             match event {
                 Driver2RuntimeEvent::RegisterDevice(ty) => {
                     //TODO: Device ID persistence
-                    let device_id = state.devices.write().insert(ty);
+                    let device_id = devices.insert((ty, DeviceState::default()));
 
                     state
                         .driver_response_senders
                         .lock()
                         .get(driver)
-                        .unwrap()
+                        .expect("Could not access driver response channel")
                         .send(Driver2RuntimeEventResponse::DeviceId(device_id.to_bits()))
-                        .unwrap();
+                        .expect("Driver response channel closed unexpectedly");
+
+                    kbd_mse_csr_profile.device_added(device_id, ty);
                 }
-                _ => (),
+                Driver2RuntimeEvent::Input(event) => {
+                    kbd_mse_csr_profile.update_component(&event, &devices);
+
+                    let device = devices
+                        .get_mut(Index::from_bits(event.device).unwrap())
+                        .unwrap();
+                    let device_state = &mut device.1;
+                    device_state.update_input(event);
+                }
+                Driver2RuntimeEvent::DisconnectDevice(id) => {
+                    let index = Index::from_bits(id).unwrap();
+
+                    kbd_mse_csr_profile.device_removed(index, &devices);
+                    devices.remove(index);
+                }
             }
         }
     })
+}
+
+#[derive(Debug)]
+pub struct PathManager(DashMap<String, SuPath>, DashMap<SuPath, String>, Regex);
+
+impl PathManager {
+    pub fn new() -> Self {
+        let regex = Regex::new(r#"^(/(\.*[a-z0-9-_]+\.*)+)+$"#).unwrap();
+        Self(DashMap::new(), DashMap::new(), regex)
+    }
+
+    pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
+        if let Some(path) = self.0.get(path_string) {
+            return Ok(*path.deref());
+        }
+
+        if self.2.is_match(path_string) {
+            let path = SuPath(self.0.len() as u32);
+            self.0.insert(path_string.to_owned(), path);
+            self.1.insert(path, path_string.to_owned());
+            Ok(path)
+        } else {
+            Err(PathFormatError)
+        }
+    }
+
+    pub fn get_path_string(&self, path: SuPath) -> Option<String> {
+        self.1.get(&path).map(|inner| inner.clone())
+    }
 }
 
 /**
@@ -148,7 +200,7 @@ fn spawn_thread(
 #[derive(Debug)]
 pub struct EmbeddedDriverRuntimeInterface {
     ready: AtomicBool,
-    paths: Arc<RwLock<PathManager>>,
+    paths: Arc<PathManager>,
     sender: flume::Sender<(usize, Driver2RuntimeEvent)>,
     receiver: flume::Receiver<Driver2RuntimeEventResponse>,
     idx: usize,
@@ -199,11 +251,11 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
     }
 
     fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
-        self.paths.try_write().unwrap().get_path(path_string)
+        self.paths.get_path(path_string)
     }
 
     fn get_path_string(&self, path: SuPath) -> Option<String> {
-        self.paths.try_read().unwrap().get_path_string(path)
+        self.paths.get_path_string(path)
     }
 }
 

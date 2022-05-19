@@ -1,27 +1,37 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
+
+use parking_lot::RwLock;
+
+use crate::action::Action;
 
 use super::instance::Instance;
 
 pub struct ActionSet {
-    instance: Weak<Instance>,
+    // A user-facing variable that can be used to uniquely identify an action set
+    pub handle: u64,
+    pub instance: Weak<Instance>,
 
-    name: String,
-    default_priority: u32,
+    pub name: String,
+    pub default_priority: u32,
+    pub actions: RwLock<Vec<Arc<Action>>>,
 }
 
 pub enum ActionType {
-    Boolean { sticky: bool },
-    Value,
-    Axis1D,
-    Axis2D { shape: () },
-    Delta1D,
+    Boolean,
     Delta2D,
     Cursor,
 }
 
 impl ActionSet {
-    pub fn create_action(&self, name: String, action_type: ActionType) {
-        todo!()
+    pub fn create_action(self: &Arc<Self>, name: String, action_type: ActionType) -> Arc<Action> {
+        let action = Arc::new(Action {
+            handle: 0,
+            action_set: Arc::downgrade(self),
+            name,
+            action_type,
+        });
+        self.actions.write().push(action.clone());
+        action
     }
 
     pub fn create_action_layer(&self, name: String, default_priority: u32) {
