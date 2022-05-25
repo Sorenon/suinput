@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use suinput::{
+use suinput_types::{
     driver_interface::RuntimeInterface,
     event::{Cursor, InputComponentEvent, InputEvent},
     SuPath, Time,

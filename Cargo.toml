@@ -1,19 +1,11 @@
 [workspace]
 members = [
+    "suinput-types",
     "drivers/windows-driver",
     "drivers/openxr-driver",
     "generator",
     # "bevy_testing",
     "winit_testing",
-    "runtime_impl",
-    "runtime_api",
-    "loader",
+    "suinput-core",
+    "suinput",
 ]
-
-[package]
-name = "suinput"
-version = "0.0.1-alpha"
-edition = "2021"
-
-[dependencies]
-thiserror = "1.0"

@@ -5,7 +5,7 @@ use std::{
 };
 
 use parking_lot::RwLock;
-use suinput::{event::PathFormatError, SuPath};
+use suinput_types::{event::PathFormatError, SuPath};
 
 use crate::binding_layout;
 

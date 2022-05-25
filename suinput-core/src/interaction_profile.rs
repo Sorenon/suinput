@@ -4,7 +4,7 @@ use std::{
     time::Instant,
 };
 
-use suinput::{
+use suinput_types::{
     event::{Cursor, InputComponentEvent, InputEvent},
     SuPath,
 };

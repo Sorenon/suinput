@@ -13,7 +13,7 @@ use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 
 use regex::Regex;
-use suinput::{
+use suinput_types::{
     driver_interface::{
         DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
     },

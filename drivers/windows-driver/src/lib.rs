@@ -1,7 +1,7 @@
 use std::{ops::Deref, thread::JoinHandle};
 
 use hooks::Hooks;
-use suinput::{
+use suinput_types::{
     driver_interface::{DriverInterface, RuntimeInterface},
     SuPath,
 };

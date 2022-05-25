@@ -4,7 +4,7 @@ use std::{
     os::windows::prelude::OsStrExt,
 };
 
-use suinput::{
+use suinput_types::{
     driver_interface::RuntimeInterfaceTrait,
     event::{InputComponentEvent, InputEvent, Move2D},
     keyboard::{self, HIDScanCode, KeyboardPaths},
@@ -181,7 +181,7 @@ impl<'a> RawInputDriver<'a> {
                 let event = InputEvent {
                     device: device_id,
                     path: self.keyboard_paths.get(hid_scan_code),
-                    time: suinput::Time(0),
+                    time: suinput_types::Time(0),
                     data: InputComponentEvent::Button(true),
                 };
                 self.driver_manager.send_component_event(event).unwrap();
@@ -193,7 +193,7 @@ impl<'a> RawInputDriver<'a> {
                 let event = InputEvent {
                     device: device_id,
                     path: self.keyboard_paths.get(hid_scan_code),
-                    time: suinput::Time(0),
+                    time: suinput_types::Time(0),
                     data: InputComponentEvent::Button(false),
                 };
                 self.driver_manager.send_component_event(event).unwrap();

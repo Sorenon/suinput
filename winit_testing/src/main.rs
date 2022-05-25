@@ -1,4 +1,4 @@
-use runtime_api::{ActionEvent, ActionListener, ActionType, SimpleBinding};
+use suinput::{ActionEvent, ActionListener, ActionType, SimpleBinding};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -18,7 +18,7 @@ fn main() -> Result<(), anyhow::Error> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;
 
-    let runtime = loader::load_runtime();
+    let runtime = suinput::load_runtime();
     runtime.add_driver(windows_driver::Win32DesktopDriver::new)?;
     runtime.set_windows(&[window.hwnd() as _]);
 

@@ -1,13 +1,17 @@
 use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
-use suinput::{
+use suinput_types::{
     driver_interface::{DriverInterface, RuntimeInterface},
     event::PathFormatError,
     SuPath,
 };
 
-use runtime_impl::*;
+use suinput_core::*;
+
+pub fn load_runtime() -> SuInputRuntime {
+    SuInputRuntime(Inner::Embedded(Arc::new(runtime::Runtime::new())))
+}
 
 #[derive(Clone)]
 pub struct SuInputRuntime(Inner<runtime::Runtime>);
@@ -28,10 +32,6 @@ impl<E> Clone for Inner<E> {
 }
 
 impl SuInputRuntime {
-    pub fn new_tmp() -> Self {
-        SuInputRuntime(Inner::Embedded(Arc::new(runtime::Runtime::new())))
-    }
-
     pub fn add_driver<F, T, E>(&self, f: F) -> Result<usize, E>
     where
         F: FnOnce(RuntimeInterface) -> Result<T, E>,

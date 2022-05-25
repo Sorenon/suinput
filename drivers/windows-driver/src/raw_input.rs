@@ -1,6 +1,6 @@
 use std::{ffi::OsString, mem::size_of, os::windows::prelude::OsStringExt};
 
-use suinput::{
+use suinput_types::{
     keyboard::HIDScanCode,
 };
 use windows_sys::Win32::{
