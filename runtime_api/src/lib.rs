@@ -3,6 +3,8 @@ use std::sync::Arc;
 use raw_window_handle::RawWindowHandle;
 use suinput::{
     driver_interface::{DriverInterface, RuntimeInterface},
+    event::PathFormatError,
+    SuPath,
 };
 
 use runtime_impl::*;
@@ -67,27 +69,80 @@ impl SuInputRuntime {
         }
     }
 
-    pub fn create_instance(&self, name: String) -> SuInstance {
+    pub fn create_instance(&self, name: &str) -> SuInstance {
         SuInstance(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_instance(name)),
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_instance(name.into())),
             Inner::FFI() => todo!(),
         })
     }
 }
+
+pub use instance::ActionEvent;
+pub use instance::ActionEventEnum;
+pub use instance::ActionListener;
 
 #[derive(Clone)]
 pub struct SuInstance(Inner<instance::Instance>);
 
+pub use instance::SimpleBinding;
+
 impl SuInstance {
-    pub fn create_action_set(&self, name: String, default_priority: u32) -> SuActionSet {
+    pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.get_path(path_string),
+            Inner::FFI() => todo!(),
+        }
+    }
+
+    pub fn create_action_set(&self, name: &str, default_priority: u32) -> SuActionSet {
         SuActionSet(match &self.0 {
             Inner::Embedded(inner) => {
-                Inner::Embedded(inner.create_action_set(name, default_priority))
+                Inner::Embedded(inner.create_action_set(name.into(), default_priority))
             }
             Inner::FFI() => todo!(),
         })
     }
+
+    pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.register_event_listener(listener),
+            Inner::FFI() => todo!(),
+        }
+    }
+
+    pub fn create_binding_layout(
+        &self,
+        name: &str,
+        interaction_profile: SuPath,
+        bindings: &[SimpleBinding],
+    ) -> SuBindingLayout {
+        SuBindingLayout(match &self.0 {
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_binding_layout(
+                name.into(),
+                interaction_profile,
+                bindings,
+            )),
+            Inner::FFI() => todo!(),
+        })
+    }
+
+    pub fn set_default_binding_layout(
+        &self,
+        interaction_profile: SuPath,
+        binding_layout: &SuBindingLayout,
+    ) {
+        match (&self.0, &binding_layout.0) {
+            (Inner::Embedded(inner), Inner::Embedded(binding_layout)) => {
+                inner.set_default_binding_layout(interaction_profile, binding_layout)
+            }
+            (Inner::FFI(), Inner::FFI()) => todo!(),
+            _ => panic!(),
+        }
+    }
 }
+
+#[derive(Clone)]
+pub struct SuBindingLayout(Inner<instance::BindingLayout>);
 
 #[derive(Clone)]
 pub struct SuActionSet(Inner<action_set::ActionSet>);
@@ -95,14 +150,16 @@ pub struct SuActionSet(Inner<action_set::ActionSet>);
 pub use action_set::ActionType;
 
 impl SuActionSet {
-    pub fn create_action(&self, name: String, action_type: ActionType) -> SuAction {
+    pub fn create_action(&self, name: &str, action_type: ActionType) -> SuAction {
         SuAction(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_action(name, action_type)),
+            Inner::Embedded(inner) => {
+                Inner::Embedded(inner.create_action(name.into(), action_type))
+            }
             Inner::FFI() => todo!(),
         })
     }
 
-    pub fn create_action_layer(&self, name: String, default_priority: u32) {
+    pub fn create_action_layer(&self, name: &str, default_priority: u32) {
         todo!()
     }
 }

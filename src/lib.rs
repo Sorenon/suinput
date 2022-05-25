@@ -1,6 +1,5 @@
 pub mod driver_interface;
 pub mod event;
-pub mod interaction_profile;
 pub mod keyboard;
 
 /**
@@ -30,4 +29,9 @@ pub struct ActionHandle(u64);
 pub struct Vec2D {
     pub x: f32,
     pub y: f32,
+}
+
+
+pub enum SuInputResult {
+
 }

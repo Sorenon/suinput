@@ -3,3 +3,4 @@ pub mod instance;
 pub mod action_set;
 pub mod action;
 mod interaction_profile;
+mod binding_layout;

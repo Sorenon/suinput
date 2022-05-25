@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
+    sync::Arc,
     time::Instant,
 };
 
@@ -9,7 +10,11 @@ use suinput::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::runtime::PathManager;
+use crate::{
+    binding_layout,
+    instance::{self, ActionEvent, ActionEventEnum, Instance},
+    runtime::PathManager,
+};
 
 #[derive(Debug)]
 pub struct InputComponentData {
@@ -129,7 +134,12 @@ impl InteractionProfileState {
         }
     }
 
-    pub fn update_component(&mut self, event: &InputEvent, devices: &Arena<(SuPath, DeviceState)>) {
+    pub fn update_component(
+        &mut self,
+        event: &InputEvent,
+        devices: &Arena<(SuPath, DeviceState)>,
+        instances: &Vec<Arc<Instance>>,
+    ) {
         let event_device_id = Index::from_bits(event.device).unwrap();
 
         for (user_path, device_ids) in &self.devices {
@@ -166,7 +176,16 @@ impl InteractionProfileState {
                 };
 
                 if let Some(new_state) = new_state {
-                    process_bindings(&self.profile, &self.input_components, event);
+                    //TODO split path
+                    for instance in instances {
+                        process_bindings(
+                            &self.profile,
+                            &self.input_components,
+                            *user_path,
+                            event,
+                            &instance,
+                        );
+                    }
 
                     self.input_components.insert(
                         (*user_path, event.path),
@@ -186,7 +205,41 @@ impl InteractionProfileState {
 fn process_bindings(
     interaction_profile: &InteractionProfile,
     interaction_profile_state: &HashMap<(SuPath, SuPath), InputComponentData>,
+    user_path: SuPath,
     event: &InputEvent,
+    instance: &Instance,
 ) {
-    println!("BINDING {:?}!", event);
+    let player = instance.player.read();
+
+    if let Some(binding_layout) = player.active_binding_layout.get(&interaction_profile.id) {
+        if let Some(component_bindings) = binding_layout.bindings.get(&user_path) {
+            if let Some(actions) = component_bindings.get(&event.path) {
+                for listener in instance.listeners.read().iter() {
+                    for action in actions {
+                        listener.handle_event(ActionEvent {
+                            action_handle: *action,
+                            time: Instant::now(),
+                            data: match event.data {
+                                InputComponentEvent::Button(state) => ActionEventEnum::Boolean {
+                                    state,
+                                    changed: interaction_profile_state
+                                        .get(&(user_path, event.path))
+                                        .map_or(false, |old_state| match old_state {
+                                            InputComponentData {
+                                                state: InputComponentState::Button(state),
+                                                ..
+                                            } => *state,
+                                            _ => panic!("TODO store old state in action"),
+                                        })
+                                        != state,
+                                },
+                                InputComponentEvent::Move2D(state) => ActionEventEnum::Delta2D { state: state.value },
+                                InputComponentEvent::Cursor(state) => ActionEventEnum::Cursor { state: state.normalized_screen_coords },
+                            },
+                        })
+                    }
+                }
+            }
+        }
+    }
 }

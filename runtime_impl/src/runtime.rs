@@ -22,18 +22,21 @@ use suinput::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::interaction_profile::{DeviceState, InteractionProfile, InteractionProfileState};
+use crate::{
+    instance,
+    interaction_profile::{DeviceState, InteractionProfile, InteractionProfileState},
+};
 
 use super::instance::Instance;
 
 pub struct Runtime {
     driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
-    paths: Arc<PathManager>,
+    pub(crate) paths: Arc<PathManager>,
     _thread: JoinHandle<()>,
     shared_state: Arc<RuntimeState>,
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
 
-    instances: Mutex<Vec<Arc<Instance>>>,
+    instances: Arc<RwLock<Vec<Arc<Instance>>>>,
 }
 
 #[derive(Default)]
@@ -47,8 +50,13 @@ impl Runtime {
 
         let paths = Arc::new(PathManager::new());
         let shared_state = Arc::<RuntimeState>::default();
-        let input_thread =
-            spawn_thread(driver2runtime_receiver, shared_state.clone(), paths.clone());
+        let instances = Arc::new(RwLock::default());
+        let input_thread = spawn_thread(
+            driver2runtime_receiver,
+            shared_state.clone(),
+            paths.clone(),
+            instances.clone(),
+        );
 
         Self {
             driver2runtime_sender,
@@ -58,7 +66,7 @@ impl Runtime {
             drivers: Default::default(),
             // driver_response_senders,
             shared_state,
-            instances: Default::default(),
+            instances,
         }
     }
 
@@ -104,7 +112,7 @@ impl Runtime {
 
     pub fn create_instance(self: &Arc<Self>, name: String) -> Arc<Instance> {
         let instance = Arc::new(Instance::new(self, name, ()));
-        self.instances.lock().push(instance.clone());
+        self.instances.write().push(instance.clone());
         instance
     }
 
@@ -119,6 +127,7 @@ fn spawn_thread(
     driver2runtime_receiver: Receiver<(usize, Driver2RuntimeEvent)>,
     state: Arc<RuntimeState>,
     paths: Arc<PathManager>,
+    instances: Arc<RwLock<Vec<Arc<Instance>>>>,
 ) -> JoinHandle<()> {
     std::thread::spawn(move || {
         let mut devices = Arena::<(SuPath, DeviceState)>::new();
@@ -146,12 +155,14 @@ fn spawn_thread(
                     kbd_mse_csr_profile.device_added(device_id, ty);
                 }
                 Driver2RuntimeEvent::Input(event) => {
-                    kbd_mse_csr_profile.update_component(&event, &devices);
+                    let instances = instances.read();
+                    kbd_mse_csr_profile.update_component(&event, &devices, &instances);
 
                     let device = devices
                         .get_mut(Index::from_bits(event.device).unwrap())
                         .unwrap();
                     let device_state = &mut device.1;
+
                     device_state.update_input(event);
                 }
                 Driver2RuntimeEvent::DisconnectDevice(id) => {

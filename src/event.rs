@@ -1,6 +1,9 @@
+use thiserror::Error;
+
 use crate::{SuPath, Time};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("Path Format Error")]
 pub struct PathFormatError;
 
 #[derive(Debug, Clone, Copy)]
