@@ -23,8 +23,8 @@ Shared rust types
 ### suinput-ffi (TODO)
 The C API
 
-### Bevy Testing
-Bevy plugin development
-
 ### Winit Testing
 General development testing
+
+### Bevy Testing
+Bevy plugin development (temporarily inactive)

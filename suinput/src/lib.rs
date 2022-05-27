@@ -77,9 +77,9 @@ impl SuInputRuntime {
     }
 }
 
-pub use instance::ActionEvent;
-pub use instance::ActionEventEnum;
-pub use instance::ActionListener;
+pub use suinput_types::action::ActionEvent;
+pub use suinput_types::action::ActionEventEnum;
+pub use suinput_types::action::ActionListener;
 
 #[derive(Clone)]
 pub struct SuInstance(Inner<instance::Instance>);

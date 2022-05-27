@@ -127,12 +127,7 @@ impl ProcessedBindingLayout {
                     if let Some((new_binding_state, action_handle)) =
                         execute_binding(binding_index, &mut self.bindings_index, event)
                     {
-                        on_action_event(
-                            action_handle,
-                            binding_index,
-                            &new_binding_state,
-                            &self,
-                        )
+                        on_action_event(action_handle, binding_index, &new_binding_state, &self)
                     }
                 }
             }

@@ -1,6 +1,5 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    sync::Arc,
     time::Instant,
 };
 
@@ -10,7 +9,7 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::{instance::{ActionEvent, ActionEventEnum, Instance}, worker_thread::WorkerThreadUser};
+use crate::instance::Instance;
 
 #[derive(Debug)]
 pub struct InputComponentData {
@@ -126,7 +125,7 @@ impl InteractionProfileState {
         &mut self,
         event: &InputEvent,
         devices: &Arena<(SuPath, DeviceState)>,
-        instances: &Vec<Arc<Instance>>,
+        tmp_instance: &Instance,
         tmp_user: &mut crate::worker_thread::WorkerThreadUser,
     ) {
         let event_device_id = Index::from_bits(event.device).unwrap();
@@ -174,7 +173,7 @@ impl InteractionProfileState {
                     //         tmp_user,
                     //     );
                     // }
-                    tmp_user.on_event(&self.profile, *user_path, event);
+                    tmp_user.on_event(&self.profile, *user_path, event, tmp_instance);
 
                     self.input_components.insert(
                         (*user_path, event.path),

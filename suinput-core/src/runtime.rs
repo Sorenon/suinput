@@ -63,21 +63,18 @@ impl Runtime {
         let ready = Arc::new(Mutex::new(()));
         let lock = ready.lock();
 
-        let runtime = Arc::new_cyclic(|arc| {
-            Self {
-                driver2runtime_sender,
-                paths,
-                _thread: worker_thread::spawn_thread(
-                    driver2runtime_receiver,
-                    arc.to_owned(),
-                    ready.clone(),
-                ),
-                // devices,
-                drivers: Default::default(),
-                driver_response_senders: Default::default(),
-                instances: Default::default(),
-                device_types,
-            }
+        let runtime = Arc::new_cyclic(|arc| Self {
+            driver2runtime_sender,
+            paths,
+            _thread: worker_thread::spawn_thread(
+                driver2runtime_receiver,
+                arc.to_owned(),
+                ready.clone(),
+            ),
+            drivers: Default::default(),
+            driver_response_senders: Default::default(),
+            instances: Default::default(),
+            device_types,
         });
 
         std::mem::drop(lock);

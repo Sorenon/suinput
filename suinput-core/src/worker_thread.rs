@@ -1,18 +1,24 @@
 use std::{
-    collections::{hash_map::OccupiedEntry, HashMap},
+    collections::HashMap,
     sync::{Arc, Weak},
-    thread::JoinHandle, time::Instant,
+    thread::JoinHandle,
+    time::Instant,
 };
 
 use flume::Receiver;
+use log::warn;
 use parking_lot::Mutex;
 
-use suinput_types::{event::InputEvent, SuPath};
+use suinput_types::{
+    action::{ActionEvent, ActionEventEnum},
+    event::InputEvent,
+    SuPath,
+};
 use thunderdome::{Arena, Index};
 
 use crate::{
     binding_engine::{ActionStateEnum, ProcessedBindingLayout},
-    instance::{ActionEventEnum, ActionEvent, Instance},
+    instance::Instance,
     interaction_profile::{DeviceState, InteractionProfileState, InteractionProfileType},
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
 };
@@ -79,8 +85,12 @@ pub fn spawn_thread(
                         }
                         Driver2RuntimeEvent::Input(event) => {
                             let instances = runtime.instances.read();
-                            desktop_profile
-                                .update_component(&event, &devices, &instances, &mut user);
+                            desktop_profile.update_component(
+                                &event,
+                                &devices,
+                                &instances.first().unwrap(),
+                                &mut user,
+                            );
 
                             let device = devices
                                 .get_mut(Index::from_bits(event.device).unwrap())
@@ -113,6 +123,7 @@ impl WorkerThreadUser {
         interaction_profile: &InteractionProfileType,
         user_path: SuPath,
         event: &InputEvent,
+        instance: &Instance,
     ) {
         if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.id) {
             binding_layout.on_event(
@@ -161,7 +172,7 @@ impl WorkerThreadUser {
                                         return;
                                     }
                                 } else {
-                                    println!("WARNING: Somehow fired a false event on an action which is already false");
+                                    warn!("Somehow fired a false event on an action which is already false");
                                     return;
                                 }
                             }
@@ -175,7 +186,9 @@ impl WorkerThreadUser {
                         time: Instant::now(),
                         data: event,
                     };
-                    println!("{event:?}");
+                    for listener in instance.listeners.read().iter() {
+                        listener.handle_event(event);
+                    }
                 },
             );
         }

@@ -1,10 +1,9 @@
 use std::{
     sync::{Arc, Weak},
-    time::Instant,
 };
 
 use parking_lot::RwLock;
-use suinput_types::{event::PathFormatError, SuPath};
+use suinput_types::{event::PathFormatError, SuPath, action::ActionListener};
 
 use crate::{action::Action, binding_engine::ProcessedBindingLayout, user::User};
 
@@ -93,7 +92,12 @@ impl Instance {
             ProcessedBindingLayout::new(self, interaction_profile, binding_layout),
         );
 
-        self.runtime.upgrade().unwrap().driver2runtime_sender.send(crate::worker_thread::WorkerThreadEvent::Poll).unwrap();
+        self.runtime
+            .upgrade()
+            .unwrap()
+            .driver2runtime_sender
+            .send(crate::worker_thread::WorkerThreadEvent::Poll)
+            .unwrap();
     }
 
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
@@ -120,31 +124,6 @@ impl Instance {
     ) -> bool {
         todo!()
     }
-}
-
-pub trait ActionListener: Send + Sync {
-    fn handle_event(&self, event: ActionEvent);
-}
-
-#[derive(Debug)]
-pub struct ActionEvent {
-    pub action_handle: u64,
-    pub time: Instant,
-    pub data: ActionEventEnum,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ActionEventEnum {
-    Boolean {
-        state: bool,
-        changed: bool,
-    },
-    Delta2D {
-        delta: (f64, f64),
-    },
-    Cursor {
-        normalized_screen_coords: (f64, f64),
-    },
 }
 
 // #[derive(Default)]
