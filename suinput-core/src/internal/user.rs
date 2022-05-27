@@ -1,11 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
-use suinput_types::SuPath;
+use suinput_types::{action::ActionStateEnum, SuPath};
 
-use crate::{
-    binding_engine::{ActionStateEnum, ProcessedBindingLayout},
-    instance::BindingLayout,
-};
+use crate::instance::BindingLayout;
+
+use super::binding::binding_engine::ProcessedBindingLayout;
 
 #[derive(Default)]
 pub(crate) struct User {

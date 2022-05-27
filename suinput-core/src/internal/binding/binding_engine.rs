@@ -1,33 +1,31 @@
-use std::{
-    cell::Cell,
-    collections::{hash_map::Entry, HashMap},
-    time::Instant,
-};
+use std::collections::{hash_map::Entry, HashMap};
 
-use parking_lot::RwLock;
 use suinput_types::{
-    action::ActionType,
+    action::{ActionStateEnum, ActionType},
     event::{InputComponentEvent, InputEvent},
     SuPath,
 };
 
 use crate::{
-    device::InputComponentType,
     instance::{BindingLayout, Instance},
-    interaction_profile::InteractionProfileType,
+    internal::{
+        input_component::InputComponentType,
+        interaction_profile_type::InteractionProfileType,
+        paths::{ComponentPath, UserPath, InteractionProfilePath},
+    },
 };
 
-pub(crate) struct ProcessedBindingLayout {
+pub struct ProcessedBindingLayout {
     pub(crate) bindings_index: Vec<(ProcessedBinding, ActionStateEnum, u64)>,
 
-    input_bindings: HashMap<SuPath, HashMap<SuPath, Vec<usize>>>,
+    input_bindings: HashMap<UserPath, HashMap<ComponentPath, Vec<usize>>>,
     pub(crate) bindings_for_action: HashMap<u64, Vec<usize>>,
 }
 
 impl ProcessedBindingLayout {
     pub fn new(
         instance: &Instance,
-        interaction_profile: SuPath,
+        interaction_profile: InteractionProfilePath,
         binding_layout: &BindingLayout,
     ) -> Self {
         let runtime = instance.runtime.upgrade().unwrap();
@@ -53,6 +51,8 @@ impl ProcessedBindingLayout {
             let (user_str, component_str) = path_string.split_at(split_idx);
 
             let user_path = instance.get_path(user_str).unwrap();
+
+            // todo!("we need to do this through interaction_profile");
             let device = interaction_profile_type
                 .user2device
                 .get(&user_path)
@@ -174,11 +174,4 @@ impl ProcessedBinding {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum ActionStateEnum {
-    Boolean(bool),
-    Delta2D((f64, f64)),
-    Cursor((f64, f64)),
 }

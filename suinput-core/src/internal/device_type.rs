@@ -6,19 +6,14 @@ use suinput_types::{
     SuPath,
 };
 
-use crate::paths::CommonPaths;
+use crate::internal::paths::CommonPaths;
+
+use super::{input_component::InputComponentType, paths::DevicePath};
 
 #[derive(Debug, Clone)]
 pub struct DeviceType {
-    pub id: SuPath,
+    pub id: DevicePath,
     pub input_components: HashMap<SuPath, InputComponentType>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum InputComponentType {
-    Button,
-    Move2D,
-    Cursor,
 }
 
 impl DeviceType {

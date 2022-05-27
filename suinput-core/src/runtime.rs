@@ -23,8 +23,8 @@ use suinput_types::{
     SuPath,
 };
 
-use crate::{
-    device::DeviceType,
+use crate::internal::{
+    device_type::DeviceType,
     paths::CommonPaths,
     worker_thread::{self, WorkerThreadEvent},
 };

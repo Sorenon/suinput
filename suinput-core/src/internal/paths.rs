@@ -31,3 +31,9 @@ impl CommonPaths {
         }
     }
 }
+
+//TODO start using these everywhere and then migrate them to structs
+pub type UserPath = SuPath;
+pub type ComponentPath = SuPath;
+pub type InteractionProfilePath = SuPath;
+pub type DevicePath = SuPath;

@@ -2,7 +2,6 @@
 Design docs: [Action System Design](https://sorenon.github.io/Action-System/)
 
 ## Repo Overview
----
 ### suinput
 The runtime's rust API  
 Provides an abstraction over the embedded runtime or an external runtime

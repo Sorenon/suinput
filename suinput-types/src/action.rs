@@ -31,3 +31,10 @@ pub enum ActionEventEnum {
         normalized_screen_coords: (f64, f64),
     },
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum ActionStateEnum {
+    Boolean(bool),
+    Delta2D((f64, f64)),
+    Cursor((f64, f64)),
+}

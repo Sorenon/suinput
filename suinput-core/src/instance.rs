@@ -5,7 +5,7 @@ use std::{
 use parking_lot::RwLock;
 use suinput_types::{event::PathFormatError, SuPath, action::ActionListener};
 
-use crate::{action::Action, binding_engine::ProcessedBindingLayout, user::User};
+use crate::{action::Action, internal::{user::User, binding::binding_engine::ProcessedBindingLayout}};
 
 use super::{action_set::ActionSet, runtime::Runtime};
 
@@ -96,7 +96,7 @@ impl Instance {
             .upgrade()
             .unwrap()
             .driver2runtime_sender
-            .send(crate::worker_thread::WorkerThreadEvent::Poll)
+            .send(crate::internal::worker_thread::WorkerThreadEvent::Poll)
             .unwrap();
     }
 
