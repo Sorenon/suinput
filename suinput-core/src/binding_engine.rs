@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     collections::{hash_map::Entry, HashMap},
     time::Instant,
 };
@@ -17,10 +18,10 @@ use crate::{
 };
 
 pub(crate) struct ProcessedBindingLayout {
-    //TODO replace RwLock with Cell
-    bindings_index: RwLock<Vec<(ProcessedBinding, ActionStateEnum, u64)>>,
+    pub(crate) bindings_index: Vec<(ProcessedBinding, ActionStateEnum, u64)>,
+
     input_bindings: HashMap<SuPath, HashMap<SuPath, Vec<usize>>>,
-    bindings_for_action: HashMap<u64, Vec<usize>>,
+    pub(crate) bindings_for_action: HashMap<u64, Vec<usize>>,
 }
 
 impl ProcessedBindingLayout {
@@ -110,74 +111,28 @@ impl ProcessedBindingLayout {
         }
 
         Self {
-            bindings_index: RwLock::new(bindings_index),
+            bindings_index,
             input_bindings,
             bindings_for_action,
         }
     }
 
-    pub fn on_event(&self, user_path: SuPath, event: &InputEvent, instance: &Instance) {
-        let mut bindings_index = self.bindings_index.write();
-
+    pub fn on_event<F>(&mut self, user_path: SuPath, event: &InputEvent, mut on_action_event: F)
+    where
+        F: FnMut(u64, usize, &ActionStateEnum, &ProcessedBindingLayout),
+    {
         if let Some(component_bindings) = self.input_bindings.get(&user_path) {
             if let Some(bindings) = component_bindings.get(&event.path) {
-                for binding_index in bindings {
-                    if let Some((event, action_handle)) =
-                        execute_binding(*binding_index, &mut bindings_index, event)
+                for &binding_index in bindings {
+                    if let Some((new_binding_state, action_handle)) =
+                        execute_binding(binding_index, &mut self.bindings_index, event)
                     {
-                        // let event = match event {
-                        //     ActionEventEnum::Boolean { state, changed } => {
-                        //         let none_other_true = self
-                        //             .bindings_for_action
-                        //             .get(&action_handle)
-                        //             .unwrap()
-                        //             .iter()
-                        //             .filter(|idx| *idx != binding_index)
-                        //             .find(|idx| {
-                        //                 let (_, state, _) = &bindings_index[**idx];
-                        //                 match state {
-                        //                     ActionEventEnum::Boolean { state, .. } => *state,
-                        //                     _ => unreachable!(),
-                        //                 }
-                        //             })
-                        //             .is_none();
-
-                        //         //TODO just do 'changed' by comparing against the cached action state I don't think there is any point in calculating it ourselves
-                        //         if state {
-                        //             //If the binding is true we always fire an event
-                        //             //Changed is sent if all other bindings are false and this binding changed
-                        //             Some(ActionEventEnum::Boolean {
-                        //                 state: true,
-                        //                 changed: none_other_true && changed,
-                        //             })
-                        //         } else {
-                        //             //If the binding is false we only fire an event if all other bindings are false and this binding changed
-                        //             if changed && none_other_true {
-                        //                 Some(ActionEventEnum::Boolean {
-                        //                     state: false,
-                        //                     changed: true,
-                        //                 })
-                        //             } else {
-                        //                 None
-                        //             }
-                        //         }
-                        //     }
-                        //     ActionEventEnum::Cursor {
-                        //         normalized_screen_coords: _,
-                        //     } => todo!(),
-                        //     //We always fire Move2d events
-                        //     _ => Some(event),
-                        // };
-
-                        // if let Some(event) = event {
-                        //     for listener in instance.listeners.read().iter() {
-                        //         listener.handle_event(ActionEvent {
-                        //             action_handle,
-                        //             time: Instant::now(),
-                        //             data: event,
-                        //         })
-                        //     }
-                        // }
+                        on_action_event(
+                            action_handle,
+                            binding_index,
+                            &new_binding_state,
+                            &self,
+                        )
                     }
                 }
             }
@@ -227,7 +182,7 @@ impl ProcessedBinding {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate)enum ActionStateEnum {
+pub(crate) enum ActionStateEnum {
     Boolean(bool),
     Delta2D((f64, f64)),
     Cursor((f64, f64)),

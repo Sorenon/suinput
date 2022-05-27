@@ -10,7 +10,7 @@ use suinput_types::{
 use suinput_core::*;
 
 pub fn load_runtime() -> SuInputRuntime {
-    SuInputRuntime(Inner::Embedded(Arc::new(runtime::Runtime::new())))
+    SuInputRuntime(Inner::Embedded(runtime::Runtime::new()))
 }
 
 #[derive(Clone)]

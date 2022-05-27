@@ -10,7 +10,7 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::instance::{ActionEvent, ActionEventEnum, Instance};
+use crate::{instance::{ActionEvent, ActionEventEnum, Instance}, worker_thread::WorkerThreadUser};
 
 #[derive(Debug)]
 pub struct InputComponentData {
@@ -95,7 +95,7 @@ impl InteractionProfileType {
 }
 
 #[derive(Debug)]
-pub struct InteractionProfileState {
+pub(crate) struct InteractionProfileState {
     profile: InteractionProfileType,
     devices: HashMap<SuPath /* /user/ */, HashSet<Index>>,
     input_components: HashMap<(SuPath, SuPath) /* /user/ , /inputs/ */, InputComponentData>,
@@ -127,6 +127,7 @@ impl InteractionProfileState {
         event: &InputEvent,
         devices: &Arena<(SuPath, DeviceState)>,
         instances: &Vec<Arc<Instance>>,
+        tmp_user: &mut crate::worker_thread::WorkerThreadUser,
     ) {
         let event_device_id = Index::from_bits(event.device).unwrap();
 
@@ -164,15 +165,16 @@ impl InteractionProfileState {
                 };
 
                 if let Some(new_state) = new_state {
-                    //TODO split path
-                    for instance in instances {
-                        process_bindings(
-                            &self.profile,
-                            *user_path,
-                            event,
-                            &instance,
-                        );
-                    }
+                    // for instance in instances {
+                    //     process_bindings(
+                    //         &self.profile,
+                    //         *user_path,
+                    //         event,
+                    //         &instance,
+                    //         tmp_user,
+                    //     );
+                    // }
+                    tmp_user.on_event(&self.profile, *user_path, event);
 
                     self.input_components.insert(
                         (*user_path, event.path),
@@ -187,21 +189,4 @@ impl InteractionProfileState {
     }
 
     pub fn device_removed(&mut self, id: Index, devices: &Arena<(SuPath, DeviceState)>) {}
-}
-
-fn process_bindings(
-    interaction_profile: &InteractionProfileType,
-    user_path: SuPath,
-    event: &InputEvent,
-    instance: &Instance,
-) {
-    let user = instance.user.read();
-
-    if let Some(binding_layout) = user.binding_layouts.get(&interaction_profile.id) {
-        binding_layout.on_event(
-            user_path,
-            event,
-            instance,
-        );
-    };
 }

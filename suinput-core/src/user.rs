@@ -1,15 +1,17 @@
 use std::{collections::HashMap, sync::Arc};
 
-use dashmap::DashMap;
 use suinput_types::SuPath;
 
-use crate::{instance::BindingLayout, binding_engine::{ProcessedBindingLayout, ActionStateEnum}};
+use crate::{
+    binding_engine::{ActionStateEnum, ProcessedBindingLayout},
+    instance::BindingLayout,
+};
 
 #[derive(Default)]
 pub(crate) struct User {
     pub default_binding_layout: HashMap<SuPath, Arc<BindingLayout>>,
 
-    //TODO put this on the input thread
-    pub binding_layouts: DashMap<SuPath, ProcessedBindingLayout>,
-    pub action_states: DashMap<u64, ActionStateEnum>,
+    //should there also be a way to remove binding layouts?
+    pub new_binding_layouts: HashMap<SuPath, ProcessedBindingLayout>,
+    pub action_states: HashMap<u64, ActionStateEnum>,
 }

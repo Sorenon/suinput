@@ -7,3 +7,4 @@ mod user;
 mod device;
 mod paths;
 mod binding_engine;
+mod worker_thread;

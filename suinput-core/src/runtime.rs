@@ -10,7 +10,7 @@ use std::{
 };
 
 use dashmap::DashMap;
-use flume::{Receiver, Sender};
+use flume::Sender;
 use parking_lot::{Mutex, RwLock};
 
 use regex::Regex;
@@ -22,12 +22,11 @@ use suinput_types::{
     keyboard::KeyboardPaths,
     SuPath,
 };
-use thunderdome::{Arena, Index};
 
 use crate::{
     device::DeviceType,
-    interaction_profile::{DeviceState, InteractionProfileState, InteractionProfileType},
     paths::CommonPaths,
+    worker_thread::{self, WorkerThreadEvent},
 };
 
 use super::instance::Instance;
@@ -36,32 +35,19 @@ pub struct Runtime {
     pub(crate) paths: Arc<PathManager>,
     pub(crate) device_types: HashMap<SuPath, DeviceType>,
 
-    driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
+    pub(crate) driver2runtime_sender: Sender<worker_thread::WorkerThreadEvent>,
     _thread: JoinHandle<()>,
-    shared_state: Arc<RuntimeState>,
+    pub(crate) driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
 
-    instances: Arc<RwLock<Vec<Arc<Instance>>>>,
-}
-
-#[derive(Default)]
-struct RuntimeState {
-    driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
+    pub(crate) instances: RwLock<Vec<Arc<Instance>>>,
 }
 
 impl Runtime {
-    pub fn new() -> Self {
+    pub fn new() -> Arc<Self> {
         let (driver2runtime_sender, driver2runtime_receiver) = flume::bounded(100);
 
         let paths = Arc::new(PathManager::new());
-        let shared_state = Arc::<RuntimeState>::default();
-        let instances = Arc::new(RwLock::default());
-        let input_thread = spawn_thread(
-            driver2runtime_receiver,
-            shared_state.clone(),
-            paths.clone(),
-            instances.clone(),
-        );
 
         let common_paths = CommonPaths::new(|str| paths.get_path(str).unwrap());
         let keyboard_paths = KeyboardPaths::new(|str| paths.get_path(str).unwrap());
@@ -74,17 +60,29 @@ impl Runtime {
         .map(|device_type| (device_type.id, device_type))
         .collect();
 
-        Self {
-            driver2runtime_sender,
-            paths,
-            _thread: input_thread,
-            // devices,
-            drivers: Default::default(),
-            // driver_response_senders,
-            shared_state,
-            instances,
-            device_types,
-        }
+        let ready = Arc::new(Mutex::new(()));
+        let lock = ready.lock();
+
+        let runtime = Arc::new_cyclic(|arc| {
+            Self {
+                driver2runtime_sender,
+                paths,
+                _thread: worker_thread::spawn_thread(
+                    driver2runtime_receiver,
+                    arc.to_owned(),
+                    ready.clone(),
+                ),
+                // devices,
+                drivers: Default::default(),
+                driver_response_senders: Default::default(),
+                instances: Default::default(),
+                device_types,
+            }
+        });
+
+        std::mem::drop(lock);
+
+        runtime
     }
 
     pub fn add_driver<F, T, E>(&self, f: F) -> Result<usize, E>
@@ -106,8 +104,7 @@ impl Runtime {
 
         let driver = f(RuntimeInterface(runtime_interface.clone()))?;
 
-        self.shared_state
-            .driver_response_senders
+        self.driver_response_senders
             .lock()
             .push(runtime2driver_sender);
 
@@ -138,60 +135,6 @@ impl Runtime {
             driver.destroy()
         }
     }
-}
-
-fn spawn_thread(
-    driver2runtime_receiver: Receiver<(usize, Driver2RuntimeEvent)>,
-    state: Arc<RuntimeState>,
-    paths: Arc<PathManager>,
-    instances: Arc<RwLock<Vec<Arc<Instance>>>>,
-) -> JoinHandle<()> {
-    std::thread::spawn(move || {
-        let mut devices = Arena::<(SuPath, DeviceState)>::new();
-
-        let mut kbd_mse_csr_profile =
-            InteractionProfileState::new(InteractionProfileType::new_desktop_profile(|str| {
-                paths.get_path(str).unwrap()
-            }));
-
-        while let Ok((driver, event)) = driver2runtime_receiver.recv() {
-            // println!("{:?}", event);
-
-            match event {
-                Driver2RuntimeEvent::RegisterDevice(ty) => {
-                    //TODO: Device ID persistence
-                    let device_id = devices.insert((ty, DeviceState::default()));
-
-                    state
-                        .driver_response_senders
-                        .lock()
-                        .get(driver)
-                        .expect("Could not access driver response channel")
-                        .send(Driver2RuntimeEventResponse::DeviceId(device_id.to_bits()))
-                        .expect("Driver response channel closed unexpectedly");
-
-                    kbd_mse_csr_profile.device_added(device_id, ty);
-                }
-                Driver2RuntimeEvent::Input(event) => {
-                    let instances = instances.read();
-                    kbd_mse_csr_profile.update_component(&event, &devices, &instances);
-
-                    let device = devices
-                        .get_mut(Index::from_bits(event.device).unwrap())
-                        .unwrap();
-                    let device_state = &mut device.1;
-
-                    device_state.update_input(event);
-                }
-                Driver2RuntimeEvent::DisconnectDevice(id) => {
-                    let index = Index::from_bits(id).unwrap();
-
-                    kbd_mse_csr_profile.device_removed(index, &devices);
-                    devices.remove(index);
-                }
-            }
-        }
-    })
 }
 
 #[derive(Debug)]
@@ -230,7 +173,7 @@ impl PathManager {
 pub struct EmbeddedDriverRuntimeInterface {
     ready: AtomicBool,
     paths: Arc<PathManager>,
-    sender: flume::Sender<(usize, Driver2RuntimeEvent)>,
+    sender: flume::Sender<worker_thread::WorkerThreadEvent>,
     receiver: flume::Receiver<Driver2RuntimeEventResponse>,
     idx: usize,
 }
@@ -242,7 +185,10 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send((self.idx, Driver2RuntimeEvent::RegisterDevice(device_type)))
+            .send(WorkerThreadEvent::DriverEvent {
+                id: self.idx,
+                event: Driver2RuntimeEvent::RegisterDevice(device_type),
+            })
             .unwrap();
 
         match self
@@ -260,7 +206,10 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send((self.idx, Driver2RuntimeEvent::DisconnectDevice(device_id)))
+            .send(WorkerThreadEvent::DriverEvent {
+                id: self.idx,
+                event: Driver2RuntimeEvent::DisconnectDevice(device_id),
+            })
             .unwrap();
         Ok(())
     }
@@ -274,7 +223,10 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send((self.idx, Driver2RuntimeEvent::Input(component_event)))
+            .send(WorkerThreadEvent::DriverEvent {
+                id: self.idx,
+                event: Driver2RuntimeEvent::Input(component_event),
+            })
             .unwrap();
         Ok(())
     }
@@ -289,7 +241,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Driver2RuntimeEventResponse {
+pub(crate) enum Driver2RuntimeEventResponse {
     DeviceId(u64),
 }
 

@@ -88,10 +88,12 @@ impl Instance {
             .default_binding_layout
             .insert(interaction_profile, binding_layout.clone());
 
-        player.binding_layouts.insert(
+        player.new_binding_layouts.insert(
             interaction_profile,
             ProcessedBindingLayout::new(self, interaction_profile, binding_layout),
         );
+
+        self.runtime.upgrade().unwrap().driver2runtime_sender.send(crate::worker_thread::WorkerThreadEvent::Poll).unwrap();
     }
 
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
