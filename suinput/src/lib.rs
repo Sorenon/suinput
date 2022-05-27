@@ -147,7 +147,7 @@ pub struct SuBindingLayout(Inner<instance::BindingLayout>);
 #[derive(Clone)]
 pub struct SuActionSet(Inner<action_set::ActionSet>);
 
-pub use action_set::ActionType;
+pub use suinput_types::action::ActionType;
 
 impl SuActionSet {
     pub fn create_action(&self, name: &str, action_type: ActionType) -> SuAction {

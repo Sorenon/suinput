@@ -103,7 +103,8 @@ impl<'a> RawInputDriver<'a> {
         } else {
             self.ri_devices.remove(&raw_input_device).unwrap();
             self.driver_manager
-                .disconnect_device(self.device_ids.remove(&raw_input_device).unwrap()).unwrap();
+                .disconnect_device(self.device_ids.remove(&raw_input_device).unwrap())
+                .unwrap();
         }
         Ok(())
     }
@@ -202,14 +203,13 @@ impl<'a> RawInputDriver<'a> {
     }
 }
 
-//TODO investigate using the application window for this with hooks
-//^ This may improve the stability of the Unity plugin
 pub fn run(driver_manager: &dyn RuntimeInterfaceTrait) {
     let window = create_background_window().unwrap();
     raw_input::register_raw_input_classes(window).unwrap();
 
     let paths = CommonPaths::new(driver_manager);
-    let keyboard_paths = keyboard::KeyboardPaths::new(driver_manager);
+    let keyboard_paths =
+        KeyboardPaths::new(|path_string| driver_manager.get_path(path_string).unwrap());
 
     let mut raw_input_driver = RawInputDriver {
         device_ids: HashMap::new(),
@@ -261,14 +261,16 @@ pub fn process_mouse(
 
     if mouse.usFlags & (MOUSE_MOVE_ABSOLUTE as u16) == 0 {
         if mouse.lLastX != 0 || mouse.lLastY != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_move,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: (mouse.lLastX as f64, mouse.lLastY as f64),
-                }),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_move,
+                    time: Time(0),
+                    data: InputComponentEvent::Move2D(Move2D {
+                        value: (mouse.lLastX as f64, mouse.lLastY as f64),
+                    }),
+                })
+                .unwrap();
         }
     } else {
         unimplemented!(
@@ -284,99 +286,123 @@ pub fn process_mouse(
     if data.usButtonFlags != 0 {
         let flags = data.usButtonFlags as u32;
         if flags & RI_MOUSE_BUTTON_1_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_left_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(true),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_left_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(true),
+                })
+                .unwrap();
         } else if flags & RI_MOUSE_BUTTON_1_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_left_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(false),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_left_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(false),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_BUTTON_2_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_right_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(true),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_right_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(true),
+                })
+                .unwrap();
         } else if flags & RI_MOUSE_BUTTON_2_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_right_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(false),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_right_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(false),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_BUTTON_3_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_middle_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(true),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_middle_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(true),
+                })
+                .unwrap();
         } else if flags & RI_MOUSE_BUTTON_3_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_middle_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(false),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_middle_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(false),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_BUTTON_4_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_button4_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(true),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_button4_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(true),
+                })
+                .unwrap();
         } else if flags & RI_MOUSE_BUTTON_4_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_button4_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(false),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_button4_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(false),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_BUTTON_5_DOWN != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_button5_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(true),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_button5_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(true),
+                })
+                .unwrap();
         } else if flags & RI_MOUSE_BUTTON_5_UP != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_button5_click,
-                time: Time(0),
-                data: InputComponentEvent::Button(false),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_button5_click,
+                    time: Time(0),
+                    data: InputComponentEvent::Button(false),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_WHEEL != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_scroll,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
-                }),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_scroll,
+                    time: Time(0),
+                    data: InputComponentEvent::Move2D(Move2D {
+                        value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
+                    }),
+                })
+                .unwrap();
         }
         if flags & RI_MOUSE_HWHEEL != 0 {
-            driver_manager.send_component_event(InputEvent {
-                device: device_id,
-                path: paths.mouse_scroll,
-                time: Time(0),
-                data: InputComponentEvent::Move2D(Move2D {
-                    value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
-                }),
-            }).unwrap();
+            driver_manager
+                .send_component_event(InputEvent {
+                    device: device_id,
+                    path: paths.mouse_scroll,
+                    time: Time(0),
+                    data: InputComponentEvent::Move2D(Move2D {
+                        value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
+                    }),
+                })
+                .unwrap();
         }
     }
 }

@@ -1,6 +1,7 @@
 pub mod driver_interface;
 pub mod event;
 pub mod keyboard;
+pub mod action;
 
 /**
  * Instead of using static enum parameters, SuInput often uses Path variables

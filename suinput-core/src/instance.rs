@@ -1,5 +1,4 @@
 use std::{
-    collections::{hash_map::Entry, HashMap},
     sync::{Arc, Weak},
     time::Instant,
 };
@@ -7,18 +6,21 @@ use std::{
 use parking_lot::RwLock;
 use suinput_types::{event::PathFormatError, SuPath};
 
-use crate::binding_layout;
+use crate::{action::Action, binding_engine::ProcessedBindingLayout, user::User};
 
 use super::{action_set::ActionSet, runtime::Runtime};
 
 pub struct Instance {
-    runtime: Weak<Runtime>,
+    pub(crate) runtime: Weak<Runtime>,
 
     name: String,
 
     // action_sets: RwLock<Vec<Arc<ActionSet>>>,
-    pub(crate) player: RwLock<Player>,
+    pub(crate) user: RwLock<User>,
     pub(crate) listeners: RwLock<Vec<Box<dyn ActionListener>>>,
+
+    //TODO should this be a generational arena or is that overkill?
+    pub(crate) actions: RwLock<Vec<Arc<Action>>>,
 }
 
 impl Instance {
@@ -26,8 +28,9 @@ impl Instance {
         Instance {
             runtime: Arc::downgrade(&runtime),
             name,
-            player: RwLock::default(),
+            user: RwLock::default(),
             listeners: RwLock::default(),
+            actions: RwLock::default(),
             // action_sets: Default::default(),
         }
     }
@@ -80,20 +83,21 @@ impl Instance {
         interaction_profile: SuPath,
         binding_layout: &Arc<BindingLayout>,
     ) {
-        let mut player = self.player.write();
+        let mut player = self.user.write();
         player
             .default_binding_layout
             .insert(interaction_profile, binding_layout.clone());
 
-        player.active_binding_layout.insert(
+        player.binding_layouts.insert(
             interaction_profile,
             ProcessedBindingLayout::new(self, interaction_profile, binding_layout),
         );
     }
 
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
-        self.listeners.write().push(listener);
-        0 //TODO
+        let mut listeners = self.listeners.write();
+        listeners.push(listener);
+        listeners.len() as u64
     }
 
     /**
@@ -127,22 +131,29 @@ pub struct ActionEvent {
     pub data: ActionEventEnum,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ActionEventEnum {
-    Boolean { state: bool, changed: bool },
-    Delta2D { state: (f64, f64) },
-    Cursor { state: (f64, f64) }
+    Boolean {
+        state: bool,
+        changed: bool,
+    },
+    Delta2D {
+        delta: (f64, f64),
+    },
+    Cursor {
+        normalized_screen_coords: (f64, f64),
+    },
 }
 
-#[derive(Default)]
-pub(crate) struct Player {
-    pub default_binding_layout: HashMap<SuPath, Arc<BindingLayout>>,
-    pub active_binding_layout: HashMap<SuPath, ProcessedBindingLayout>,
-}
+// #[derive(Default)]
+// pub(crate) struct Player {
+//     pub default_binding_layout: HashMap<SuPath, Arc<BindingLayout>>,
+//     pub active_binding_layout: HashMap<SuPath, ProcessedBindingLayout>,
+// }
 
 pub struct BindingLayout {
-    name: String,
-    interaction_profile: SuPath,
+    pub name: String,
+    pub interaction_profile: SuPath,
     pub bindings: Vec<SimpleBinding>,
 }
 
@@ -152,47 +163,47 @@ pub struct SimpleBinding {
     pub path: SuPath,
 }
 
-pub(crate) struct ProcessedBindingLayout {
-    pub bindings: HashMap<SuPath, HashMap<SuPath, Vec<u64>>>,
-}
+// pub(crate) struct ProcessedBindingLayout {
+//     pub bindings: HashMap<SuPath, HashMap<SuPath, Vec<u64>>>,
+// }
 
-impl ProcessedBindingLayout {
-    fn new(
-        instance: &Instance,
-        interaction_profile: SuPath,
-        binding_layout: &BindingLayout,
-    ) -> Self {
-        if interaction_profile != binding_layout.interaction_profile {
-            todo!("Binding Layout conversion not yet implemented")
-        }
+// impl ProcessedBindingLayout {
+//     fn new(
+//         instance: &Instance,
+//         interaction_profile: SuPath,
+//         binding_layout: &BindingLayout,
+//     ) -> Self {
+//         if interaction_profile != binding_layout.interaction_profile {
+//             todo!("Binding Layout conversion not yet implemented")
+//         }
 
-        let mut bindings = HashMap::<SuPath, HashMap<SuPath, Vec<u64>>>::new();
+//         let mut bindings = HashMap::<SuPath, HashMap<SuPath, Vec<u64>>>::new();
 
-        for binding in &binding_layout.bindings {
-            let path_string = instance.get_path_string(binding.path).unwrap();
+//         for binding in &binding_layout.bindings {
+//             let path_string = instance.get_path_string(binding.path).unwrap();
 
-            let split_idx = path_string.find("/input").expect("Invalid path string");
-            let (user_str, component_str) = path_string.split_at(split_idx);
+//             let split_idx = path_string.find("/input").expect("Invalid path string");
+//             let (user_str, component_str) = path_string.split_at(split_idx);
 
-            let user_path = instance.get_path(user_str).unwrap();
-            let component_path = instance.get_path(component_str).unwrap();
+//             let user_path = instance.get_path(user_str).unwrap();
+//             let component_path = instance.get_path(component_str).unwrap();
 
-            if !bindings.contains_key(&user_path) {
-                bindings.insert(user_path, HashMap::new());
-            }
+//             if !bindings.contains_key(&user_path) {
+//                 bindings.insert(user_path, HashMap::new());
+//             }
 
-            let component_paths = bindings.get_mut(&user_path).unwrap();
+//             let component_paths = bindings.get_mut(&user_path).unwrap();
 
-            if !component_paths.contains_key(&component_path) {
-                component_paths.insert(component_path, Vec::with_capacity(1));
-            }
+//             if !component_paths.contains_key(&component_path) {
+//                 component_paths.insert(component_path, Vec::with_capacity(1));
+//             }
 
-            component_paths
-                .get_mut(&component_path)
-                .unwrap()
-                .push(binding.action)
-        }
+//             component_paths
+//                 .get_mut(&component_path)
+//                 .unwrap()
+//                 .push(binding.action)
+//         }
 
-        Self { bindings }
-    }
-}
+//         Self { bindings }
+//     }
+// }

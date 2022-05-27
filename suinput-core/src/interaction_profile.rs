@@ -10,11 +10,7 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::{
-    binding_layout,
-    instance::{self, ActionEvent, ActionEventEnum, Instance},
-    runtime::PathManager,
-};
+use crate::instance::{ActionEvent, ActionEventEnum, Instance};
 
 #[derive(Debug)]
 pub struct InputComponentData {
@@ -52,32 +48,26 @@ impl DeviceState {
 }
 
 #[derive(Debug, Clone)]
-pub struct InteractionProfile {
+pub struct InteractionProfileType {
     pub id: SuPath,
     pub user2device: HashMap<SuPath /* /user/ */, SuPath /* /device/ */>,
     pub device2user: HashMap<SuPath /* /device/ */, Vec<SuPath /* /user/ */>>,
 }
 
-impl InteractionProfile {
-    pub fn new_keyboard_mouse_cursor_profile(path_manager: &PathManager) -> Self {
+impl InteractionProfileType {
+    pub fn new_desktop_profile<F: Fn(&str) -> SuPath>(get_path: F) -> Self {
         let user2device = [
             (
-                path_manager.get_path("/user/desktop/keyboard").unwrap(),
-                path_manager
-                    .get_path("/device/standard/hid_keyboard")
-                    .unwrap(),
+                get_path("/user/desktop/keyboard"),
+                get_path("/device/standard/hid_keyboard"),
             ),
             (
-                path_manager.get_path("/user/desktop/mouse").unwrap(),
-                path_manager
-                    .get_path("/device/standard/generic_mouse")
-                    .unwrap(),
+                get_path("/user/desktop/mouse"),
+                get_path("/device/standard/generic_mouse"),
             ),
             (
-                path_manager.get_path("/user/desktop/cursor").unwrap(),
-                path_manager
-                    .get_path("/device/standard/system_cursor")
-                    .unwrap(),
+                get_path("/user/desktop/cursor"),
+                get_path("/device/standard/system_cursor"),
             ),
         ]
         .into_iter()
@@ -96,10 +86,8 @@ impl InteractionProfile {
             },
         );
 
-        InteractionProfile {
-            id: path_manager
-                .get_path("/interaction_profile/standard/keyboard_mouse_cursor")
-                .unwrap(),
+        InteractionProfileType {
+            id: get_path("/interaction_profile/standard/desktop"),
             user2device,
             device2user,
         }
@@ -108,13 +96,13 @@ impl InteractionProfile {
 
 #[derive(Debug)]
 pub struct InteractionProfileState {
-    profile: InteractionProfile,
+    profile: InteractionProfileType,
     devices: HashMap<SuPath /* /user/ */, HashSet<Index>>,
     input_components: HashMap<(SuPath, SuPath) /* /user/ , /inputs/ */, InputComponentData>,
 }
 
 impl InteractionProfileState {
-    pub fn new(profile: InteractionProfile) -> Self {
+    pub fn new(profile: InteractionProfileType) -> Self {
         Self {
             devices: profile
                 .user2device
@@ -180,7 +168,6 @@ impl InteractionProfileState {
                     for instance in instances {
                         process_bindings(
                             &self.profile,
-                            &self.input_components,
                             *user_path,
                             event,
                             &instance,
@@ -203,43 +190,18 @@ impl InteractionProfileState {
 }
 
 fn process_bindings(
-    interaction_profile: &InteractionProfile,
-    interaction_profile_state: &HashMap<(SuPath, SuPath), InputComponentData>,
+    interaction_profile: &InteractionProfileType,
     user_path: SuPath,
     event: &InputEvent,
     instance: &Instance,
 ) {
-    let player = instance.player.read();
+    let user = instance.user.read();
 
-    if let Some(binding_layout) = player.active_binding_layout.get(&interaction_profile.id) {
-        if let Some(component_bindings) = binding_layout.bindings.get(&user_path) {
-            if let Some(actions) = component_bindings.get(&event.path) {
-                for listener in instance.listeners.read().iter() {
-                    for action in actions {
-                        listener.handle_event(ActionEvent {
-                            action_handle: *action,
-                            time: Instant::now(),
-                            data: match event.data {
-                                InputComponentEvent::Button(state) => ActionEventEnum::Boolean {
-                                    state,
-                                    changed: interaction_profile_state
-                                        .get(&(user_path, event.path))
-                                        .map_or(false, |old_state| match old_state {
-                                            InputComponentData {
-                                                state: InputComponentState::Button(state),
-                                                ..
-                                            } => *state,
-                                            _ => panic!("TODO store old state in action"),
-                                        })
-                                        != state,
-                                },
-                                InputComponentEvent::Move2D(state) => ActionEventEnum::Delta2D { state: state.value },
-                                InputComponentEvent::Cursor(state) => ActionEventEnum::Cursor { state: state.normalized_screen_coords },
-                            },
-                        })
-                    }
-                }
-            }
-        }
-    }
+    if let Some(binding_layout) = user.binding_layouts.get(&interaction_profile.id) {
+        binding_layout.on_event(
+            user_path,
+            event,
+            instance,
+        );
+    };
 }

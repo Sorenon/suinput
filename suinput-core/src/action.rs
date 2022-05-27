@@ -1,6 +1,8 @@
 use std::sync::Weak;
 
-use crate::action_set::{ActionSet, ActionType};
+use suinput_types::action::ActionType;
+
+use crate::action_set::ActionSet;
 
 pub struct Action {
     pub handle: u64,

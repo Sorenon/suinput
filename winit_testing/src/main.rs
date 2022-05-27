@@ -1,4 +1,4 @@
-use suinput::{ActionEvent, ActionListener, ActionType, SimpleBinding};
+use suinput::{ActionEvent, ActionListener, SimpleBinding, ActionType};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -30,7 +30,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mouse_click = instance.get_path("/user/desktop/mouse/input/button_left/click")?;
     let a_key = instance.get_path("/user/desktop/keyboard/input/button_a/click")?;
-    let desktop = instance.get_path("/interaction_profile/standard/keyboard_mouse_cursor")?;
+    let desktop = instance.get_path("/interaction_profile/standard/desktop")?;
 
     let binding_layout = instance.create_binding_layout(
         "default_mouse_and_keyboard",

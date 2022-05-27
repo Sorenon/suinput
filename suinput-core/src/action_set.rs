@@ -1,6 +1,7 @@
 use std::sync::{Arc, Weak};
 
 use parking_lot::RwLock;
+use suinput_types::action::ActionType;
 
 use crate::action::Action;
 
@@ -16,20 +17,23 @@ pub struct ActionSet {
     pub actions: RwLock<Vec<Arc<Action>>>,
 }
 
-pub enum ActionType {
-    Boolean,
-    Delta2D,
-    Cursor,
-}
-
 impl ActionSet {
     pub fn create_action(self: &Arc<Self>, name: String, action_type: ActionType) -> Arc<Action> {
+        let instance = self
+            .instance
+            .upgrade()
+            .expect("Instance dropped unexpectedly");
+
+        let mut instance_actions = instance.actions.write();
+
         let action = Arc::new(Action {
-            handle: 0,
+            handle: (instance_actions.len() as u64) + 1,
             action_set: Arc::downgrade(self),
             name,
             action_type,
         });
+
+        instance_actions.push(action.clone());
         self.actions.write().push(action.clone());
         action
     }

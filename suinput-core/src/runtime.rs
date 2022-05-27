@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     ops::{Add, Deref},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -18,20 +19,24 @@ use suinput_types::{
         DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
     },
     event::{InputEvent, PathFormatError},
+    keyboard::KeyboardPaths,
     SuPath,
 };
 use thunderdome::{Arena, Index};
 
 use crate::{
-    instance,
-    interaction_profile::{DeviceState, InteractionProfile, InteractionProfileState},
+    device::DeviceType,
+    interaction_profile::{DeviceState, InteractionProfileState, InteractionProfileType},
+    paths::CommonPaths,
 };
 
 use super::instance::Instance;
 
 pub struct Runtime {
-    driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
     pub(crate) paths: Arc<PathManager>,
+    pub(crate) device_types: HashMap<SuPath, DeviceType>,
+
+    driver2runtime_sender: Sender<(usize, Driver2RuntimeEvent)>,
     _thread: JoinHandle<()>,
     shared_state: Arc<RuntimeState>,
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
@@ -58,6 +63,17 @@ impl Runtime {
             instances.clone(),
         );
 
+        let common_paths = CommonPaths::new(|str| paths.get_path(str).unwrap());
+        let keyboard_paths = KeyboardPaths::new(|str| paths.get_path(str).unwrap());
+        let device_types = [
+            DeviceType::create_mouse(&common_paths),
+            DeviceType::create_keyboard(&common_paths, &keyboard_paths),
+            DeviceType::create_cursor(&common_paths),
+        ]
+        .into_iter()
+        .map(|device_type| (device_type.id, device_type))
+        .collect();
+
         Self {
             driver2runtime_sender,
             paths,
@@ -67,6 +83,7 @@ impl Runtime {
             // driver_response_senders,
             shared_state,
             instances,
+            device_types,
         }
     }
 
@@ -132,9 +149,10 @@ fn spawn_thread(
     std::thread::spawn(move || {
         let mut devices = Arena::<(SuPath, DeviceState)>::new();
 
-        let mut kbd_mse_csr_profile = InteractionProfileState::new(
-            InteractionProfile::new_keyboard_mouse_cursor_profile(&paths),
-        );
+        let mut kbd_mse_csr_profile =
+            InteractionProfileState::new(InteractionProfileType::new_desktop_profile(|str| {
+                paths.get_path(str).unwrap()
+            }));
 
         while let Ok((driver, event)) = driver2runtime_receiver.recv() {
             // println!("{:?}", event);
