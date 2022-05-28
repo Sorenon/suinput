@@ -1,18 +1,13 @@
 use std::{ffi::OsString, mem::size_of, os::windows::prelude::OsStringExt};
 
-use suinput_types::{
-    keyboard::HIDScanCode,
-};
+use suinput_types::keyboard::HIDScanCode;
 use windows_sys::Win32::{
     Foundation::{GetLastError, ERROR_INSUFFICIENT_BUFFER, HANDLE, HWND},
-    UI::{
-        Input::{
-            GetRawInputData, GetRawInputDeviceInfoW, GetRawInputDeviceList,
-            KeyboardAndMouse::VK_CONTROL, RegisterRawInputDevices, HRAWINPUT, RAWINPUT,
-            RAWINPUTDEVICE, RAWINPUTDEVICELIST, RAWINPUTHEADER, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK,
-            RIDI_DEVICEINFO, RIDI_DEVICENAME, RID_DEVICE_INFO, RID_INPUT, RIM_TYPEHID,
-            RIM_TYPEKEYBOARD, RIM_TYPEMOUSE,
-        },
+    UI::Input::{
+        GetRawInputData, GetRawInputDeviceInfoW, GetRawInputDeviceList,
+        KeyboardAndMouse::VK_CONTROL, RegisterRawInputDevices, HRAWINPUT, RAWINPUT, RAWINPUTDEVICE,
+        RAWINPUTDEVICELIST, RAWINPUTHEADER, RIDEV_DEVNOTIFY, RIDEV_INPUTSINK, RIDI_DEVICEINFO,
+        RIDI_DEVICENAME, RID_DEVICE_INFO, RID_INPUT, RIM_TYPEHID, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE,
     },
 };
 

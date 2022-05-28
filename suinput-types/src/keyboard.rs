@@ -435,7 +435,7 @@ impl HIDScanCode {
             0xe5 => Some(Self::RightShift),
             0xe6 => Some(Self::RightAlt),
             0xe7 => Some(Self::RightGui),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -878,7 +878,6 @@ impl KeyboardPaths {
         }
     }
 
-
     pub fn get(&self, hid_scan_code: HIDScanCode) -> SuPath {
         match hid_scan_code {
             HIDScanCode::A => self.a,
@@ -1098,4 +1097,3 @@ impl KeyboardPaths {
         }
     }
 }
-

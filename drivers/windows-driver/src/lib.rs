@@ -60,9 +60,7 @@ pub struct Win32DesktopDriver {
 }
 
 impl Win32DesktopDriver {
-    pub fn new(
-        runtime_interface: RuntimeInterface,
-    ) -> Result<Self> {
+    pub fn new(runtime_interface: RuntimeInterface) -> Result<Self> {
         Ok(Self {
             runtime_interface,
             raw_input_thread: None,

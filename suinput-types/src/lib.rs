@@ -1,7 +1,8 @@
+pub mod action;
+pub mod binding;
 pub mod driver_interface;
 pub mod event;
 pub mod keyboard;
-pub mod action;
 
 /**
  * Instead of using static enum parameters, SuInput often uses Path variables
@@ -32,7 +33,4 @@ pub struct Vec2D {
     pub y: f32,
 }
 
-
-pub enum SuInputResult {
-
-}
+pub enum SuInputResult {}

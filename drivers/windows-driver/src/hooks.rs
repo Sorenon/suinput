@@ -37,11 +37,13 @@ impl Hooks {
         *HOOK_STATE.write() = Some(HookState {
             interface: interface.clone(),
             cursor_move: interface.get_path("/input/cursor/point").unwrap(),
-            cursor_device: interface.register_new_device(
-                interface
-                    .get_path("/device/standard/system_cursor")
-                    .unwrap(),
-            ).unwrap(),
+            cursor_device: interface
+                .register_new_device(
+                    interface
+                        .get_path("/device/standard/system_cursor")
+                        .unwrap(),
+                )
+                .unwrap(),
         });
 
         Self {
