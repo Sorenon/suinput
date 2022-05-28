@@ -1,4 +1,4 @@
-use suinput::{ActionEvent, ActionListener, SimpleBinding, ActionType, SuAction};
+use suinput::{ActionEvent, ActionListener, ActionType, SimpleBinding, SuAction};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -35,10 +35,7 @@ fn main() -> Result<(), anyhow::Error> {
     let action1 = action_set.create_action("my_first_action", ActionType::Boolean);
     let action2 = action_set.create_action("my_second_action", ActionType::Delta2D);
 
-    let mouse_click = instance.get_path("/user/desktop/mouse/input/button_left/click")?;
-    let a_key = instance.get_path("/user/desktop/keyboard/input/button_a/click")?;
-    let mouse_move = instance.get_path("/user/desktop/mouse/input/move/move2d")?;
-    let desktop = instance.get_path("/interaction_profile/standard/desktop")?;
+    let desktop_profile = instance.get_path("/interaction_profile/standard/desktop")?;
 
     instance.register_event_listener(Box::new(Listener {
         action1: action1.clone(),
@@ -47,24 +44,26 @@ fn main() -> Result<(), anyhow::Error> {
 
     let binding_layout = instance.create_binding_layout(
         "default_mouse_and_keyboard",
-        desktop,
+        desktop_profile,
         &[
             SimpleBinding {
                 action: action1.handle(),
-                path: mouse_click,
+                path: instance.get_path("/user/desktop/mouse/input/button_left/click")?,
             },
             SimpleBinding {
                 action: action1.handle(),
-                path: a_key,
+                path: instance.get_path("/user/desktop/keyboard/input/button_a/click")?,
             },
             SimpleBinding {
                 action: action2.handle(),
-                path: mouse_move,
+                path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
             },
         ],
     );
 
-    instance.set_default_binding_layout(desktop, &binding_layout);
+    instance.set_default_binding_layout(desktop_profile, &binding_layout);
+
+    instance.poll();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

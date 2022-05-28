@@ -12,16 +12,18 @@ use thunderdome::{Arena, Index};
 use crate::instance::Instance;
 
 use super::{
+    binding::working_user::WorkingUser,
     device::DeviceState,
     input_component::{InputComponentData, InputComponentState},
-    interaction_profile_type::InteractionProfileType, binding::working_user::WorkingUser,
+    interaction_profile_type::InteractionProfileType,
+    paths::{InputPath, UserPath},
 };
 
 #[derive(Debug)]
 pub(crate) struct InteractionProfileState {
     profile: InteractionProfileType,
-    devices: HashMap<SuPath /* /user/ */, HashSet<Index>>,
-    input_components: HashMap<(SuPath, SuPath) /* /user/ , /inputs/ */, InputComponentData>,
+    devices: HashMap<UserPath, HashSet<Index>>,
+    input_components: HashMap<(UserPath, InputPath), InputComponentData>,
 }
 
 impl InteractionProfileState {
@@ -48,7 +50,7 @@ impl InteractionProfileState {
     pub fn update_component(
         &mut self,
         event: &InputEvent,
-        devices: &Arena<(SuPath, DeviceState)>,
+        devices: &Arena<(SuPath, DeviceState, Index)>,
         tmp_instance: &Instance,
         tmp_user: &mut WorkingUser,
     ) {
@@ -58,27 +60,31 @@ impl InteractionProfileState {
             if device_ids.contains(&Index::from_bits(event.device).unwrap()) {
                 let new_state = match event.data {
                     InputComponentEvent::Button(event_pressed) => {
-                        if device_ids
-                            .iter()
-                            .filter(|id| **id != event_device_id)
-                            .find(|id| {
-                                let (_, device_state) = devices.get(**id).unwrap();
-                                match device_state.input_components.get(&event.path) {
-                                    Some(InputComponentData {
-                                        state: InputComponentState::Button(device_pressed),
-                                        ..
-                                    }) => *device_pressed,
-                                    Some(_) => todo!(
+                        if event_pressed {
+                            Some(InputComponentState::Button(true))
+                        } else {
+                            if device_ids
+                                .iter()
+                                .filter(|id| **id != event_device_id)
+                                .find(|id| {
+                                    let (_, device_state, _) = devices.get(**id).unwrap();
+                                    match device_state.input_components.get(&event.path) {
+                                        Some(InputComponentData {
+                                            state: InputComponentState::Button(device_pressed),
+                                            ..
+                                        }) => *device_pressed,
+                                        Some(_) => todo!(
                                         "TODO add interaction profile checks so this can't happen"
                                     ),
-                                    None => false,
-                                }
-                            })
-                            .is_some()
-                        {
-                            None
-                        } else {
-                            Some(InputComponentState::Button(event_pressed))
+                                        None => false,
+                                    }
+                                })
+                                .is_some()
+                            {
+                                None
+                            } else {
+                                Some(InputComponentState::Button(false))
+                            }
                         }
                     }
                     InputComponentEvent::Move2D(_) => Some(InputComponentState::NonApplicable),
@@ -111,5 +117,5 @@ impl InteractionProfileState {
         }
     }
 
-    pub fn device_removed(&mut self, id: Index, devices: &Arena<(SuPath, DeviceState)>) {}
+    pub fn device_removed(&mut self, id: Index, devices: &Arena<(SuPath, DeviceState, Index)>) {}
 }

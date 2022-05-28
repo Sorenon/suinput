@@ -1,15 +1,22 @@
-use std::{
-    sync::{Arc, Weak},
-};
+use std::sync::{Arc, Weak};
 
 use parking_lot::RwLock;
-use suinput_types::{event::PathFormatError, SuPath, action::ActionListener};
+use suinput_types::{
+    action::ActionListener, binding::SimpleBinding, event::PathFormatError, SuPath,
+};
 
-use crate::{action::Action, internal::{user::User, binding::binding_engine::ProcessedBindingLayout}};
+use crate::{
+    action::Action,
+    internal::{
+        binding::binding_engine::ProcessedBindingLayout, user::User,
+        worker_thread::WorkerThreadEvent,
+    },
+};
 
 use super::{action_set::ActionSet, runtime::Runtime};
 
 pub struct Instance {
+    pub handle: u64,
     pub(crate) runtime: Weak<Runtime>,
 
     name: String,
@@ -23,8 +30,14 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(runtime: &Arc<Runtime>, name: String, persistent_unique_id: ()) -> Self {
+    pub fn new(
+        runtime: &Arc<Runtime>,
+        handle: u64,
+        name: String,
+        persistent_unique_id: (),
+    ) -> Self {
         Instance {
+            handle,
             runtime: Arc::downgrade(&runtime),
             name,
             user: RwLock::default(),
@@ -91,12 +104,16 @@ impl Instance {
             interaction_profile,
             ProcessedBindingLayout::new(self, interaction_profile, binding_layout),
         );
+    }
 
+    pub fn poll(&self) {
         self.runtime
             .upgrade()
             .unwrap()
             .driver2runtime_sender
-            .send(crate::internal::worker_thread::WorkerThreadEvent::Poll)
+            .send(WorkerThreadEvent::Poll {
+                instance: self.handle,
+            })
             .unwrap();
     }
 
@@ -126,65 +143,8 @@ impl Instance {
     }
 }
 
-// #[derive(Default)]
-// pub(crate) struct Player {
-//     pub default_binding_layout: HashMap<SuPath, Arc<BindingLayout>>,
-//     pub active_binding_layout: HashMap<SuPath, ProcessedBindingLayout>,
-// }
-
 pub struct BindingLayout {
     pub name: String,
     pub interaction_profile: SuPath,
     pub bindings: Vec<SimpleBinding>,
 }
-
-#[derive(Debug, Clone, Copy)]
-pub struct SimpleBinding {
-    pub action: u64,
-    pub path: SuPath,
-}
-
-// pub(crate) struct ProcessedBindingLayout {
-//     pub bindings: HashMap<SuPath, HashMap<SuPath, Vec<u64>>>,
-// }
-
-// impl ProcessedBindingLayout {
-//     fn new(
-//         instance: &Instance,
-//         interaction_profile: SuPath,
-//         binding_layout: &BindingLayout,
-//     ) -> Self {
-//         if interaction_profile != binding_layout.interaction_profile {
-//             todo!("Binding Layout conversion not yet implemented")
-//         }
-
-//         let mut bindings = HashMap::<SuPath, HashMap<SuPath, Vec<u64>>>::new();
-
-//         for binding in &binding_layout.bindings {
-//             let path_string = instance.get_path_string(binding.path).unwrap();
-
-//             let split_idx = path_string.find("/input").expect("Invalid path string");
-//             let (user_str, component_str) = path_string.split_at(split_idx);
-
-//             let user_path = instance.get_path(user_str).unwrap();
-//             let component_path = instance.get_path(component_str).unwrap();
-
-//             if !bindings.contains_key(&user_path) {
-//                 bindings.insert(user_path, HashMap::new());
-//             }
-
-//             let component_paths = bindings.get_mut(&user_path).unwrap();
-
-//             if !component_paths.contains_key(&component_path) {
-//                 component_paths.insert(component_path, Vec::with_capacity(1));
-//             }
-
-//             component_paths
-//                 .get_mut(&component_path)
-//                 .unwrap()
-//                 .push(binding.action)
-//         }
-
-//         Self { bindings }
-//     }
-// }

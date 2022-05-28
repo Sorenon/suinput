@@ -11,14 +11,14 @@ use crate::{
     internal::{
         input_component::InputComponentType,
         interaction_profile_type::InteractionProfileType,
-        paths::{ComponentPath, UserPath, InteractionProfilePath},
+        paths::{InputPath, InteractionProfilePath, UserPath},
     },
 };
 
 pub struct ProcessedBindingLayout {
     pub(crate) bindings_index: Vec<(ProcessedBinding, ActionStateEnum, u64)>,
 
-    input_bindings: HashMap<UserPath, HashMap<ComponentPath, Vec<usize>>>,
+    input_bindings: HashMap<UserPath, HashMap<InputPath, Vec<usize>>>,
     pub(crate) bindings_for_action: HashMap<u64, Vec<usize>>,
 }
 
@@ -35,10 +35,10 @@ impl ProcessedBindingLayout {
             todo!("Binding Layout conversion not yet implemented")
         }
 
-        //TODO store interaction profile types in runtime
-        let interaction_profile_type =
-            InteractionProfileType::new_desktop_profile(|str| instance.get_path(str).unwrap());
-        assert_eq!(interaction_profile, interaction_profile_type.id);
+        let interaction_profile_type = runtime
+            .interaction_profile_types
+            .get(interaction_profile)
+            .expect("Unknown interaction profile");
 
         let mut bindings_index = Vec::<(ProcessedBinding, ActionStateEnum, u64)>::new();
         let mut input_bindings = HashMap::<SuPath, HashMap<SuPath, Vec<usize>>>::new();
@@ -57,7 +57,7 @@ impl ProcessedBindingLayout {
                 .user2device
                 .get(&user_path)
                 .unwrap();
-            let device = runtime.device_types.get(device).unwrap();
+            let device = runtime.device_types.get(*device).unwrap();
 
             let component_path = instance.get_path(component_str).unwrap();
 

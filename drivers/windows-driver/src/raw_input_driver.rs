@@ -267,7 +267,7 @@ pub fn process_mouse(
                     path: paths.mouse_move,
                     time: Time(0),
                     data: InputComponentEvent::Move2D(Move2D {
-                        value: (mouse.lLastX as f64, mouse.lLastY as f64),
+                        value: (mouse.lLastX as f64, mouse.lLastY as f64 * -1.),
                     }),
                 })
                 .unwrap();

@@ -84,7 +84,7 @@ pub use suinput_types::action::ActionListener;
 #[derive(Clone)]
 pub struct SuInstance(Inner<instance::Instance>);
 
-pub use instance::SimpleBinding;
+pub use suinput_types::binding::SimpleBinding;
 
 impl SuInstance {
     pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
@@ -137,6 +137,13 @@ impl SuInstance {
             }
             (Inner::FFI(), Inner::FFI()) => todo!(),
             _ => panic!(),
+        }
+    }
+
+    pub fn poll(&self) {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.poll(),
+            Inner::FFI() => todo!(),
         }
     }
 }

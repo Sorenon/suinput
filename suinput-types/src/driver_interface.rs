@@ -21,13 +21,16 @@ impl Deref for RuntimeInterface {
 #[derive(Debug, Error)]
 pub enum RuntimeInterfaceError {
     #[error("Driver Uninitialized")]
-    DriverUninitialized
+    DriverUninitialized,
 }
 
 pub trait RuntimeInterfaceTrait: Debug + Send + Sync {
     fn register_new_device(&self, device_type: SuPath) -> Result<u64, RuntimeInterfaceError>;
     fn disconnect_device(&self, device_id: u64) -> Result<(), RuntimeInterfaceError>;
-    fn send_component_event(&self, component_event: InputEvent) -> Result<(), RuntimeInterfaceError>;
+    fn send_component_event(
+        &self,
+        component_event: InputEvent,
+    ) -> Result<(), RuntimeInterfaceError>;
     fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError>;
     fn get_path_string(&self, path: SuPath) -> Option<String>;
 }
