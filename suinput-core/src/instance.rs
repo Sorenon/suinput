@@ -7,10 +7,8 @@ use suinput_types::{
 
 use crate::{
     action::Action,
-    internal::{
-        binding::binding_engine::ProcessedBindingLayout, user::User,
-        worker_thread::WorkerThreadEvent,
-    },
+    internal::{binding::binding_engine::ProcessedBindingLayout, worker_thread::WorkerThreadEvent},
+    user::User,
 };
 
 use super::{action_set::ActionSet, runtime::Runtime};

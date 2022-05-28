@@ -7,5 +7,4 @@ pub mod interaction_profile;
 pub mod interaction_profile_type;
 pub mod interaction_profile_types;
 pub mod paths;
-pub mod user;
 pub mod worker_thread;

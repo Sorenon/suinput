@@ -149,6 +149,9 @@ impl SuInstance {
 }
 
 #[derive(Clone)]
+pub struct SuUser(Inner<user::User>);
+
+#[derive(Clone)]
 pub struct SuBindingLayout(Inner<instance::BindingLayout>);
 
 #[derive(Clone)]
