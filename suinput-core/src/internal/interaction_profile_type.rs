@@ -16,15 +16,15 @@ impl InteractionProfileType {
         let user2device = [
             (
                 get_path("/user/desktop/keyboard"),
-                get_path("/device/standard/hid_keyboard"),
+                get_path("/devices/standard/hid_keyboard"),
             ),
             (
                 get_path("/user/desktop/mouse"),
-                get_path("/device/standard/generic_mouse"),
+                get_path("/devices/standard/generic_mouse"),
             ),
             (
                 get_path("/user/desktop/cursor"),
-                get_path("/device/standard/system_cursor"),
+                get_path("/devices/standard/system_cursor"),
             ),
         ]
         .into_iter()
@@ -44,7 +44,7 @@ impl InteractionProfileType {
         );
 
         InteractionProfileType {
-            id: get_path("/interaction_profile/standard/desktop"),
+            id: get_path("/interaction_profiles/standard/desktop"),
             user2device,
             device2user,
         }

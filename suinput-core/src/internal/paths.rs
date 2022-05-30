@@ -51,10 +51,10 @@ pub struct CommonPaths {
 impl CommonPaths {
     pub fn new<F: Fn(&str) -> SuPath>(get_path: F) -> Self {
         Self {
-            desktop: get_path("/interaction_profile/standard/desktop"),
-            mouse: get_path("/device/standard/generic_mouse"),
-            keyboard: get_path("/device/standard/hid_keyboard"),
-            system_cursor: get_path("/device/standard/system_cursor"),
+            desktop: get_path("/interaction_profiles/standard/desktop"),
+            mouse: get_path("/devices/standard/generic_mouse"),
+            keyboard: get_path("/devices/standard/hid_keyboard"),
+            system_cursor: get_path("/devices/standard/system_cursor"),
             cursor_point: get_path("/input/cursor/point"),
             mouse_move: get_path("/input/move/move2d"),
             mouse_scroll: get_path("/input/scroll/move2d"),

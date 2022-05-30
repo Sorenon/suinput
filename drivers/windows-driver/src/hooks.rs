@@ -40,7 +40,7 @@ impl Hooks {
             cursor_device: interface
                 .register_new_device(
                     interface
-                        .get_path("/device/standard/system_cursor")
+                        .get_path("/devices/standard/system_cursor")
                         .unwrap(),
                 )
                 .unwrap(),

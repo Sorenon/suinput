@@ -16,10 +16,10 @@ impl CommonPaths {
     pub fn new(driver_manager: &dyn RuntimeInterfaceTrait) -> Self {
         Self {
             mouse: driver_manager
-                .get_path("/device/standard/generic_mouse")
+                .get_path("/devices/standard/generic_mouse")
                 .unwrap(),
             keyboard: driver_manager
-                .get_path("/device/standard/hid_keyboard")
+                .get_path("/devices/standard/hid_keyboard")
                 .unwrap(),
             mouse_move: driver_manager.get_path("/input/move/move2d").unwrap(),
             mouse_scroll: driver_manager.get_path("/input/scroll/move2d").unwrap(),

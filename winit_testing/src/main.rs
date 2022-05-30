@@ -35,7 +35,7 @@ fn main() -> Result<(), anyhow::Error> {
     let action1 = action_set.create_action("my_first_action", ActionType::Boolean);
     let action2 = action_set.create_action("my_second_action", ActionType::Delta2D);
 
-    let desktop_profile = instance.get_path("/interaction_profile/standard/desktop")?;
+    let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
     instance.register_event_listener(Box::new(Listener {
         action1: action1.clone(),
