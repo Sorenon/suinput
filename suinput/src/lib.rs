@@ -42,26 +42,7 @@ impl SuInputRuntime {
             Inner::FFI() => todo!(),
         }
     }
-
-    pub fn set_windows(&self, windows: &[usize]) {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.set_windows(windows),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    pub fn set_windows_rwh(&self, raw_window_handles: &[RawWindowHandle]) {
-        self.set_windows(
-            &raw_window_handles
-                .iter()
-                .filter_map(|raw_window_handle| match raw_window_handle {
-                    RawWindowHandle::Win32(f) => Some(f.hwnd as usize),
-                    _ => None,
-                })
-                .collect::<Vec<usize>>(),
-        );
-    }
-
+    
     pub fn destroy(&self) {
         match &self.0 {
             Inner::Embedded(inner) => inner.destroy(),
@@ -103,13 +84,6 @@ impl SuInstance {
         })
     }
 
-    pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.register_event_listener(listener),
-            Inner::FFI() => todo!(),
-        }
-    }
-
     pub fn create_binding_layout(
         &self,
         name: &str,
@@ -138,6 +112,46 @@ impl SuInstance {
             (Inner::FFI(), Inner::FFI()) => todo!(),
             _ => panic!(),
         }
+    }
+
+    pub fn create_session(&self) -> SuSession {
+        SuSession(match &self.0 {
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_session()),
+            Inner::FFI() => todo!(),
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct SuSession(Inner<session::Session>);
+
+impl SuSession {
+    pub fn set_window(&self, window: usize) {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.set_window(window),
+            Inner::FFI() => todo!(),
+        }
+    }
+
+    pub fn set_window_rwh(&self, window: RawWindowHandle) {
+        self.set_window(match window {
+            RawWindowHandle::Win32(f) => f.hwnd as usize,
+            _ => todo!(),
+        })
+    }
+
+    pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.register_event_listener(listener),
+            Inner::FFI() => todo!(),
+        }
+    }
+    
+    pub fn get_main_user(&self) -> SuUser {
+        SuUser(match &self.0 {
+            Inner::Embedded(inner) => Inner::Embedded(inner.user.clone()),
+            Inner::FFI() => todo!(),
+        })
     }
 
     pub fn poll(&self) {

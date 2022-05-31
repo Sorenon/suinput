@@ -3,4 +3,5 @@ pub mod action_set;
 pub mod instance;
 pub(crate) mod internal;
 pub mod runtime;
+pub mod session;
 pub mod user;

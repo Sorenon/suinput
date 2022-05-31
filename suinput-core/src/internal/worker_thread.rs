@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
 };
@@ -17,17 +16,12 @@ use crate::{
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
 };
 
-use super::{
-    binding::working_user::WorkingUser,
-    device::DeviceState,
-    interaction_profile_type::{self, InteractionProfileType},
-    interaction_profile_types::InteractionProfileTypes,
-};
+use super::{binding::working_user::WorkingUser, device::DeviceState};
 
 #[derive(Debug)]
 pub enum WorkerThreadEvent {
     Poll {
-        instance: u64,
+        session: u64,
     },
     DriverEvent {
         id: usize,
@@ -46,7 +40,7 @@ pub fn spawn_thread(
 
         let runtime = runtime.upgrade().unwrap();
 
-        //For now we just assume one instance and one user
+        //For now we just assume one session and one user
         let mut working_user = WorkingUser {
             binding_layouts: HashMap::new(),
             action_states: HashMap::new(),
@@ -65,12 +59,12 @@ pub fn spawn_thread(
 
         while let Ok(event) = driver2runtime_receiver.recv() {
             match event {
-                WorkerThreadEvent::Poll { instance } => {
-                    let instances = runtime.instances.read();
-                    let instance = instances.get(instance as usize - 1).unwrap();
-                    let mut user = instance.user.write();
+                WorkerThreadEvent::Poll { session } => {
+                    let sessions = runtime.sessions.read();
+                    let session = sessions.get(session as usize - 1).unwrap();
+                    let user = &session.user;
 
-                    for (profile, binding_layout) in user.new_binding_layouts.drain() {
+                    for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
                         working_user.binding_layouts.insert(profile, binding_layout);
                     }
                 }
@@ -98,7 +92,6 @@ pub fn spawn_thread(
                                 .device_added(device_id, ty);
                         }
                         Driver2RuntimeEvent::Input(event) => {
-                            let instances = runtime.instances.read();
                             let device_idx = Index::from_bits(event.device).unwrap();
                             let (_, _, interaction_profile_id) =
                                 device_states.get(device_idx).unwrap();
@@ -109,8 +102,24 @@ pub fn spawn_thread(
                                 .update_component(
                                     &event,
                                     &device_states,
-                                    &instances.first().unwrap(),
-                                    &mut working_user,
+                                    |profile_state, user_path, event| {
+                                        // println!("{event:?}");
+
+                                        working_user.on_event(
+                                            &profile_state.profile,
+                                            user_path,
+                                            event,
+                                            runtime
+                                                .instances
+                                                .read()
+                                                .first()
+                                                .unwrap()
+                                                .sessions
+                                                .read()
+                                                .first()
+                                                .unwrap(),
+                                        );
+                                    },
                                 );
 
                             let device = device_states.get_mut(device_idx).unwrap();

@@ -2,8 +2,6 @@ use std::collections::{hash_map::Entry, HashMap};
 
 use suinput_types::SuPath;
 
-use super::device_types::DeviceTypes;
-
 #[derive(Debug, Clone)]
 pub struct InteractionProfileType {
     pub id: SuPath,

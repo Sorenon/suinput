@@ -8,7 +8,7 @@ pub enum ActionType {
 }
 
 pub trait ActionListener: Send + Sync {
-    fn handle_event(&self, event: ActionEvent);
+    fn handle_event(&self, event: ActionEvent, user: u64);
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1,13 +1,15 @@
-use std::sync::{Arc, Weak};
-
-use parking_lot::RwLock;
-use suinput_types::{
-    action::ActionListener, binding::SimpleBinding, event::PathFormatError, SuPath,
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
 };
+
+use parking_lot::{Mutex, RwLock};
+use suinput_types::{binding::SimpleBinding, event::PathFormatError, SuPath};
 
 use crate::{
     action::Action,
-    internal::{binding::binding_engine::ProcessedBindingLayout, worker_thread::WorkerThreadEvent},
+    internal::binding::binding_engine::ProcessedBindingLayout,
+    session::{self, Session},
     user::User,
 };
 
@@ -20,11 +22,13 @@ pub struct Instance {
     name: String,
 
     // action_sets: RwLock<Vec<Arc<ActionSet>>>,
-    pub(crate) user: RwLock<User>,
-    pub(crate) listeners: RwLock<Vec<Box<dyn ActionListener>>>,
 
     //TODO should this be a generational arena or is that overkill?
     pub(crate) actions: RwLock<Vec<Arc<Action>>>,
+
+    pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
+
+    pub(crate) default_binding_layouts: RwLock<HashMap<SuPath, Arc<BindingLayout>>>,
 }
 
 impl Instance {
@@ -38,9 +42,9 @@ impl Instance {
             handle,
             runtime: Arc::downgrade(&runtime),
             name,
-            user: RwLock::default(),
-            listeners: RwLock::default(),
             actions: RwLock::default(),
+            sessions: RwLock::default(),
+            default_binding_layouts: RwLock::default(),
             // action_sets: Default::default(),
         }
     }
@@ -93,32 +97,44 @@ impl Instance {
         interaction_profile: SuPath,
         binding_layout: &Arc<BindingLayout>,
     ) {
-        let mut player = self.user.write();
-        player
-            .default_binding_layout
+        self.default_binding_layouts
+            .write()
             .insert(interaction_profile, binding_layout.clone());
-
-        player.new_binding_layouts.insert(
-            interaction_profile,
-            ProcessedBindingLayout::new(self, interaction_profile, binding_layout),
-        );
     }
 
-    pub fn poll(&self) {
-        self.runtime
-            .upgrade()
-            .unwrap()
-            .driver2runtime_sender
-            .send(WorkerThreadEvent::Poll {
-                instance: self.handle,
-            })
-            .unwrap();
-    }
+    pub fn create_session(self: &Arc<Self>) -> Arc<session::Session> {
+        let runtime = self.runtime.upgrade().unwrap();
 
-    pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
-        let mut listeners = self.listeners.write();
-        listeners.push(listener);
-        listeners.len() as u64
+        //Sessions are owned by both the runtime and their instance
+        let mut runtime_sessions = runtime.sessions.write();
+        let mut instance_sessions = self.sessions.write();
+
+        let binding_layouts = self
+            .default_binding_layouts
+            .read()
+            .iter()
+            .map(|(&profile, layout)| (profile, ProcessedBindingLayout::new(self, profile, layout)))
+            .collect();
+
+        let user = User {
+            action_states: RwLock::default(),
+            new_binding_layouts: Mutex::new(binding_layouts),
+        };
+
+        let session = Arc::new(session::Session {
+            instance_handle: instance_sessions.len() as u64 + 1,
+            runtime_handle: runtime_sessions.len() as u64 + 1,
+            runtime: self.runtime.clone(),
+            instance: Arc::downgrade(self),
+            user: Arc::new(user),
+            listeners: RwLock::default(),
+            window: Mutex::new(None),
+        });
+
+        runtime_sessions.push(session.clone());
+        instance_sessions.push(session.clone());
+
+        session
     }
 
     /**

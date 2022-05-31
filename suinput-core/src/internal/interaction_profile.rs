@@ -9,10 +9,7 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::instance::Instance;
-
 use super::{
-    binding::working_user::WorkingUser,
     device::DeviceState,
     input_component::{InputComponentData, InputComponentState},
     interaction_profile_type::InteractionProfileType,
@@ -21,7 +18,7 @@ use super::{
 
 #[derive(Debug)]
 pub(crate) struct InteractionProfileState {
-    profile: InteractionProfileType,
+    pub profile: InteractionProfileType,
     devices: HashMap<UserPath, HashSet<Index>>,
     input_components: HashMap<(UserPath, InputPath), InputComponentData>,
 }
@@ -47,12 +44,11 @@ impl InteractionProfileState {
         }
     }
 
-    pub fn update_component(
+    pub fn update_component<F: FnMut(&InteractionProfileState, UserPath, &InputEvent)>(
         &mut self,
         event: &InputEvent,
         devices: &Arena<(SuPath, DeviceState, Index)>,
-        tmp_instance: &Instance,
-        tmp_user: &mut WorkingUser,
+        mut process_bindings: F,
     ) {
         let event_device_id = Index::from_bits(event.device).unwrap();
 
@@ -94,16 +90,7 @@ impl InteractionProfileState {
                 };
 
                 if let Some(new_state) = new_state {
-                    // for instance in instances {
-                    //     process_bindings(
-                    //         &self.profile,
-                    //         *user_path,
-                    //         event,
-                    //         &instance,
-                    //         tmp_user,
-                    //     );
-                    // }
-                    tmp_user.on_event(&self.profile, *user_path, event, tmp_instance);
+                    process_bindings(&self, *user_path, event);
 
                     self.input_components.insert(
                         (*user_path, event.path),

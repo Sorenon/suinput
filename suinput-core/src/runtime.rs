@@ -5,10 +5,11 @@ use std::{
         Arc,
     },
     thread::JoinHandle,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, ops::Deref,
 };
 
 use flume::Sender;
+use itertools::Itertools;
 use parking_lot::{Mutex, RwLock};
 
 use suinput_types::{
@@ -20,12 +21,14 @@ use suinput_types::{
     SuPath,
 };
 
-use crate::internal::{
-    device_type::DeviceType,
-    device_types::{self, DeviceTypes},
-    interaction_profile_types::{self, InteractionProfileTypes},
-    paths::{CommonPaths, PathManager},
-    worker_thread::{self, WorkerThreadEvent},
+use crate::{
+    internal::{
+        device_types::DeviceTypes,
+        interaction_profile_types::InteractionProfileTypes,
+        paths::{CommonPaths, PathManager},
+        worker_thread::{self, WorkerThreadEvent},
+    },
+    session::Session,
 };
 
 use super::instance::Instance;
@@ -42,6 +45,7 @@ pub struct Runtime {
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
 
     pub(crate) instances: RwLock<Vec<Arc<Instance>>>,
+    pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
 }
 
 impl Runtime {
@@ -73,6 +77,7 @@ impl Runtime {
             device_types,
             common_paths,
             interaction_profile_types,
+            sessions: Default::default(),
         });
 
         std::mem::drop(lock);
@@ -113,9 +118,22 @@ impl Runtime {
         Ok(idx)
     }
 
-    pub fn set_windows(&self, windows: &[usize]) {
+    pub fn refresh_windows(&self) {
+        let sessions = self.sessions.read();
+        let window_guards = sessions
+            .iter()
+            .map(|session| session.window.lock())
+            .collect::<Vec<_>>();
+
+        let windows = window_guards
+            .iter()
+            .filter_map(|guard| *guard.deref())
+            .map(|non_zero| non_zero.into())
+            .unique()
+            .collect::<Vec<usize>>();
+
         for driver in self.drivers.write().iter_mut() {
-            driver.set_windows(windows);
+            driver.set_windows(&windows);
         }
     }
 

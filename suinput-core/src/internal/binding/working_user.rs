@@ -7,7 +7,7 @@ use suinput_types::{
     SuPath,
 };
 
-use crate::{instance::Instance, internal::interaction_profile_type::InteractionProfileType};
+use crate::{internal::interaction_profile_type::InteractionProfileType, session::Session};
 
 use super::binding_engine::ProcessedBindingLayout;
 
@@ -22,7 +22,7 @@ impl WorkingUser {
         interaction_profile: &InteractionProfileType,
         user_path: SuPath,
         event: &InputEvent,
-        instance: &Instance,
+        session: &Session,
     ) {
         if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.id) {
             binding_layout.on_event(
@@ -85,8 +85,8 @@ impl WorkingUser {
                         time: Instant::now(),
                         data: event,
                     };
-                    for listener in instance.listeners.read().iter() {
-                        listener.handle_event(event);
+                    for listener in session.listeners.read().iter() {
+                        listener.handle_event(event, 0);
                     }
                 },
             );

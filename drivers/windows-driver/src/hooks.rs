@@ -117,7 +117,7 @@ unsafe extern "system" fn call_wnd_proc(a: i32, b: usize, cwp_ptr: isize) -> isi
             data: InputComponentEvent::Cursor(Cursor {
                 normalized_screen_coords: (point.x as f64, point.y as f64),
             }),
-        });
+        }).unwrap();
     }
 
     CallNextHookEx(0, a, b, cwp_ptr)
