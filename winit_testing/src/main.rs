@@ -1,5 +1,5 @@
 use raw_window_handle::HasRawWindowHandle;
-use suinput::{ActionEvent, ActionListener, ActionType, SimpleBinding, SuAction};
+use suinput::{ActionEvent, ActionEventEnum, ActionListener, ActionType, SimpleBinding, SuAction};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -7,16 +7,23 @@ use winit::{
 };
 
 struct Listener {
-    action1: SuAction,
-    action2: SuAction,
+    jump: SuAction,
+    turn: SuAction,
 }
 
 impl ActionListener for Listener {
     fn handle_event(&self, event: ActionEvent, user: u64) {
-        if event.action_handle == self.action1.handle() {
-            println!("my_first_action -> {:?} for user {user}", event.data);
-        } else if event.action_handle == self.action2.handle() {
-            println!("my_second_action -> {:?} for user {user}", event.data);
+        if event.action_handle == self.jump.handle() {
+            if let ActionEventEnum::Boolean { state, changed } = event.data {
+                if state && changed {
+                    println!("jump! for user {user}");
+                }
+            }
+            println!("{:?}", event.data)
+        } else if event.action_handle == self.turn.handle() {
+            if let ActionEventEnum::Delta2D { delta } = event.data {
+                println!("turn {delta:?} for user {user}");
+            }
         }
     }
 }
@@ -27,9 +34,9 @@ fn main() -> Result<(), anyhow::Error> {
 
     let instance = runtime.create_instance("Test Application");
 
-    let action_set = instance.create_action_set("my_first_action_set", 0);
-    let action1 = action_set.create_action("my_first_action", ActionType::Boolean);
-    let action2 = action_set.create_action("my_second_action", ActionType::Delta2D);
+    let action_set = instance.create_action_set("gameplay", 0);
+    let jump_action = action_set.create_action("jump", ActionType::Boolean);
+    let turn_action = action_set.create_action("turn", ActionType::Delta2D);
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -38,15 +45,15 @@ fn main() -> Result<(), anyhow::Error> {
         desktop_profile,
         &[
             SimpleBinding {
-                action: action1.handle(),
+                action: jump_action.handle(),
                 path: instance.get_path("/user/desktop/mouse/input/button_left/click")?,
             },
             SimpleBinding {
-                action: action1.handle(),
-                path: instance.get_path("/user/desktop/keyboard/input/button_a/click")?,
+                action: jump_action.handle(),
+                path: instance.get_path("/user/desktop/keyboard/input/button_space/click")?,
             },
             SimpleBinding {
-                action: action2.handle(),
+                action: turn_action.handle(),
                 path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
             },
         ],
@@ -62,8 +69,8 @@ fn main() -> Result<(), anyhow::Error> {
     session.set_window_rwh(window.raw_window_handle());
 
     session.register_event_listener(Box::new(Listener {
-        action1: action1.clone(),
-        action2: action2.clone(),
+        jump: jump_action.clone(),
+        turn: turn_action.clone(),
     }));
 
     // session.poll();
