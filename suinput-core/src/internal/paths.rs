@@ -1,16 +1,18 @@
 use std::ops::Deref;
 
 use dashmap::DashMap;
+use parking_lot::RwLock;
 use regex::Regex;
 use suinput_types::{event::PathFormatError, SuPath};
 
+//TODO investigate storing paths more efficiently
 #[derive(Debug)]
-pub struct PathManager(DashMap<String, SuPath>, DashMap<SuPath, String>, Regex);
+pub struct PathManager(DashMap<String, SuPath>, RwLock<Vec<String>>, Regex);
 
 impl PathManager {
     pub fn new() -> Self {
         let regex = Regex::new(r#"^(/(\.*[a-z0-9-_]+\.*)+)+$"#).unwrap();
-        Self(DashMap::new(), DashMap::new(), regex)
+        Self(DashMap::new(), RwLock::default(), regex)
     }
 
     pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
@@ -19,9 +21,15 @@ impl PathManager {
         }
 
         if self.2.is_match(path_string) {
-            let path = SuPath(self.0.len() as u32);
+            let mut paths = self.1.write();
+            //Double check that the path has not been added now that we have exclusive access
+            if let Some(path) = self.0.get(path_string) {
+                return Ok(*path.deref());
+            }
+
+            let path = SuPath(self.0.len().try_into().unwrap());
             self.0.insert(path_string.to_owned(), path);
-            self.1.insert(path, path_string.to_owned());
+            paths.push(path_string.to_owned());
             Ok(path)
         } else {
             Err(PathFormatError)
@@ -29,7 +37,10 @@ impl PathManager {
     }
 
     pub fn get_path_string(&self, path: SuPath) -> Option<String> {
-        self.1.get(&path).map(|inner| inner.clone())
+        self.1
+            .read()
+            .get(path.0 as usize)
+            .map(|inner| inner.clone())
     }
 }
 
