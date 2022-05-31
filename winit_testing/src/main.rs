@@ -66,7 +66,7 @@ fn main() -> Result<(), anyhow::Error> {
         action2: action2.clone(),
     }));
 
-    session.poll();
+    // session.poll();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

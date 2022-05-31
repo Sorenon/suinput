@@ -4,7 +4,9 @@ use std::{
 };
 
 use parking_lot::{Mutex, RwLock};
-use suinput_types::{binding::SimpleBinding, event::PathFormatError, SuPath, CreateBindingLayoutError};
+use suinput_types::{
+    binding::SimpleBinding, event::PathFormatError, CreateBindingLayoutError, SuPath,
+};
 
 use crate::{
     action::Action,
@@ -87,18 +89,19 @@ impl Instance {
     ) -> Result<Arc<BindingLayout>, CreateBindingLayoutError> {
         let bindings = bindings.to_vec();
 
-        ProcessedBindingLayout::new(self, interaction_profile, &bindings).map(|processed| {
-            Arc::new(BindingLayout {
-                name: name.into(),
-                interaction_profile,
-                processed,
-                bindings: bindings.to_vec(),
+        ProcessedBindingLayout::new(self, interaction_profile, &bindings)
+            .map(|processed| {
+                Arc::new(BindingLayout {
+                    name: name.into(),
+                    interaction_profile,
+                    processed,
+                    bindings: bindings.to_vec(),
+                })
             })
-        })
-        .map_err(|err| {
-            log::error!("SuInput: create_binding_layout failed with {err}");
-            err
-        })
+            .map_err(|err| {
+                log::error!("SuInput: create_binding_layout failed with {err}");
+                err
+            })
     }
 
     pub fn set_default_binding_layout(
@@ -112,36 +115,42 @@ impl Instance {
     }
 
     pub fn create_session(self: &Arc<Self>) -> Arc<session::Session> {
-        let runtime = self.runtime.upgrade().unwrap();
+        let session = {
+            let runtime = self.runtime.upgrade().unwrap();
 
-        //Sessions are owned by both the runtime and their instance
-        let mut runtime_sessions = runtime.sessions.write();
-        let mut instance_sessions = self.sessions.write();
+            //Sessions are owned by both the runtime and their instance
+            let mut runtime_sessions = runtime.sessions.write();
+            let mut instance_sessions = self.sessions.write();
 
-        let binding_layouts = self
-            .default_binding_layouts
-            .read()
-            .iter()
-            .map(|(&profile, layout)| (profile, layout.processed.clone()))
-            .collect();
+            let binding_layouts = self
+                .default_binding_layouts
+                .read()
+                .iter()
+                .map(|(&profile, layout)| (profile, layout.processed.clone()))
+                .collect();
 
-        let user = User {
-            action_states: RwLock::default(),
-            new_binding_layouts: Mutex::new(binding_layouts),
+            let user = User {
+                action_states: RwLock::default(),
+                new_binding_layouts: Mutex::new(binding_layouts),
+            };
+
+            let session = Arc::new(session::Session {
+                instance_handle: instance_sessions.len() as u64 + 1,
+                runtime_handle: runtime_sessions.len() as u64 + 1,
+                runtime: self.runtime.clone(),
+                instance: Arc::downgrade(self),
+                user: Arc::new(user),
+                listeners: RwLock::default(),
+                window: Mutex::new(None),
+            });
+
+            runtime_sessions.push(session.clone());
+            instance_sessions.push(session.clone());
+
+            session
         };
 
-        let session = Arc::new(session::Session {
-            instance_handle: instance_sessions.len() as u64 + 1,
-            runtime_handle: runtime_sessions.len() as u64 + 1,
-            runtime: self.runtime.clone(),
-            instance: Arc::downgrade(self),
-            user: Arc::new(user),
-            listeners: RwLock::default(),
-            window: Mutex::new(None),
-        });
-
-        runtime_sessions.push(session.clone());
-        instance_sessions.push(session.clone());
+        session.poll();
 
         session
     }
