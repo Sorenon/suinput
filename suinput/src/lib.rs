@@ -4,7 +4,6 @@ use raw_window_handle::RawWindowHandle;
 use suinput_types::{
     driver_interface::{DriverInterface, RuntimeInterface},
     event::PathFormatError,
-    SuPath,
 };
 
 use suinput_core::*;
@@ -31,6 +30,8 @@ impl<E> Clone for Inner<E> {
     }
 }
 
+pub use suinput_types::SuPath;
+
 impl SuInputRuntime {
     pub fn add_driver<F, T, E>(&self, f: F) -> Result<usize, E>
     where
@@ -42,7 +43,7 @@ impl SuInputRuntime {
             Inner::FFI() => todo!(),
         }
     }
-    
+
     pub fn destroy(&self) {
         match &self.0 {
             Inner::Embedded(inner) => inner.destroy(),
@@ -66,6 +67,7 @@ pub use suinput_types::action::ActionListener;
 pub struct SuInstance(Inner<instance::Instance>);
 
 pub use suinput_types::binding::SimpleBinding;
+pub use suinput_types::CreateBindingLayoutError;
 
 impl SuInstance {
     pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
@@ -89,15 +91,15 @@ impl SuInstance {
         name: &str,
         interaction_profile: SuPath,
         bindings: &[SimpleBinding],
-    ) -> SuBindingLayout {
-        SuBindingLayout(match &self.0 {
+    ) -> Result<SuBindingLayout, CreateBindingLayoutError> {
+        Ok(SuBindingLayout(match &self.0 {
             Inner::Embedded(inner) => Inner::Embedded(inner.create_binding_layout(
                 name.into(),
                 interaction_profile,
                 bindings,
-            )),
+            )?),
             Inner::FFI() => todo!(),
-        })
+        }))
     }
 
     pub fn set_default_binding_layout(
@@ -146,7 +148,7 @@ impl SuSession {
             Inner::FFI() => todo!(),
         }
     }
-    
+
     pub fn get_main_user(&self) -> SuUser {
         SuUser(match &self.0 {
             Inner::Embedded(inner) => Inner::Embedded(inner.user.clone()),

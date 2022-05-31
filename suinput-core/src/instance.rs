@@ -4,7 +4,7 @@ use std::{
 };
 
 use parking_lot::{Mutex, RwLock};
-use suinput_types::{binding::SimpleBinding, event::PathFormatError, SuPath};
+use suinput_types::{binding::SimpleBinding, event::PathFormatError, SuPath, CreateBindingLayoutError};
 
 use crate::{
     action::Action,
@@ -84,11 +84,20 @@ impl Instance {
         name: &str,
         interaction_profile: SuPath,
         bindings: &[SimpleBinding],
-    ) -> Arc<BindingLayout> {
-        Arc::new(BindingLayout {
-            name: name.into(),
-            interaction_profile,
-            bindings: bindings.to_vec(),
+    ) -> Result<Arc<BindingLayout>, CreateBindingLayoutError> {
+        let bindings = bindings.to_vec();
+
+        ProcessedBindingLayout::new(self, interaction_profile, &bindings).map(|processed| {
+            Arc::new(BindingLayout {
+                name: name.into(),
+                interaction_profile,
+                processed,
+                bindings: bindings.to_vec(),
+            })
+        })
+        .map_err(|err| {
+            log::error!("SuInput: create_binding_layout failed with {err}");
+            err
         })
     }
 
@@ -113,7 +122,7 @@ impl Instance {
             .default_binding_layouts
             .read()
             .iter()
-            .map(|(&profile, layout)| (profile, ProcessedBindingLayout::new(self, profile, layout)))
+            .map(|(&profile, layout)| (profile, layout.processed.clone()))
             .collect();
 
         let user = User {
@@ -161,4 +170,6 @@ pub struct BindingLayout {
     pub name: String,
     pub interaction_profile: SuPath,
     pub bindings: Vec<SimpleBinding>,
+
+    pub processed: ProcessedBindingLayout,
 }

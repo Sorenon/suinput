@@ -50,7 +50,7 @@ fn main() -> Result<(), anyhow::Error> {
                 path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
             },
         ],
-    );
+    )?;
 
     instance.set_default_binding_layout(desktop_profile, &binding_layout);
 
