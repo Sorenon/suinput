@@ -20,7 +20,6 @@ impl ActionListener for Listener {
                     println!("jump! for user {user}");
                 }
             }
-            println!("{:?}", event.data)
         } else if event.action_handle == self.turn.handle() {
             if let ActionEventEnum::Delta2D { delta } = event.data {
                 println!("turn {delta:?} for user {user}");
