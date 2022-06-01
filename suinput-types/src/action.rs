@@ -28,7 +28,7 @@ pub enum ActionEventEnum {
         delta: (f64, f64),
     },
     Cursor {
-        normalized_screen_coords: (f64, f64),
+        normalized_window_coords: (f64, f64),
     },
 }
 

@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use binding::SimpleBinding;
 use thiserror::Error;
 
@@ -51,3 +53,5 @@ pub enum CreateBindingLayoutError {
     #[error("Bad Binding `{0:?}`")]
     BadBinding(SimpleBinding)
 }
+
+pub type WindowHandle = NonZeroUsize;

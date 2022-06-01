@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
 };
@@ -8,7 +9,10 @@ use flume::Receiver;
 
 use parking_lot::Mutex;
 
-use suinput_types::SuPath;
+use suinput_types::{
+    event::{Cursor, InputComponentEvent},
+    SuPath,
+};
 use thunderdome::{Arena, Index};
 
 use crate::{
@@ -104,20 +108,29 @@ pub fn spawn_thread(
                                     &device_states,
                                     |profile_state, user_path, event| {
                                         // println!("{event:?}");
+                                        let sessions = runtime.sessions.read();
+                                        let session = sessions.first().unwrap();
+
+                                        if let InputComponentEvent::Cursor(Cursor {
+                                            window: Some(window),
+                                            normalized_screen_coords,
+                                        }) = event.data
+                                        {                                            
+                                            let session_window = session.window.lock();
+                                            if let Some(session_window) = session_window.deref() {
+                                                if *session_window != window {
+                                                    return;
+                                                }
+                                            } else {
+                                                return;
+                                            }
+                                        }
 
                                         working_user.on_event(
                                             &profile_state.profile,
                                             user_path,
                                             event,
-                                            runtime
-                                                .instances
-                                                .read()
-                                                .first()
-                                                .unwrap()
-                                                .sessions
-                                                .read()
-                                                .first()
-                                                .unwrap(),
+                                            session,
                                         );
                                     },
                                 );

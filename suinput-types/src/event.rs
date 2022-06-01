@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{SuPath, Time};
+use crate::{SuPath, Time, WindowHandle};
 
 #[derive(Debug, Error)]
 #[error("Path Format Error")]
@@ -29,4 +29,5 @@ pub struct Move2D {
 #[derive(Debug, Clone, Copy)]
 pub struct Cursor {
     pub normalized_screen_coords: (f64, f64),
+    pub window: Option<WindowHandle>
 }

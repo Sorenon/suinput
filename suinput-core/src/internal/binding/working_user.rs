@@ -78,10 +78,9 @@ impl WorkingUser {
                             }
                         }
                         ActionStateEnum::Delta2D(delta) => ActionEventEnum::Delta2D { delta },
-                        ActionStateEnum::Cursor(normalized_screen_coords) => {
-                            //TODO ACTUALLY NORMALIZE THE COORDS!
+                        ActionStateEnum::Cursor(normalized_window_coords) => {
                             self.action_states.insert(action_handle, binding_state);
-                            ActionEventEnum::Cursor { normalized_screen_coords }
+                            ActionEventEnum::Cursor { normalized_window_coords }
                         },
                     };
 

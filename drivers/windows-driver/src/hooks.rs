@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::PI};
 
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
@@ -9,10 +9,11 @@ use suinput_types::{
 };
 use windows_sys::Win32::{
     Foundation::HANDLE,
+    Graphics::Gdi::{ClientToScreen, MapWindowPoints},
     UI::WindowsAndMessaging::{
-        CallNextHookEx, GetPhysicalCursorPos, GetWindowThreadProcessId, SetWindowsHookExW,
-        UnhookWindowsHookEx, CWPSTRUCT, MSG, PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR,
-        WM_SETCURSOR,
+        CallNextHookEx, GetClientRect, GetPhysicalCursorPos, GetWindowRect,
+        GetWindowThreadProcessId, SetWindowsHookExW, UnhookWindowsHookEx, CWPSTRUCT, MSG,
+        PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR, WM_SETCURSOR,
     },
 };
 
@@ -45,6 +46,26 @@ impl Hooks {
                 )
                 .unwrap(),
         });
+
+        //If the application does not call GetMessage often enough there is a good chance they will miss some WM_MOUSEMOVE messages
+        //For things such as painting apps we may want to get around that when creating Cursor events
+        //To do so all we need to do is call GetPhysicalCursorPos is the background
+        //Instead of just having a spinning thread to do this we could just call it on WM_INPUT mouse move events
+        //This misses events where an external program has moved the cursor but we can fall back on WM_SETCURSOR for that
+
+        // let handle = std::thread::spawn(|| {
+        //     loop {
+        //         std::thread::sleep(std::time::Duration::from_millis(1));
+
+        //     unsafe {
+        //         let mut point = std::mem::zeroed();
+        //         if GetPhysicalCursorPos(&mut point) == 0 {
+        //             panic!("{}", Error::win32());
+        //         }
+        //         println!("x: {} y: {}", point.x, point.y);
+        //     }
+        //     }
+        // });
 
         Self {
             hooks: HashMap::new(),
@@ -110,14 +131,36 @@ unsafe extern "system" fn call_wnd_proc(a: i32, b: usize, cwp_ptr: isize) -> isi
         let hook_state_guard = HOOK_STATE.try_read().unwrap();
         let hook_state = hook_state_guard.as_ref().unwrap();
 
-        hook_state.interface.send_component_event(InputEvent {
-            device: hook_state.cursor_device,
-            path: hook_state.cursor_move,
-            time: Time(0),
-            data: InputComponentEvent::Cursor(Cursor {
-                normalized_screen_coords: (point.x as f64, point.y as f64),
-            }),
-        }).unwrap();
+        let mut client_rect = std::mem::zeroed();
+        if GetClientRect(cwp.hwnd, &mut client_rect) == 0 {
+            panic!("{}", Error::win32());
+        }
+        if MapWindowPoints(cwp.hwnd, 0, std::mem::transmute(&mut client_rect), 2) == 0 {
+            panic!("{}", Error::win32());
+        }
+
+        if client_rect.right - client_rect.left - 1 > 0
+            && client_rect.bottom - client_rect.top - 1 > 0
+        {
+            let x = point.x - client_rect.left;
+            let y = point.y - client_rect.top;
+
+            let x = x as f64 / (client_rect.right - client_rect.left - 1) as f64;
+            let y = y as f64 / (client_rect.bottom - client_rect.top - 1) as f64;
+
+            hook_state
+                .interface
+                .send_component_event(InputEvent {
+                    device: hook_state.cursor_device,
+                    path: hook_state.cursor_move,
+                    time: Time(0),
+                    data: InputComponentEvent::Cursor(Cursor {
+                        normalized_screen_coords: (x, y),
+                        window: Some((cwp.hwnd as usize).try_into().unwrap()),
+                    }),
+                })
+                .unwrap();
+        }
     }
 
     CallNextHookEx(0, a, b, cwp_ptr)

@@ -9,6 +9,7 @@ use winit::{
 struct Listener {
     jump: SuAction,
     turn: SuAction,
+    cursor: SuAction,
 }
 
 impl ActionListener for Listener {
@@ -24,6 +25,14 @@ impl ActionListener for Listener {
             if let ActionEventEnum::Delta2D { delta } = event.data {
                 println!("turn {delta:?} for user {user}");
             }
+        } else if event.action_handle == self.cursor.handle() {
+            if let ActionEventEnum::Cursor { normalized_window_coords } = event.data {
+                let x = normalized_window_coords.0;
+                let y = normalized_window_coords.1;
+                if x <= 1. && x >= 0. && y <= 1. && y >= 0. {
+                    println!("cursor moved to {normalized_window_coords:?} for user {user}");
+                }
+            }
         }
     }
 }
@@ -37,6 +46,7 @@ fn main() -> Result<(), anyhow::Error> {
     let action_set = instance.create_action_set("gameplay", 0);
     let jump_action = action_set.create_action("jump", ActionType::Boolean);
     let turn_action = action_set.create_action("turn", ActionType::Delta2D);
+    let cursor_action = action_set.create_action("cursor", ActionType::Cursor);
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -56,6 +66,10 @@ fn main() -> Result<(), anyhow::Error> {
                 action: turn_action.handle(),
                 path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
             },
+            SimpleBinding {
+                action: cursor_action.handle(),
+                path: instance.get_path("/user/desktop/cursor/input/cursor/point")?,
+            },
         ],
     )?;
 
@@ -71,12 +85,14 @@ fn main() -> Result<(), anyhow::Error> {
     session.register_event_listener(Box::new(Listener {
         jump: jump_action.clone(),
         turn: turn_action.clone(),
+        cursor: cursor_action.clone(),
     }));
 
     // session.poll();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
+
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
