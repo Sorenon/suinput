@@ -62,6 +62,7 @@ impl WorkingUser {
                                     .is_none();
 
                                     if none_other_true {
+                                        self.action_states.insert(action_handle, ActionStateEnum::Boolean(false));
                                         ActionEventEnum::Boolean {
                                             state: false,
                                             changed: true,
@@ -77,7 +78,11 @@ impl WorkingUser {
                             }
                         }
                         ActionStateEnum::Delta2D(delta) => ActionEventEnum::Delta2D { delta },
-                        ActionStateEnum::Cursor(_) => todo!(),
+                        ActionStateEnum::Cursor(normalized_screen_coords) => {
+                            //TODO ACTUALLY NORMALIZE THE COORDS!
+                            self.action_states.insert(action_handle, binding_state);
+                            ActionEventEnum::Cursor { normalized_screen_coords }
+                        },
                     };
 
                     let event = ActionEvent {
