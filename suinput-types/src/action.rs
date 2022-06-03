@@ -1,10 +1,16 @@
 use std::time::Instant;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActionType {
-    Boolean,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActionCreateInfo {
+    Boolean {
+        sticky: bool,
+    },
     Delta2D,
     Cursor,
+    Axis1D {
+        positive: Option<String>,
+        negative: Option<String>,
+    }
 }
 
 pub trait ActionListener: Send + Sync {
@@ -37,4 +43,20 @@ pub enum ActionStateEnum {
     Boolean(bool),
     Delta2D((f64, f64)),
     Cursor((f64, f64)),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChildActionType {
+    StickyPress,
+    StickyToggle,
+    StickyRelease,
+    Positive,
+    Negative,
+    North,
+    East,
+    South,
+    West,
+    Vertical,
+    Horizontal,
+    Move,
 }

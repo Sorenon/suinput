@@ -116,9 +116,19 @@ impl SuInstance {
         }
     }
 
-    pub fn create_session(&self) -> SuSession {
+    pub fn create_session(&self, action_sets: &[&SuActionSet]) -> SuSession {
         SuSession(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_session()),
+            Inner::Embedded(inner) => Inner::Embedded(
+                inner.create_session(
+                    &action_sets
+                        .iter()
+                        .map(|action_set| match &action_set.0 {
+                            Inner::Embedded(thing) => thing,
+                            _ => panic!(),
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+            ),
             Inner::FFI() => todo!(),
         })
     }
@@ -162,6 +172,14 @@ impl SuSession {
             Inner::FFI() => todo!(),
         }
     }
+
+    pub fn unstick_bool_action(&self, action: &SuAction) {
+        match (&self.0, &action.0) {
+            (Inner::Embedded(inner), Inner::Embedded(action)) => inner.unstick_bool_action(action),
+            (Inner::FFI(), Inner::FFI()) => todo!(),
+            _ => panic!(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -173,14 +191,12 @@ pub struct SuBindingLayout(Inner<instance::BindingLayout>);
 #[derive(Clone)]
 pub struct SuActionSet(Inner<action_set::ActionSet>);
 
-pub use suinput_types::action::ActionType;
+pub use suinput_types::action::ActionCreateInfo;
 
 impl SuActionSet {
-    pub fn create_action(&self, name: &str, action_type: ActionType) -> SuAction {
+    pub fn create_action(&self, name: &str, action_type: ActionCreateInfo) -> SuAction {
         SuAction(match &self.0 {
-            Inner::Embedded(inner) => {
-                Inner::Embedded(inner.create_action(name.into(), action_type))
-            }
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_action(name, action_type)),
             Inner::FFI() => todo!(),
         })
     }
@@ -193,10 +209,19 @@ impl SuActionSet {
 #[derive(Clone)]
 pub struct SuAction(Inner<action::Action>);
 
+pub use suinput_types::action::ChildActionType;
+
 impl SuAction {
     pub fn handle(&self) -> u64 {
         match &self.0 {
             Inner::Embedded(inner) => inner.handle,
+            Inner::FFI() => todo!(),
+        }
+    }
+
+    pub fn get_child_action(&self, ty: ChildActionType) -> u64 {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.get_child_action(ty),
             Inner::FFI() => todo!(),
         }
     }

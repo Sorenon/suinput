@@ -3,6 +3,7 @@ use std::{
     ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
+    time::Instant,
 };
 
 use flume::Receiver;
@@ -10,27 +11,39 @@ use flume::Receiver;
 use parking_lot::Mutex;
 
 use suinput_types::{
+    action::ActionEvent,
     event::{Cursor, InputComponentEvent},
     SuPath,
 };
 use thunderdome::{Arena, Index};
 
 use crate::{
+    action::{ActionHierarchyType, ParentActionType},
     internal::interaction_profile::InteractionProfileState,
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
+    session::Session,
 };
 
-use super::{binding::working_user::WorkingUser, device::DeviceState};
+use super::{
+    binding::working_user::{ParentActionState, WorkingUser},
+    device::DeviceState,
+};
 
 #[derive(Debug)]
 pub enum WorkerThreadEvent {
     Poll {
         session: u64,
     },
+    Output(OutputEvent),
     DriverEvent {
         id: usize,
         event: Driver2RuntimeEvent,
     },
+}
+
+#[derive(Debug)]
+pub enum OutputEvent {
+    ReleaseStickyBool { session: u64, action: u64 },
 }
 
 pub fn spawn_thread(
@@ -44,11 +57,8 @@ pub fn spawn_thread(
 
         let runtime = runtime.upgrade().unwrap();
 
-        //For now we just assume one session and one user
-        let mut working_user = WorkingUser {
-            binding_layouts: HashMap::new(),
-            action_states: HashMap::new(),
-        };
+        //For now we just assume one user per session
+        let mut sessions = HashMap::<u64, (Arc<Session>, WorkingUser)>::new();
 
         let mut device_states = Arena::<(SuPath, DeviceState, Index)>::new();
         let mut interaction_profile_states = Arena::<InteractionProfileState>::new();
@@ -64,8 +74,50 @@ pub fn spawn_thread(
         while let Ok(event) = driver2runtime_receiver.recv() {
             match event {
                 WorkerThreadEvent::Poll { session } => {
-                    let sessions = runtime.sessions.read();
-                    let session = sessions.get(session as usize - 1).unwrap();
+                    if !sessions.contains_key(&session) {
+                        let runtime_sessions = runtime.sessions.read();
+                        let session = runtime_sessions.get(session as usize - 1).unwrap();
+
+                        let parent_action_states = session
+                            .actions
+                            .values()
+                            .filter_map(|action| match &action.hierarchy_type {
+                                ActionHierarchyType::Parent {
+                                    ty:
+                                        ParentActionType::StickyBool {
+                                            sticky_press,
+                                            sticky_release,
+                                            sticky_toggle,
+                                        },
+                                } => Some((
+                                    action.handle,
+                                    ParentActionState::StickyBool {
+                                        combined_state: false,
+                                        stuck: false,
+                                        press: sticky_press.handle,
+                                        release: sticky_release.handle,
+                                        toggle: sticky_toggle.handle,
+                                    },
+                                )),
+                                _ => None,
+                            })
+                            .collect();
+
+                        sessions.insert(
+                            session.runtime_handle,
+                            (
+                                session.clone(),
+                                WorkingUser {
+                                    binding_layouts: HashMap::new(),
+                                    action_states: HashMap::new(),
+                                    parent_action_states,
+                                },
+                            ),
+                        );
+                    }
+
+                    let (session, working_user) = sessions.get_mut(&session).unwrap();
+
                     let user = &session.user;
 
                     for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
@@ -108,30 +160,31 @@ pub fn spawn_thread(
                                     &device_states,
                                     |profile_state, user_path, event| {
                                         // println!("{event:?}");
-                                        let sessions = runtime.sessions.read();
-                                        let session = sessions.first().unwrap();
 
-                                        if let InputComponentEvent::Cursor(Cursor {
-                                            window: Some(window),
-                                            normalized_screen_coords,
-                                        }) = event.data
-                                        {                                            
-                                            let session_window = session.window.lock();
-                                            if let Some(session_window) = session_window.deref() {
-                                                if *session_window != window {
+                                        for (session, working_user) in sessions.values_mut() {
+                                            if let InputComponentEvent::Cursor(Cursor {
+                                                window: Some(window),
+                                                ..
+                                            }) = event.data
+                                            {
+                                                let session_window = session.window.lock();
+                                                if let Some(session_window) = session_window.deref()
+                                                {
+                                                    if *session_window != window {
+                                                        return;
+                                                    }
+                                                } else {
                                                     return;
                                                 }
-                                            } else {
-                                                return;
                                             }
-                                        }
 
-                                        working_user.on_event(
-                                            &profile_state.profile,
-                                            user_path,
-                                            event,
-                                            session,
-                                        );
+                                            working_user.on_event(
+                                                &profile_state.profile,
+                                                user_path,
+                                                event,
+                                                session,
+                                            );
+                                        }
                                     },
                                 );
 
@@ -153,6 +206,28 @@ pub fn spawn_thread(
                         }
                     }
                 }
+                WorkerThreadEvent::Output(data) => match data {
+                    OutputEvent::ReleaseStickyBool { session, action } => {
+                        let (session, working_user) = sessions.get_mut(&session).unwrap();
+
+                        if let Some(ParentActionState::StickyBool { stuck, .. }) =
+                            working_user.parent_action_states.get_mut(&action)
+                        {
+                            *stuck = false;
+                        }
+
+                        if let Some(event) = working_user.handle_sticky_bool_event(action) {
+                            let event = ActionEvent {
+                                action_handle: action,
+                                time: Instant::now(),
+                                data: event,
+                            };
+                            for listener in session.listeners.read().iter() {
+                                listener.handle_event(event, 0);
+                            }
+                        }
+                    }
+                },
             }
         }
     })

@@ -1,5 +1,8 @@
 use raw_window_handle::HasRawWindowHandle;
-use suinput::{ActionEvent, ActionEventEnum, ActionListener, ActionType, SimpleBinding, SuAction};
+use suinput::{
+    ActionCreateInfo, ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding,
+    SuAction, SuSession,
+};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -7,29 +10,40 @@ use winit::{
 };
 
 struct Listener {
+    session: SuSession,
     jump: SuAction,
+    zoom: SuAction,
     turn: SuAction,
     cursor: SuAction,
 }
 
 impl ActionListener for Listener {
     fn handle_event(&self, event: ActionEvent, user: u64) {
+        assert_eq!(user, 0);
+
         if event.action_handle == self.jump.handle() {
             if let ActionEventEnum::Boolean { state, changed } = event.data {
                 if state && changed {
-                    println!("jump! for user {user}");
+                    println!("jump!");
+                    //Unstick zoom if the player jumps so the player has to manually zoom in again
+                    self.session.unstick_bool_action(&self.zoom);
                 }
             }
+        } else if event.action_handle == self.zoom.handle() {
+            println!("zoom {:?}", event.data)
         } else if event.action_handle == self.turn.handle() {
             if let ActionEventEnum::Delta2D { delta } = event.data {
-                println!("turn {delta:?} for user {user}");
+                println!("turn {delta:?}");
             }
         } else if event.action_handle == self.cursor.handle() {
-            if let ActionEventEnum::Cursor { normalized_window_coords } = event.data {
+            if let ActionEventEnum::Cursor {
+                normalized_window_coords,
+            } = event.data
+            {
                 let x = normalized_window_coords.0;
                 let y = normalized_window_coords.1;
                 if x <= 1. && x >= 0. && y <= 1. && y >= 0. {
-                    println!("cursor moved to {normalized_window_coords:?} for user {user}");
+                    // println!("cursor moved to {normalized_window_coords:?}");
                 }
             }
         }
@@ -43,9 +57,10 @@ fn main() -> Result<(), anyhow::Error> {
     let instance = runtime.create_instance("Test Application");
 
     let action_set = instance.create_action_set("gameplay", 0);
-    let jump_action = action_set.create_action("jump", ActionType::Boolean);
-    let turn_action = action_set.create_action("turn", ActionType::Delta2D);
-    let cursor_action = action_set.create_action("cursor", ActionType::Cursor);
+    let jump_action = action_set.create_action("jump", ActionCreateInfo::Boolean { sticky: false });
+    let zoom_action = action_set.create_action("zoom", ActionCreateInfo::Boolean { sticky: true });
+    let turn_action = action_set.create_action("turn", ActionCreateInfo::Delta2D);
+    let cursor_action = action_set.create_action("cursor", ActionCreateInfo::Cursor);
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -55,11 +70,22 @@ fn main() -> Result<(), anyhow::Error> {
         &[
             SimpleBinding {
                 action: jump_action.handle(),
-                path: instance.get_path("/user/desktop/mouse/input/button_left/click")?,
-            },
-            SimpleBinding {
-                action: jump_action.handle(),
                 path: instance.get_path("/user/desktop/keyboard/input/button_space/click")?,
+            },
+            //Zoom in if the user holds right click
+            SimpleBinding {
+                action: zoom_action.handle(),
+                path: instance.get_path("/user/desktop/mouse/input/button_right/click")?,
+            },
+            //Toggle zoom in if the user middle clicks
+            SimpleBinding {
+                action: zoom_action.get_child_action(ChildActionType::StickyToggle),
+                path: instance.get_path("/user/desktop/mouse/input/button_middle/click")?,
+            },
+            //End toggle if the user right clicks
+            SimpleBinding {
+                action: zoom_action.get_child_action(ChildActionType::StickyRelease),
+                path: instance.get_path("/user/desktop/mouse/input/button_right/click")?,
             },
             SimpleBinding {
                 action: turn_action.handle(),
@@ -74,7 +100,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     instance.set_default_binding_layout(desktop_profile, &binding_layout);
 
-    let session = instance.create_session();
+    let session = instance.create_session(&[&action_set]);
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;
@@ -83,8 +109,10 @@ fn main() -> Result<(), anyhow::Error> {
 
     session.register_event_listener(Box::new(Listener {
         jump: jump_action.clone(),
+        zoom: zoom_action.clone(),
         turn: turn_action.clone(),
         cursor: cursor_action.clone(),
+        session: session.clone(),
     }));
 
     // session.poll();

@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
+use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RwLock};
 use suinput_types::{
     binding::SimpleBinding, event::PathFormatError, CreateBindingLayoutError, SuPath,
@@ -72,6 +73,7 @@ impl Instance {
             name,
             default_priority,
             actions: Default::default(),
+            baked_actions: OnceCell::new(),
         });
         // self.action_sets.write().push(action_set.clone());
         action_set
@@ -114,7 +116,10 @@ impl Instance {
             .insert(interaction_profile, binding_layout.clone());
     }
 
-    pub fn create_session(self: &Arc<Self>) -> Arc<session::Session> {
+    pub fn create_session(
+        self: &Arc<Self>,
+        action_sets: &[&Arc<ActionSet>],
+    ) -> Arc<session::Session> {
         let session = {
             let runtime = self.runtime.upgrade().unwrap();
 
@@ -134,14 +139,38 @@ impl Instance {
                 new_binding_layouts: Mutex::new(binding_layouts),
             };
 
+            let action_sets = action_sets
+                .iter()
+                .map(|action_set| {
+                    if action_set.baked_actions.get().is_none() {
+                        let actions = action_set.actions.read();
+                        //We don't care if this failed somehow
+                        std::mem::forget(action_set.baked_actions.set(actions.clone()));
+                    }
+
+                    (*action_set).clone()
+                })
+                .collect::<Vec<_>>();
+
             let session = Arc::new(session::Session {
-                instance_handle: instance_sessions.len() as u64 + 1,
                 runtime_handle: runtime_sessions.len() as u64 + 1,
                 runtime: self.runtime.clone(),
                 instance: Arc::downgrade(self),
                 user: Arc::new(user),
                 listeners: RwLock::default(),
                 window: Mutex::new(None),
+                actions: action_sets
+                    .iter()
+                    .flat_map(|action_set| {
+                        action_set
+                            .baked_actions
+                            .get()
+                            .unwrap()
+                            .iter()
+                            .map(|action| (action.handle, action.clone()))
+                    })
+                    .collect(),
+                action_sets,
             });
 
             runtime_sessions.push(session.clone());

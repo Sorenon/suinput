@@ -38,7 +38,7 @@ pub struct Runtime {
     pub(crate) device_types: DeviceTypes,
     pub(crate) interaction_profile_types: InteractionProfileTypes,
 
-    pub(crate) driver2runtime_sender: Sender<worker_thread::WorkerThreadEvent>,
+    pub(crate) worker_thread_sender: Sender<worker_thread::WorkerThreadEvent>,
     _thread: JoinHandle<()>,
     pub(crate) driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
     drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
@@ -49,7 +49,7 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn new() -> Arc<Self> {
-        let (driver2runtime_sender, driver2runtime_receiver) = flume::bounded(100);
+        let (worker_thread_sender, worker_thread_receiver) = flume::bounded(100);
 
         let paths = Arc::new(PathManager::new());
 
@@ -63,10 +63,10 @@ impl Runtime {
         let lock = ready.lock();
 
         let runtime = Arc::new_cyclic(|arc| Self {
-            driver2runtime_sender,
+            worker_thread_sender,
             paths,
             _thread: worker_thread::spawn_thread(
-                driver2runtime_receiver,
+                worker_thread_receiver,
                 arc.to_owned(),
                 ready.clone(),
             ),
@@ -96,7 +96,7 @@ impl Runtime {
         let runtime_interface = Arc::new(EmbeddedDriverRuntimeInterface {
             ready: AtomicBool::new(false),
             paths: self.paths.clone(),
-            sender: self.driver2runtime_sender.clone(),
+            sender: self.worker_thread_sender.clone(),
             idx,
             receiver: runtime2driver_receiver,
         });

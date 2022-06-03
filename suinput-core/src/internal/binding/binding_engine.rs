@@ -1,13 +1,14 @@
 use std::collections::{hash_map::Entry, HashMap};
 
 use suinput_types::{
-    action::{ActionStateEnum, ActionType},
+    action::ActionStateEnum,
     binding::SimpleBinding,
     event::{InputComponentEvent, InputEvent},
     CreateBindingLayoutError, SuPath,
 };
 
 use crate::{
+    action::ActionType,
     instance::{BindingLayout, Instance},
     internal::{
         input_component::InputComponentType,
@@ -87,14 +88,14 @@ impl ProcessedBindingLayout {
 
             let processed_binding = match device.input_components.get(&component_path) {
                 Some(InputComponentType::Button) => {
-                    if action.action_type != ActionType::Boolean {
+                    if action.data_type != ActionType::Boolean {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
                     ProcessedBinding::Button2Bool
                 }
                 Some(InputComponentType::Move2D) => {
-                    if action.action_type != ActionType::Delta2D {
+                    if action.data_type != ActionType::Delta2D {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
@@ -103,7 +104,7 @@ impl ProcessedBindingLayout {
                     }
                 }
                 Some(InputComponentType::Cursor) => {
-                    if action.action_type != ActionType::Cursor {
+                    if action.data_type != ActionType::Cursor {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
@@ -117,10 +118,11 @@ impl ProcessedBindingLayout {
                 }
             };
 
-            let action_state = match action.action_type {
+            let action_state = match action.data_type {
                 ActionType::Boolean => ActionStateEnum::Boolean(false),
                 ActionType::Delta2D => ActionStateEnum::Delta2D((0., 0.)),
                 ActionType::Cursor => ActionStateEnum::Cursor((0., 0.)),
+                ActionType::Axis1D => todo!(),
             };
 
             bindings_index.push((processed_binding, action_state, action.handle));
@@ -158,7 +160,7 @@ impl ProcessedBindingLayout {
 
     pub fn on_event<F>(&mut self, user_path: SuPath, event: &InputEvent, mut on_action_event: F)
     where
-        F: FnMut(u64, usize, &ActionStateEnum, &ProcessedBindingLayout),
+        F: FnMut(u64, usize, &ActionStateEnum),
     {
         if let Some(component_bindings) = self.input_bindings.get(&user_path) {
             if let Some(bindings) = component_bindings.get(&event.path) {
@@ -166,7 +168,7 @@ impl ProcessedBindingLayout {
                     if let Some((new_binding_state, action_handle)) =
                         execute_binding(binding_index, &mut self.bindings_index, event)
                     {
-                        on_action_event(action_handle, binding_index, &new_binding_state, &self)
+                        on_action_event(action_handle, binding_index, &new_binding_state)
                     }
                 }
             }
