@@ -1,0 +1,15 @@
+[package]
+name = "sdl2-driver"
+version = "0.0.1-alpha"
+edition = "2021"
+
+[dependencies]
+sdl2-sys = { repository = "https://github.com/Rust-SDL2/rust-sdl2/sdl2-sys" }
+suinput-types = { path = "../../suinput-types" }
+parking_lot = "0.12"
+once_cell = "1.10"
+nalgebra = "0.31"
+
+[dev-dependencies]
+sdl2 = { repository = "https://github.com/Rust-SDL2/rust-sdl2" }
+winit = "0.26"

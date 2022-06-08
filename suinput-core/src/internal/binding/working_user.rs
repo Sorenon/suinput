@@ -25,6 +25,7 @@ pub struct WorkingUser {
     pub parent_action_states: HashMap<u64, ParentActionState>,
 }
 
+//TODO combine action states across binding layouts
 impl WorkingUser {
     pub(crate) fn on_event(
         &mut self,

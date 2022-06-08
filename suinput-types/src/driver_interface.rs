@@ -35,7 +35,7 @@ pub trait RuntimeInterfaceTrait: Debug + Send + Sync {
     fn get_path_string(&self, path: SuPath) -> Option<String>;
 }
 
-pub trait DriverInterface: Send + Sync {
+pub trait SuInputDriver: Send + Sync {
     fn initialize(&mut self);
     //Force a refresh
     fn poll(&self);

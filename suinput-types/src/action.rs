@@ -10,7 +10,7 @@ pub enum ActionCreateInfo {
     Axis1D {
         positive: Option<String>,
         negative: Option<String>,
-    }
+    },
 }
 
 pub trait ActionListener: Send + Sync {

@@ -45,3 +45,20 @@ device vendor="oculus" name="touch_controller_left_generic" {
 }
 
 device vendor="oculus" name="touch_controller_left_rift_s" parent="device/oculus/touch_controller_left_generic"
+
+device vendor="sony" name="dualsense" {
+    identifier "diamond_up" { input-component "click" }
+    identifier "diamond_left" { input-component "click" }
+    identifier "diamond_right" { input-component "click" }
+    identifier "diamond_down" { input-component "click" }
+    //...
+
+    identifier "trigger_right" {
+        input-component "value"
+        input-component "adaptive_trigger"
+    }
+    identifier "motion" { 
+        input-component "gyro" calibrated=false 
+        input-component "accel" 
+    }
+}

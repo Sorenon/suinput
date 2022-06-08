@@ -207,13 +207,13 @@ impl ProcessedBinding {
                 ProcessedBinding::Move2d2Delta2d { sensitivity },
                 InputComponentEvent::Move2D(delta),
             ) => Some(ActionStateEnum::Delta2D((
-                delta.value.0 * sensitivity.0,
-                delta.value.1 * sensitivity.1,
+                delta.x * sensitivity.0,
+                delta.y * sensitivity.1,
             ))),
             (ProcessedBinding::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
                 Some(ActionStateEnum::Cursor(cursor.normalized_screen_coords))
             }
-            _ => None,
+            _ => todo!(),
         }
     }
 }

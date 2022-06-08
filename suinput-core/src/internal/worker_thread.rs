@@ -127,11 +127,28 @@ pub fn spawn_thread(
                 WorkerThreadEvent::DriverEvent { id, event } => {
                     match event {
                         Driver2RuntimeEvent::RegisterDevice(ty) => {
+                            let interaction_profile_id = if ty == runtime.common_paths.system_cursor
+                                || ty == runtime.common_paths.keyboard
+                                || ty == runtime.common_paths.mouse
+                            {
+                                desktop_profile_id
+                            } else if ty == runtime.controller_paths.device_dual_sense {
+                                let interaction_profile_type = runtime
+                                    .interaction_profile_types
+                                    .get(runtime.controller_paths.interaction_profile_dualsense)
+                                    .unwrap();
+                                interaction_profile_states.insert(InteractionProfileState::new(
+                                    interaction_profile_type.clone(),
+                                ))
+                            } else {
+                                todo!()
+                            };
+
                             //TODO: Device ID persistence
                             let device_id = device_states.insert((
                                 ty,
                                 DeviceState::default(),
-                                desktop_profile_id,
+                                interaction_profile_id,
                             ));
 
                             runtime
@@ -143,7 +160,7 @@ pub fn spawn_thread(
                                 .expect("Driver response channel closed unexpectedly");
 
                             interaction_profile_states
-                                .get_mut(desktop_profile_id)
+                                .get_mut(interaction_profile_id)
                                 .unwrap()
                                 .device_added(device_id, ty);
                         }

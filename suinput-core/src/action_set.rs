@@ -16,7 +16,7 @@ pub struct ActionSet {
     pub name: String,
     pub default_priority: u32,
     pub actions: RwLock<Vec<Arc<Action>>>,
-    pub baked_actions: OnceCell<Vec<Arc<Action>>>
+    pub baked_actions: OnceCell<Vec<Arc<Action>>>,
 }
 
 impl ActionSet {

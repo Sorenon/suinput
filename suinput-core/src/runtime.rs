@@ -1,10 +1,11 @@
 use std::{
+    ops::Deref,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
     thread::JoinHandle,
-    time::{Duration, Instant}, ops::Deref,
+    time::{Duration, Instant},
 };
 
 use flume::Sender;
@@ -12,8 +13,9 @@ use itertools::Itertools;
 use parking_lot::{Mutex, RwLock};
 
 use suinput_types::{
+    controller_paths::GameControllerPaths,
     driver_interface::{
-        DriverInterface, RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait,
+        RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait, SuInputDriver,
     },
     event::{InputEvent, PathFormatError},
     keyboard::KeyboardPaths,
@@ -35,13 +37,14 @@ use super::instance::Instance;
 pub struct Runtime {
     pub(crate) paths: Arc<PathManager>,
     pub(crate) common_paths: CommonPaths,
+    pub(crate) controller_paths: GameControllerPaths,
     pub(crate) device_types: DeviceTypes,
     pub(crate) interaction_profile_types: InteractionProfileTypes,
 
     pub(crate) worker_thread_sender: Sender<worker_thread::WorkerThreadEvent>,
     _thread: JoinHandle<()>,
     pub(crate) driver_response_senders: Mutex<Vec<Sender<Driver2RuntimeEventResponse>>>,
-    drivers: RwLock<Vec<Box<dyn DriverInterface>>>,
+    drivers: RwLock<Vec<Box<dyn SuInputDriver>>>,
 
     pub(crate) instances: RwLock<Vec<Arc<Instance>>>,
     pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
@@ -55,7 +58,8 @@ impl Runtime {
 
         let common_paths = CommonPaths::new(|str| paths.get_path(str).unwrap());
         let keyboard_paths = KeyboardPaths::new(|str| paths.get_path(str).unwrap());
-        let device_types = DeviceTypes::new(&common_paths, &keyboard_paths);
+        let controller_paths = GameControllerPaths::new(|str| paths.get_path(str).unwrap());
+        let device_types = DeviceTypes::new(&common_paths, &keyboard_paths, &controller_paths);
         let interaction_profile_types =
             InteractionProfileTypes::new(|str| paths.get_path(str).unwrap());
 
@@ -77,6 +81,7 @@ impl Runtime {
             common_paths,
             interaction_profile_types,
             sessions: Default::default(),
+            controller_paths,
         });
 
         std::mem::drop(lock);
@@ -87,7 +92,7 @@ impl Runtime {
     pub fn add_driver<F, T, E>(&self, f: F) -> Result<usize, E>
     where
         F: FnOnce(RuntimeInterface) -> Result<T, E>,
-        T: DriverInterface + 'static,
+        T: SuInputDriver + 'static,
     {
         let (runtime2driver_sender, runtime2driver_receiver) = flume::bounded(1);
 

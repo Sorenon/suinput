@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use strum::IntoEnumIterator;
 use suinput_types::{
+    controller_paths::GameControllerPaths,
     keyboard::{HIDScanCode, KeyboardPaths},
     SuPath,
 };
@@ -47,6 +48,15 @@ impl DeviceType {
         Self {
             id: paths.system_cursor,
             input_components: [(paths.cursor_point, InputComponentType::Cursor)]
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    pub fn create_dualsense(paths: &GameControllerPaths) -> Self {
+        Self {
+            id: paths.device_dual_sense,
+            input_components: [(paths.left_shoulder_click, InputComponentType::Button)]
                 .into_iter()
                 .collect(),
         }

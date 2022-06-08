@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
 use suinput_types::{
-    driver_interface::{DriverInterface, RuntimeInterface},
+    driver_interface::{RuntimeInterface, SuInputDriver},
     event::PathFormatError,
 };
 
@@ -33,10 +33,21 @@ impl<E> Clone for Inner<E> {
 pub use suinput_types::SuPath;
 
 impl SuInputRuntime {
-    pub fn add_driver<F, T, E>(&self, f: F) -> Result<usize, E>
+    pub fn set_window_driver<F, T, E>(&self, f: F) -> Result<usize, E>
     where
         F: FnOnce(RuntimeInterface) -> Result<T, E>,
-        T: DriverInterface + 'static,
+        T: SuInputDriver + 'static,
+    {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.add_driver(f),
+            Inner::FFI() => todo!(),
+        }
+    }
+
+    pub fn add_generic_driver<F, T, E>(&self, f: F) -> Result<usize, E>
+    where
+        F: FnOnce(RuntimeInterface) -> Result<T, E>,
+        T: SuInputDriver + 'static,
     {
         match &self.0 {
             Inner::Embedded(inner) => inner.add_driver(f),

@@ -52,8 +52,14 @@ impl ActionListener for Listener {
 
 fn main() -> Result<(), anyhow::Error> {
     let runtime = suinput::load_runtime();
-    runtime.add_driver(windows_driver::Win32DesktopDriver::new)?;
-
+    runtime.set_window_driver(windows_driver::Win32HookingWindowDriver::new)?;
+    runtime
+        .add_generic_driver(|interface| {
+            sdl2_driver::SDLGameControllerGenericDriver::new(false, interface)
+        })
+        .unwrap();
+    runtime.add_generic_driver(windows_driver::Win32RawInputGenericDriver::new)?;
+             
     let instance = runtime.create_instance("Test Application");
 
     let action_set = instance.create_action_set("gameplay", 0);
@@ -99,6 +105,19 @@ fn main() -> Result<(), anyhow::Error> {
     )?;
 
     instance.set_default_binding_layout(desktop_profile, &binding_layout);
+
+    let test = instance.get_path("/interaction_profiles/sony/dualsense")?;
+
+    let binding_layout = instance.create_binding_layout(
+        "dualsense_test",
+        test,
+        &[SimpleBinding {
+            action: jump_action.handle(),
+            path: instance.get_path("/user/gamepad/input/shoulder_left/click")?,
+        }],
+    )?;
+
+    instance.set_default_binding_layout(test, &binding_layout);
 
     let session = instance.create_session(&[&action_set]);
 

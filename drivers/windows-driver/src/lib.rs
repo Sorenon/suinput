@@ -2,7 +2,7 @@ use std::{ops::Deref, thread::JoinHandle};
 
 use hooks::Hooks;
 use suinput_types::{
-    driver_interface::{DriverInterface, RuntimeInterface},
+    driver_interface::{RuntimeInterface, SuInputDriver},
     SuPath,
 };
 use windows_sys::Win32::Foundation::{GetLastError, HANDLE};
@@ -52,31 +52,41 @@ pub type Result<T> = std::result::Result<T, Error>;
     Pan (Double contact)
 */
 
-pub struct Win32DesktopDriver {
+pub struct Win32HookingWindowDriver {
     runtime_interface: RuntimeInterface,
-    raw_input_thread: Option<JoinHandle<()>>,
     hooks: Option<Hooks>,
     running: bool,
 }
 
-impl Win32DesktopDriver {
+impl Win32HookingWindowDriver {
     pub fn new(runtime_interface: RuntimeInterface) -> Result<Self> {
         Ok(Self {
             runtime_interface,
-            raw_input_thread: None,
             hooks: None,
             running: true,
         })
     }
 }
 
-impl DriverInterface for Win32DesktopDriver {
+//TODO solve issue where RawInput gets stolen from this driver
+//GDK input should solve this anyway
+pub struct Win32RawInputGenericDriver {
+    runtime_interface: RuntimeInterface,
+    raw_input_thread: Option<JoinHandle<()>>,
+}
+
+impl Win32RawInputGenericDriver {
+    pub fn new(runtime_interface: RuntimeInterface) -> Result<Self> {
+        Ok(Self {
+            runtime_interface,
+            raw_input_thread: None,
+        })
+    }
+}
+
+impl SuInputDriver for Win32HookingWindowDriver {
     fn initialize(&mut self) {
         self.hooks = Some(Hooks::new(&self.runtime_interface));
-        let runtime_interface_clone = self.runtime_interface.clone();
-        self.raw_input_thread = Some(std::thread::spawn(move || {
-            raw_input_driver::run(runtime_interface_clone.0.deref())
-        }));
     }
 
     fn poll(&self) {
@@ -99,11 +109,28 @@ impl DriverInterface for Win32DesktopDriver {
     }
 }
 
-impl Drop for Win32DesktopDriver {
+impl Drop for Win32HookingWindowDriver {
     fn drop(&mut self) {
         if self.running {
             println!("WARNING Windows Driver was dropped before being destroyed");
             self.destroy();
         }
     }
+}
+
+impl SuInputDriver for Win32RawInputGenericDriver {
+    fn initialize(&mut self) {
+        let runtime_interface = self.runtime_interface.clone();
+        self.raw_input_thread = Some(std::thread::spawn(move || {
+            raw_input_driver::run(runtime_interface.0.deref())
+        }));
+    }
+
+    fn poll(&self) {}
+
+    fn get_component_state(&self, device: usize, path: SuPath) -> () {
+        todo!()
+    }
+
+    fn destroy(&mut self) {}
 }

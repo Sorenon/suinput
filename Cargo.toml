@@ -2,8 +2,8 @@
 members = [
     "suinput-types",
     "drivers/windows-driver",
-    "drivers/openxr-driver",
-    "generator",
+    "drivers/sdl2-driver",
+    # "generator",
     # "bevy_testing",
     "winit_testing",
     "suinput-core",

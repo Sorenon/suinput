@@ -5,6 +5,7 @@ use thiserror::Error;
 
 pub mod action;
 pub mod binding;
+pub mod controller_paths;
 pub mod driver_interface;
 pub mod event;
 pub mod keyboard;
@@ -32,12 +33,6 @@ pub struct Time(pub u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ActionHandle(u64);
 
-#[derive(Debug, Clone, Copy)]
-pub struct Vec2D {
-    pub x: f32,
-    pub y: f32,
-}
-
 #[derive(Debug, Clone, Error)]
 pub enum CreateBindingLayoutError {
     #[error("Invalid Path Handle `{0:X?}`")]
@@ -51,7 +46,7 @@ pub enum CreateBindingLayoutError {
     #[error("Bad User Path `{0}`")]
     BadUserPath(String),
     #[error("Bad Binding `{0:?}`")]
-    BadBinding(SimpleBinding)
+    BadBinding(SimpleBinding),
 }
 
 pub type WindowHandle = NonZeroUsize;

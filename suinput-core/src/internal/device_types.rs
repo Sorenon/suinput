@@ -1,5 +1,8 @@
 use dashmap::{mapref::one::Ref, DashMap};
-use suinput_types::keyboard::KeyboardPaths;
+use suinput_types::{
+    controller_paths::{self, GameControllerPaths},
+    keyboard::KeyboardPaths,
+};
 
 use super::{
     device_type::DeviceType,
@@ -11,12 +14,17 @@ pub struct DeviceTypes {
 }
 
 impl DeviceTypes {
-    pub fn new(common_paths: &CommonPaths, keyboard_paths: &KeyboardPaths) -> Self {
+    pub fn new(
+        common_paths: &CommonPaths,
+        keyboard_paths: &KeyboardPaths,
+        controller_paths: &GameControllerPaths,
+    ) -> Self {
         Self {
             cache: [
                 DeviceType::create_mouse(&common_paths),
                 DeviceType::create_keyboard(&common_paths, &keyboard_paths),
                 DeviceType::create_cursor(&common_paths),
+                DeviceType::create_dualsense(&controller_paths),
             ]
             .into_iter()
             .map(|device_type| (device_type.id, device_type))

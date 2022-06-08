@@ -6,8 +6,8 @@ use std::{
 
 use suinput_types::{
     driver_interface::RuntimeInterfaceTrait,
-    event::{InputComponentEvent, InputEvent, Move2D},
-    keyboard::{self, HIDScanCode, KeyboardPaths},
+    event::{InputComponentEvent, InputEvent},
+    keyboard::{HIDScanCode, KeyboardPaths},
     Time,
 };
 use windows_sys::Win32::{
@@ -20,11 +20,7 @@ use windows_sys::Win32::{
     },
 };
 
-use crate::{
-    paths::CommonPaths,
-    raw_input::{self},
-    Result,
-};
+use crate::{paths::CommonPaths, raw_input, Result};
 use crate::{
     raw_input::get_raw_input_data, raw_input::get_ri_device_info, raw_input::RIDeviceInfo, Error,
 };
@@ -205,6 +201,7 @@ impl<'a> RawInputDriver<'a> {
 
 pub fn run(driver_manager: &dyn RuntimeInterfaceTrait) {
     let window = create_background_window().unwrap();
+    //TODO check if we loose raw input priority
     raw_input::register_raw_input_classes(window).unwrap();
 
     let paths = CommonPaths::new(driver_manager);
@@ -266,9 +263,9 @@ pub fn process_mouse(
                     device: device_id,
                     path: paths.mouse_move,
                     time: Time(0),
-                    data: InputComponentEvent::Move2D(Move2D {
-                        value: (mouse.lLastX as f64, mouse.lLastY as f64 * -1.),
-                    }),
+                    data: InputComponentEvent::Move2D(
+                        [mouse.lLastX as f64, mouse.lLastY as f64 * -1.].into(),
+                    ),
                 })
                 .unwrap();
         }
@@ -386,9 +383,9 @@ pub fn process_mouse(
                     device: device_id,
                     path: paths.mouse_scroll,
                     time: Time(0),
-                    data: InputComponentEvent::Move2D(Move2D {
-                        value: (0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64),
-                    }),
+                    data: InputComponentEvent::Move2D(
+                        [0., (data.usButtonData as i16) as f64 / WHEEL_DELTA as f64].into(),
+                    ),
                 })
                 .unwrap();
         }
@@ -398,9 +395,9 @@ pub fn process_mouse(
                     device: device_id,
                     path: paths.mouse_scroll,
                     time: Time(0),
-                    data: InputComponentEvent::Move2D(Move2D {
-                        value: ((data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.),
-                    }),
+                    data: InputComponentEvent::Move2D(
+                        [(data.usButtonData as i16) as f64 / WHEEL_DELTA as f64, 0.].into(),
+                    ),
                 })
                 .unwrap();
         }
