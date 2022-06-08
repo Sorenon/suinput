@@ -10,3 +10,4 @@ sdl2-driver = { path = "../drivers/sdl2-driver" }
 winit = "0.26"
 anyhow = "1.0"
 raw-window-handle = "0.4"
+miette = { version = "4.7", features = ["fancy"] }

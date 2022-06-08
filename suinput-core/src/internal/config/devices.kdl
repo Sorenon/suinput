@@ -1,50 +1,16 @@
 device vendor="standard" name="generic_mouse" {
-    source "button_right" { input-component "click" }
-    source "button_middle" { input-component "click" }
-    source "button_left" { input-component "click" }
-    source "button_4" { input-component "click" }
-    source "button_5" { input-component "click" }
-    source "move" { input-component "move2d" }
-    source "scroll" { input-component "move2d" }
+    identifier "button_left" { button "click"; } 
+    identifier "button_right" { button "click"; } 
+    identifier "button_middle" { button "click"; } 
+    identifier "button_4" { button "click"; } 
+    identifier "button_5" { button "click"; } 
+    identifier "move" { move2d "move2d"; } 
+    identifier "scroll" { move2d "move2d"; } 
 }
 
-device vendor="wooting" name="60he" variant="iso_uk" {
-    source "trigger_escape" {
-        input-component "value"
-    }
-    source "trigger_key1" {
-        input-component "value"
-    }
-    source "trigger_key2" {
-        input-component "value"
-    }
-    //etc
+device vendor="standard" name="system_cursor" {
+    identifier "cursor" { cursor "point"; } 
 }
-
-device vendor="oculus" name="touch_controller_left_generic" {
-    source "button_y" {
-        input-component "button" "click"
-        input-component "button" "touch"
-    }
-    source "button_x" {
-        input-component "button" "click"
-        input-component "button" "touch"
-    }
-    source "thumbstick" {
-        input-component "button" "click"
-        input-component "button" "touch"
-        input-component "joystick" "position"
-    }
-    source "menu" {
-        input-component "button" "click"
-    }
-    source "squeeze" {
-        input-component "button" "value"
-    }
-    //TODO pose + haptic
-}
-
-device vendor="oculus" name="touch_controller_left_rift_s" parent="device/oculus/touch_controller_left_generic"
 
 device vendor="sony" name="dualsense" {
     identifier "diamond_up" { button "click"; }
@@ -94,5 +60,4 @@ device vendor="sony" name="dualsense" {
         hd-rumble "haptic_left"
         hd-rumble "haptic_right"
     }
-    //TODO speaker and microphone
 }

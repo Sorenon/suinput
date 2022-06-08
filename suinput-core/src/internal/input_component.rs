@@ -18,6 +18,7 @@ pub enum InputComponentState {
 #[derive(Debug, Clone, Copy)]
 pub enum InputComponentType {
     Button,
+    // Trigger,
     Move2D,
     Cursor,
 }

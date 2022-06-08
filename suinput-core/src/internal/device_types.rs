@@ -5,8 +5,9 @@ use suinput_types::{
 };
 
 use super::{
+    config::serial_device_type,
     device_type::DeviceType,
-    paths::{CommonPaths, DevicePath},
+    paths::{CommonPaths, DevicePath, PathManager},
 };
 
 pub struct DeviceTypes {
@@ -17,18 +18,14 @@ impl DeviceTypes {
     pub fn new(
         common_paths: &CommonPaths,
         keyboard_paths: &KeyboardPaths,
-        controller_paths: &GameControllerPaths,
+        paths: &PathManager,
     ) -> Self {
         Self {
-            cache: [
-                DeviceType::create_mouse(&common_paths),
-                DeviceType::create_keyboard(&common_paths, &keyboard_paths),
-                DeviceType::create_cursor(&common_paths),
-                DeviceType::create_dualsense(&controller_paths),
-            ]
-            .into_iter()
-            .map(|device_type| (device_type.id, device_type))
-            .collect(),
+            cache: [DeviceType::create_keyboard(&common_paths, &keyboard_paths)]
+                .into_iter()
+                .chain(serial_device_type::deserialize(paths))
+                .map(|device_type| (device_type.id, device_type))
+                .collect(),
         }
     }
 

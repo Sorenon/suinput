@@ -59,7 +59,7 @@ impl Runtime {
         let common_paths = CommonPaths::new(|str| paths.get_path(str).unwrap());
         let keyboard_paths = KeyboardPaths::new(|str| paths.get_path(str).unwrap());
         let controller_paths = GameControllerPaths::new(|str| paths.get_path(str).unwrap());
-        let device_types = DeviceTypes::new(&common_paths, &keyboard_paths, &controller_paths);
+        let device_types = DeviceTypes::new(&common_paths, &keyboard_paths, &paths);
         let interaction_profile_types =
             InteractionProfileTypes::new(|str| paths.get_path(str).unwrap());
 

@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use sdl2_sys::{
@@ -26,6 +26,20 @@ use suinput_types::{
     The bug only occurs when running the winit event loop
     If we can't fix it in SDL we could just compare the joystick's system ids to the ones exposed by win32
     Hopefully GDK input will mitigate this problem
+
+    Should I make a standalone alternative to SDL2's gamecontroller support?
+    Pros:
+    Can be pure rust for added simplicity and safety
+    Can tweak as much as needed with no fear of breaking backwards compatibility
+    Weaker link to the somewhat limited SDL GameController Database 
+    Smaller binary size
+    Tighter integration with SuInput's device relationship system
+    Smaller chance of conflicting with some Game Engines' existing controller support 
+    Cons:
+    Large undertaking
+    Requires purchasing and testing each exotic controller type SDL supports
+    Looses the Steam integration
+    May require purchasing a Mac
 */
 
 pub struct SDLGameControllerGenericDriver {
