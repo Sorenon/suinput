@@ -12,13 +12,14 @@ pub struct InputComponentData {
 pub enum InputComponentState {
     Button(bool),
     Cursor(Cursor),
+    Trigger(f32),
     NonApplicable,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum InputComponentType {
     Button,
-    // Trigger,
+    Trigger,
     Move2D,
     Cursor,
 }

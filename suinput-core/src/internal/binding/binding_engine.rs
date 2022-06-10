@@ -94,6 +94,13 @@ impl ProcessedBindingLayout {
 
                     ProcessedBinding::Button2Bool
                 }
+                Some(InputComponentType::Trigger) => {
+                    if action.data_type == ActionType::Boolean {
+                        ProcessedBinding::Trigger2Bool
+                    } else {
+                        return Err(CreateBindingLayoutError::BadBinding(*binding));
+                    }
+                }
                 Some(InputComponentType::Move2D) => {
                     if action.data_type != ActionType::Delta2D {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
@@ -181,6 +188,7 @@ pub enum ProcessedBinding {
     Button2Bool,
     Move2d2Delta2d { sensitivity: (f64, f64) },
     Cursor2Cursor,
+    Trigger2Bool,
 }
 
 pub(crate) fn execute_binding(
@@ -202,6 +210,9 @@ impl ProcessedBinding {
         match (self, event.data) {
             (ProcessedBinding::Button2Bool, InputComponentEvent::Button(state)) => {
                 Some(ActionStateEnum::Boolean(state))
+            },
+            (ProcessedBinding::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
+                Some(ActionStateEnum::Boolean(state > 0.5))
             }
             (
                 ProcessedBinding::Move2d2Delta2d { sensitivity },

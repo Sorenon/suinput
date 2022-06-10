@@ -87,7 +87,42 @@ impl InteractionProfileState {
                     InputComponentEvent::Cursor(cursor) => {
                         Some(InputComponentState::Cursor(cursor))
                     }
-                    InputComponentEvent::Trigger(_) => None,
+                    InputComponentEvent::Trigger(state) => {
+                        let old_state = match self.input_components.get(&(*user_path, event.path)) {
+                            Some(InputComponentData {
+                                state: InputComponentState::Trigger(old_state),
+                                ..
+                            }) => *old_state,
+                            _ => 0.,
+                        };
+
+                        if state > old_state {
+                            Some(InputComponentState::Trigger(state))
+                        } else {
+                            if device_ids
+                                .iter()
+                                .filter(|id| **id != event_device_id)
+                                .find(|id| {
+                                    let (_, device_state, _) = devices.get(**id).unwrap();
+                                    match device_state.input_components.get(&event.path) {
+                                        Some(InputComponentData {
+                                            state: InputComponentState::Trigger(other_state),
+                                            ..
+                                        }) => *other_state >= state,
+                                        Some(_) => todo!(
+                                        "TODO add interaction profile checks so this can't happen"
+                                    ),
+                                        None => false,
+                                    }
+                                })
+                                .is_some()
+                            {
+                                None
+                            } else {
+                                Some(InputComponentState::Trigger(state))
+                            }
+                        }
+                    }
                     InputComponentEvent::Joystick(_) => None,
                     InputComponentEvent::Gyro(_) => None,
                     InputComponentEvent::Accel(_) => None,

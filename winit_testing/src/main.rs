@@ -118,7 +118,7 @@ fn main() -> Result<(), anyhow::Error> {
             },
             SimpleBinding {
                 action: zoom_action.handle(),
-                path: instance.get_path("/user/gamepad/input/shoulder_left/click")?,
+                path: instance.get_path("/user/gamepad/input/trigger_left/value")?,
             },
         ],
     )?;

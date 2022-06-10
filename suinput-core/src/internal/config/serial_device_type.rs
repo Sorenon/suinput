@@ -67,7 +67,7 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
             identifier.components.iter().filter_map(|component| {
                 Some(match component {
                     Component::Button(name) => (InputComponentType::Button, name),
-                    Component::Trigger(_) => return None,
+                    Component::Trigger(name) => (InputComponentType::Trigger, name),
                     Component::Joystick(_) => return None,
                     Component::Cursor(name) => (InputComponentType::Cursor, name),
                     Component::Move2d(name) => (InputComponentType::Move2D, name),
