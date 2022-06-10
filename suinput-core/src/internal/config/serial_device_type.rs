@@ -51,6 +51,7 @@ pub enum Component {
         #[knuffel(property(name = "max"))] u32,
     ),
     HdRumble(#[knuffel(argument)] String),
+    Rumble(#[knuffel(argument)] String),
 }
 
 pub static DEVICES: &str = include_str!("devices.kdl"); 
@@ -77,6 +78,7 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
                     Component::Led(_) => return None,
                     Component::PlayerNumber(_, _, _) => return None,
                     Component::HdRumble(_) => return None,
+                    Component::Rumble(_) => return None,
                 })
             })
             .map(|(ty, name)| {

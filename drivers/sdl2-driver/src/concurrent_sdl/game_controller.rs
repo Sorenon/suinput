@@ -1,15 +1,14 @@
 use std::ffi::CStr;
 use std::ptr::NonNull;
 
-use nalgebra::Vector3;
+use nalgebra::{Vector2, Vector3};
 use sdl2_sys::{
-    SDL_GameControllerAxis, SDL_GameControllerButton, SDL_GameControllerClose,
-    SDL_GameControllerGetAxis, SDL_GameControllerGetButton,
-    SDL_GameControllerGetNumTouchpadFingers, SDL_GameControllerGetProduct,
-    SDL_GameControllerGetSensorData, SDL_GameControllerGetTouchpadFinger,
-    SDL_GameControllerGetType, SDL_GameControllerGetVendor, SDL_GameControllerHasSensor,
-    SDL_GameControllerName, SDL_GameControllerSetSensorEnabled, SDL_GameControllerType,
-    SDL_SensorType, SDL_GameControllerEventState, SDL_JoystickEventState,
+    SDL_GameControllerAxis, SDL_GameControllerButton, SDL_GameControllerGetAxis,
+    SDL_GameControllerGetButton, SDL_GameControllerGetNumTouchpadFingers,
+    SDL_GameControllerGetProduct, SDL_GameControllerGetSensorData,
+    SDL_GameControllerGetTouchpadFinger, SDL_GameControllerGetType, SDL_GameControllerGetVendor,
+    SDL_GameControllerHasSensor, SDL_GameControllerName, SDL_GameControllerSetSensorEnabled,
+    SDL_GameControllerType, SDL_SensorType,
 };
 use sdl2_sys::{
     SDL_GameControllerOpen, SDL_GameControllerUpdate, SDL_IsGameController, SDL_bool,
@@ -24,13 +23,6 @@ pub fn update_game_controllers() {
     unsafe {
         //This function is thread safe (SDL_LockJoysticks)
         SDL_GameControllerUpdate();
-    }
-}
-
-pub fn fuck() {
-    unsafe {
-        SDL_JoystickEventState(0);
-        SDL_GameControllerEventState(0);
     }
 }
 
@@ -143,8 +135,8 @@ impl GameController {
             / 32767.
     }
 
-    pub fn get_thumbstick(&self, left: bool) -> (f32, f32) {
-        (
+    pub fn get_thumbstick(&self, left: bool) -> Vector2<f32> {
+        Vector2::new(
             self.get_axis_state(if left {
                 SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX
             } else {
@@ -192,7 +184,7 @@ impl GameController {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct TouchpadFinger {
     pub down: bool,
     pub x: f32,

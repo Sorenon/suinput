@@ -27,13 +27,11 @@ pub struct GameControllerPaths {
     pub diamond_left: SuPath,
     pub diamond_down: SuPath,
     pub diamond_right: SuPath,
-    // back: SuPath, //TODO
-    // guide: SuPath, //TODO
-    // start: SuPath, //TODO
+    pub guide: SuPath,
     pub left_stick_click: SuPath,
     pub right_stick_click: SuPath,
-    pub left_shoulder_click: SuPath,
-    pub right_shoulder_click: SuPath,
+    pub left_shoulder: SuPath,
+    pub right_shoulder: SuPath,
     pub dpad_up: SuPath,
     pub dpad_left: SuPath,
     pub dpad_right: SuPath,
@@ -47,8 +45,25 @@ pub struct GameControllerPaths {
     pub left_trigger_click: SuPath,
     pub right_trigger_click: SuPath,
 
+    pub back: SuPath,
+    pub create: SuPath,
+
+    pub start: SuPath,
+    pub options: SuPath,
+
+    pub mute: SuPath,
+
     pub left_trigger: SuPath,
     pub right_trigger: SuPath,
+
+    pub left_joystick: SuPath,
+    pub right_joystick: SuPath,
+
+    pub gyro: SuPath,
+    pub accel: SuPath,
+
+    pub touchpad: SuPath,
+
 }
 
 impl GameControllerPaths {
@@ -78,10 +93,10 @@ impl GameControllerPaths {
             // back: todo!(),
             // guide: todo!(),
             // start: todo!(),
-            left_stick_click: get_path("/input/stick_left/click"),
-            right_stick_click: get_path("/input/stick_right/click"),
-            left_shoulder_click: get_path("/input/shoulder_left/click"),
-            right_shoulder_click: get_path("/input/shoulder_right/click"),
+            left_stick_click: get_path("/input/joystick_left/click"),
+            right_stick_click: get_path("/input/joystick_right/click"),
+            left_shoulder: get_path("/input/shoulder_left/click"),
+            right_shoulder: get_path("/input/shoulder_right/click"),
             dpad_up: get_path("/input/dpad_up/click"),
             dpad_left: get_path("/input/dpad_left/click"),
             dpad_right: get_path("/input/dpad_right/click"),
@@ -97,6 +112,17 @@ impl GameControllerPaths {
             right_trigger_click: get_path("/input/trigger_right/click"),
             left_trigger: get_path("/input/trigger_left/value"),
             right_trigger: get_path("/input/trigger_right/value"),
+            left_joystick: get_path("/input/joystick_left/position"),
+            right_joystick: get_path("/input/joystick_left/position"),
+            gyro: get_path("/input/motion/gyro"),
+            accel: get_path("/input/motion/accel"),
+            touchpad: get_path("/input/touchpad/points"),
+            guide: get_path("/input/guide/click"),
+            back: get_path("/input/back/click"),
+            create: get_path("/input/create/click"),
+            start: get_path("/input/start/click"),
+            options: get_path("/input/options/click"),
+            mute: get_path("/input/mute/click"),
         }
     }
 }

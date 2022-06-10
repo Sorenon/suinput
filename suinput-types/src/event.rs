@@ -18,8 +18,8 @@ pub struct InputEvent {
 #[derive(Debug, Clone, Copy)]
 pub enum InputComponentEvent {
     Button(bool),
-    Value(f32),
-    Axis2D(f32),
+    Trigger(f32),
+    Joystick(Vector2<f32>),
     Move2D(Vector2<f64>),
 
     Cursor(Cursor),

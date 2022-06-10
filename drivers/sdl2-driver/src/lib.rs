@@ -4,6 +4,7 @@ use std::{
     time::Duration,
 };
 
+use nalgebra::Vector2;
 use sdl2_sys::{
     SDL_GameControllerType, SDL_InitSubSystem, SDL_QuitSubSystem, SDL_SensorType,
     SDL_INIT_GAMECONTROLLER,
@@ -17,6 +18,8 @@ use joystick::*;
 use suinput_types::{
     controller_paths::GameControllerPaths,
     driver_interface::{RuntimeInterface, SuInputDriver},
+    event::{InputComponentEvent, InputEvent},
+    SuPath, Time,
 };
 /*
     TODO sort out the controller dupe bug when using winit
@@ -31,10 +34,10 @@ use suinput_types::{
     Pros:
     Can be pure rust for added simplicity and safety
     Can tweak as much as needed with no fear of breaking backwards compatibility
-    Weaker link to the somewhat limited SDL GameController Database 
+    Weaker link to the somewhat limited SDL GameController Database
     Smaller binary size
     Tighter integration with SuInput's device relationship system
-    Smaller chance of conflicting with some Game Engines' existing controller support 
+    Smaller chance of conflicting with some Game Engines' existing controller support
     Cons:
     Large undertaking
     Requires purchasing and testing each exotic controller type SDL supports
@@ -73,8 +76,6 @@ impl SDLGameControllerGenericDriver {
             //Automatically loads the joystick subsystem
             assert_eq!(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER), 0);
         }
-
-        fuck();
 
         Ok(Self {
             destroyed: AtomicBool::new(false),
@@ -142,20 +143,31 @@ struct ThreadState {
     interface: RuntimeInterface,
     paths: GameControllerPaths,
     old_joysticks: Vec<SdlJoystick>,
-    game_controllers: HashMap<SdlJoystick, ControllerDevice>,
+    game_controllers: HashMap<SdlJoystick, (ControllerDevice, DeviceState)>,
 }
 
 impl ThreadState {
     fn tick(&mut self) {
-        //Lock the joystick system so the number of controllers does not change
+        self.check_controllers();
+
+        update_game_controllers();
+        let _lock = lock_joystick_system();
+
+        // let lock_time = Instant::now();
+
+        for (controller, state) in self.game_controllers.values_mut() {
+            if controller.sdl.get_type() == SDL_GameControllerType::SDL_CONTROLLER_TYPE_PS5 {
+                state.update(&controller, &self.interface, &self.paths);
+            }
+        }
+    }
+
+    fn check_controllers(&mut self) {
         update_game_controllers();
 
         let _lock = lock_joystick_system();
-        // let lock_time = Instant::now();
 
         let num_joysticks = num_joysticks().unwrap();
-
-        // println!("{num_joysticks:?}");
 
         let new_joysticks = (0..num_joysticks)
             .map(|device_index| get_instance_id(device_index).unwrap())
@@ -177,45 +189,16 @@ impl ThreadState {
                     if is_game_controller(device_index) {
                         self.game_controllers.insert(
                             device_index,
-                            ControllerDevice::new(device_index, &self.interface, &self.paths),
+                            (
+                                ControllerDevice::new(device_index, &self.interface, &self.paths),
+                                DeviceState::default(),
+                            ),
                         );
                     }
                 }
             }
 
             self.old_joysticks = new_joysticks;
-        }
-
-        for controller in self.game_controllers.values_mut() {
-            if controller.sdl.get_type() == SDL_GameControllerType::SDL_CONTROLLER_TYPE_PS5 {
-                let old_state = controller.state;
-
-                controller.state = DualSense::new(&controller.sdl);
-
-                let gyro = controller
-                    .sdl
-                    .get_gyro_state()
-                    .unwrap_or(Default::default());
-
-                if let Some(idx) = controller.idx {
-                    if old_state.shoulder_left != controller.state.shoulder_left {
-                        self.interface
-                            .send_component_event(suinput_types::event::InputEvent {
-                                device: idx,
-                                path: self.paths.left_shoulder_click,
-                                time: suinput_types::Time(0),
-                                data: suinput_types::event::InputComponentEvent::Button(
-                                    controller.state.shoulder_left,
-                                ),
-                            })
-                            .unwrap();
-                    }
-                }
-
-                // let acceld = controller.sdl.get_accel_state().unwrap();
-
-                // println!("{gyro:?}")
-            }
         }
     }
 }
@@ -225,9 +208,13 @@ struct ControllerDevice {
     sdl: GameController,
     has_gyro: bool,
     has_accel: bool,
+    has_touchpad: bool,
 
     idx: Option<u64>,
-    state: DualSense,
+
+    start: SuPath,
+    back: SuPath,
+    misc1: SuPath,
 }
 
 impl ControllerDevice {
@@ -240,6 +227,7 @@ impl ControllerDevice {
 
         let has_gyro = sdl.has_sensor(SDL_SensorType::SDL_SENSOR_GYRO);
         let has_accel = sdl.has_sensor(SDL_SensorType::SDL_SENSOR_ACCEL);
+        let has_touchpad = true; //TODO
 
         if has_gyro {
             sdl.set_sensor_state(SDL_SensorType::SDL_SENSOR_GYRO, true)
@@ -264,18 +252,22 @@ impl ControllerDevice {
         };
 
         Self {
-            state: DualSense::default(),
+            // state: DualSense::default(),
             sdl,
             has_gyro,
             has_accel,
             idx,
+            has_touchpad,
+            back: paths.create,
+            start: paths.options,
+            misc1: paths.mute,
         }
     }
 }
 
 enum ControllerType {
     Xbox360,
-    //(Start, Back) -> (Menu, View) and Haptic Triggers
+    //Haptic Triggers
     XboxOne,
     //Has share button
     XboxOneSeriesSX,
@@ -308,73 +300,169 @@ enum ControllerType {
     Custom(/*TODO*/),
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-struct DualSense {
-    diamond_up: bool,
-    diamond_left: bool,
-    diamond_down: bool,
-    diamond_right: bool,
-    dpad_up: bool,
-    dpad_left: bool,
-    dpad_down: bool,
-    dpad_right: bool,
-    touchpad_click: bool,
-    thumbstick_left_click: bool,
-    thumbstick_right_click: bool,
-    share: bool,
-    options: bool,
-    guide: bool,
-    mute: bool,
-    shoulder_left: bool,
-    shoulder_right: bool,
+const SDL_BUTTON_NUM: usize =
+    sdl2_sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_TOUCHPAD as usize + 1;
 
-    thumbstick_left: (f32, f32),
-    thumbstick_right: (f32, f32),
-    trigger_left: f32,
-    trigger_right: f32,
+#[derive(Debug, Default)]
+struct DeviceState {
+    buttons: [bool; SDL_BUTTON_NUM],
+    left_thumbstick: Vector2<f32>,
+    right_thumbstick: Vector2<f32>,
+    left_trigger: f32,
+    right_trigger: f32,
 
     touchpad_1: TouchpadFinger,
     touchpad_2: TouchpadFinger,
 }
 
-impl DualSense {
-    pub fn new(controller: &GameController) -> Self {
+impl DeviceState {
+    pub fn update(
+        &mut self,
+        device: &ControllerDevice,
+        interface: &RuntimeInterface,
+        paths: &GameControllerPaths,
+    ) {
         use sdl2_sys::SDL_GameControllerButton as Button;
 
-        if controller.get_button(Button::SDL_CONTROLLER_BUTTON_Y) {
-            println!("a");
+        for button_idx in 0..SDL_BUTTON_NUM {
+            let (button, path) = match button_idx {
+                0 => (Button::SDL_CONTROLLER_BUTTON_A, paths.diamond_down),
+                1 => (Button::SDL_CONTROLLER_BUTTON_B, paths.diamond_right),
+                2 => (Button::SDL_CONTROLLER_BUTTON_X, paths.diamond_left),
+                3 => (Button::SDL_CONTROLLER_BUTTON_Y, paths.diamond_up),
+                4 => (Button::SDL_CONTROLLER_BUTTON_BACK, device.back),
+                5 => (Button::SDL_CONTROLLER_BUTTON_GUIDE, paths.guide),
+                6 => (Button::SDL_CONTROLLER_BUTTON_START, device.start),
+                7 => (
+                    Button::SDL_CONTROLLER_BUTTON_LEFTSTICK,
+                    paths.left_stick_click,
+                ),
+                8 => (
+                    Button::SDL_CONTROLLER_BUTTON_RIGHTSTICK,
+                    paths.right_stick_click,
+                ),
+                9 => (
+                    Button::SDL_CONTROLLER_BUTTON_LEFTSHOULDER,
+                    paths.left_shoulder,
+                ),
+                10 => (
+                    Button::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
+                    paths.right_shoulder,
+                ),
+                11 => (Button::SDL_CONTROLLER_BUTTON_DPAD_UP, paths.dpad_up),
+                12 => (Button::SDL_CONTROLLER_BUTTON_DPAD_DOWN, paths.dpad_down),
+                13 => (Button::SDL_CONTROLLER_BUTTON_DPAD_LEFT, paths.dpad_left),
+                14 => (Button::SDL_CONTROLLER_BUTTON_DPAD_RIGHT, paths.dpad_right),
+                15 => (Button::SDL_CONTROLLER_BUTTON_MISC1, device.misc1),
+                16 => (Button::SDL_CONTROLLER_BUTTON_PADDLE1, paths.paddle1),
+                17 => (Button::SDL_CONTROLLER_BUTTON_PADDLE2, paths.paddle2),
+                18 => (Button::SDL_CONTROLLER_BUTTON_PADDLE3, paths.paddle3),
+                19 => (Button::SDL_CONTROLLER_BUTTON_PADDLE4, paths.paddle4),
+                20 => (Button::SDL_CONTROLLER_BUTTON_TOUCHPAD, paths.touchpad_click),
+                _ => unreachable!(),
+            };
+
+            let state = device.sdl.get_button(button);
+            if state != self.buttons[button_idx] {
+                interface
+                    .send_component_event(InputEvent {
+                        device: device.idx.unwrap(),
+                        path: path,
+                        time: Time(0),
+                        data: InputComponentEvent::Button(state),
+                    })
+                    .unwrap();
+                self.buttons[button_idx] = state;
+            }
         }
 
-        let a = Self {
-            diamond_up: controller.get_button(Button::SDL_CONTROLLER_BUTTON_Y),
-            diamond_left: controller.get_button(Button::SDL_CONTROLLER_BUTTON_X),
-            diamond_down: controller.get_button(Button::SDL_CONTROLLER_BUTTON_A),
-            diamond_right: controller.get_button(Button::SDL_CONTROLLER_BUTTON_B),
-            dpad_up: controller.get_button(Button::SDL_CONTROLLER_BUTTON_DPAD_UP),
-            dpad_left: controller.get_button(Button::SDL_CONTROLLER_BUTTON_DPAD_LEFT),
-            dpad_down: controller.get_button(Button::SDL_CONTROLLER_BUTTON_DPAD_DOWN),
-            dpad_right: controller.get_button(Button::SDL_CONTROLLER_BUTTON_DPAD_RIGHT),
-            touchpad_click: controller.get_button(Button::SDL_CONTROLLER_BUTTON_TOUCHPAD),
-            thumbstick_left_click: controller.get_button(Button::SDL_CONTROLLER_BUTTON_LEFTSTICK),
-            thumbstick_right_click: controller.get_button(Button::SDL_CONTROLLER_BUTTON_RIGHTSTICK),
-            share: controller.get_button(Button::SDL_CONTROLLER_BUTTON_BACK),
-            options: controller.get_button(Button::SDL_CONTROLLER_BUTTON_START),
-            guide: controller.get_button(Button::SDL_CONTROLLER_BUTTON_GUIDE),
-            mute: controller.get_button(Button::SDL_CONTROLLER_BUTTON_MISC1),
-            shoulder_left: controller.get_button(Button::SDL_CONTROLLER_BUTTON_LEFTSHOULDER),
-            shoulder_right: controller.get_button(Button::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER),
+        let left_thumbstick = device.sdl.get_thumbstick(true);
+        if left_thumbstick != self.left_thumbstick {
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.left_joystick,
+                    time: Time(0),
+                    data: InputComponentEvent::Joystick(left_thumbstick.into()),
+                })
+                .unwrap();
+            self.left_thumbstick = left_thumbstick;
+        }
 
-            thumbstick_left: controller.get_thumbstick(true),
-            thumbstick_right: controller.get_thumbstick(false),
-            trigger_left: controller.get_trigger(true),
-            trigger_right: controller.get_trigger(false),
+        let right_thumbstick = device.sdl.get_thumbstick(false);
+        if right_thumbstick != self.right_thumbstick {
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.right_joystick,
+                    time: Time(0),
+                    data: InputComponentEvent::Joystick(right_thumbstick.into()),
+                })
+                .unwrap();
+            self.right_thumbstick = right_thumbstick;
+        }
 
-            touchpad_1: controller.get_touchpad_finger(0, 0),
-            touchpad_2: controller.get_touchpad_finger(0, 1),
-        };
+        let left_trigger = device.sdl.get_trigger(true);
+        if left_trigger != self.left_trigger {
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.left_trigger,
+                    time: Time(0),
+                    data: InputComponentEvent::Trigger(left_trigger),
+                })
+                .unwrap();
+            self.left_trigger = left_trigger;
+        }
 
-        // println!("{a:?}");
+        let right_trigger = device.sdl.get_trigger(false);
+        if right_trigger != self.right_trigger {
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.right_trigger,
+                    time: Time(0),
+                    data: InputComponentEvent::Trigger(right_trigger),
+                })
+                .unwrap();
+            self.right_trigger = right_trigger;
+        }
 
-        a
+        if device.has_gyro {
+            let gyro = device.sdl.get_gyro_state().unwrap();
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.gyro,
+                    time: Time(0),
+                    data: InputComponentEvent::Gyro(gyro.into()),
+                })
+                .unwrap();
+        }
+
+        if device.has_accel {
+            let accel = device.sdl.get_accel_state().unwrap();
+            interface
+                .send_component_event(InputEvent {
+                    device: device.idx.unwrap(),
+                    path: paths.accel,
+                    time: Time(0),
+                    data: InputComponentEvent::Accel(accel.into()),
+                })
+                .unwrap();
+        }
+
+        //TODO
+        if device.has_touchpad {
+            let point_1 = device.sdl.get_touchpad_finger(0, 0);
+            if point_1 != self.touchpad_1 {
+                self.touchpad_1 = point_1;
+            }
+
+            let point_2 = device.sdl.get_touchpad_finger(0, 1);
+            if point_2 != self.touchpad_2 {
+                self.touchpad_2 = point_2;
+            }
+        }
     }
 }

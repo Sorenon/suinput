@@ -87,10 +87,10 @@ impl InteractionProfileState {
                     InputComponentEvent::Cursor(cursor) => {
                         Some(InputComponentState::Cursor(cursor))
                     }
-                    InputComponentEvent::Value(_) => todo!(),
-                    InputComponentEvent::Axis2D(_) => todo!(),
-                    InputComponentEvent::Gyro(_) => todo!(),
-                    InputComponentEvent::Accel(_) => todo!(),
+                    InputComponentEvent::Trigger(_) => None,
+                    InputComponentEvent::Joystick(_) => None,
+                    InputComponentEvent::Gyro(_) => None,
+                    InputComponentEvent::Accel(_) => None,
                 };
 
                 if let Some(new_state) = new_state {
