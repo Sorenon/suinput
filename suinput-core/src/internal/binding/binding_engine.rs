@@ -196,10 +196,9 @@ pub(crate) fn execute_binding(
     bindings_index: &mut Vec<(ProcessedBinding, ActionStateEnum, u64)>,
     event: &InputEvent,
 ) -> Option<(ActionStateEnum, u64)> {
-    let (binding, binding_action_state, action_handle) = &mut bindings_index[binding_index];
+    let (binding, _, action_handle) = &mut bindings_index[binding_index];
 
     binding.on_event(event).map(|some| {
-        *binding_action_state = some;
         (some, *action_handle)
     })
 }
@@ -210,7 +209,7 @@ impl ProcessedBinding {
         match (self, event.data) {
             (ProcessedBinding::Button2Bool, InputComponentEvent::Button(state)) => {
                 Some(ActionStateEnum::Boolean(state))
-            },
+            }
             (ProcessedBinding::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
                 Some(ActionStateEnum::Boolean(state > 0.5))
             }

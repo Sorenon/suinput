@@ -25,7 +25,7 @@ use crate::{
 };
 
 use super::{
-    binding::working_user::{ParentActionState, WorkingUser},
+    binding::working_user::{ParentActionState, WorkingUser, AttachedBindingLayout},
     device::DeviceState,
 };
 
@@ -107,11 +107,7 @@ pub fn spawn_thread(
                             session.runtime_handle,
                             (
                                 session.clone(),
-                                WorkingUser {
-                                    binding_layouts: HashMap::new(),
-                                    action_states: HashMap::new(),
-                                    parent_action_states,
-                                },
+                                WorkingUser::new(parent_action_states),
                             ),
                         );
                     }
@@ -121,7 +117,7 @@ pub fn spawn_thread(
                     let user = &session.user;
 
                     for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
-                        working_user.binding_layouts.insert(profile, binding_layout);
+                        working_user.binding_layouts.insert(profile, AttachedBindingLayout::new(binding_layout));
                     }
                 }
                 WorkerThreadEvent::DriverEvent { id, event } => {

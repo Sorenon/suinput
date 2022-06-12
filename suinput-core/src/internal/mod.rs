@@ -9,3 +9,4 @@ pub mod interaction_profile_type;
 pub mod interaction_profile_types;
 pub mod paths;
 pub mod worker_thread;
+pub mod input_events;

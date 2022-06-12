@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     time::Instant,
+    vec::IntoIter,
 };
 
 use suinput_types::{
@@ -12,6 +13,7 @@ use thunderdome::{Arena, Index};
 use super::{
     device::DeviceState,
     input_component::{InputComponentData, InputComponentState},
+    input_events::{InputEventSources, InputEventType, Value},
     interaction_profile_type::InteractionProfileType,
     paths::{InputPath, UserPath},
 };
@@ -53,76 +55,23 @@ impl InteractionProfileState {
         let event_device_id = Index::from_bits(event.device).unwrap();
 
         for (user_path, device_ids) in &self.devices {
-            if device_ids.contains(&Index::from_bits(event.device).unwrap()) {
+            if device_ids.contains(&event_device_id) {
+                let helper = IESHelper {
+                    profile: &self,
+                    devices,
+                };
+
                 let new_state = match event.data {
-                    InputComponentEvent::Button(event_pressed) => {
-                        if event_pressed {
-                            Some(InputComponentState::Button(true))
-                        } else {
-                            if device_ids
-                                .iter()
-                                .filter(|id| **id != event_device_id)
-                                .find(|id| {
-                                    let (_, device_state, _) = devices.get(**id).unwrap();
-                                    match device_state.input_components.get(&event.path) {
-                                        Some(InputComponentData {
-                                            state: InputComponentState::Button(device_pressed),
-                                            ..
-                                        }) => *device_pressed,
-                                        Some(_) => todo!(
-                                        "TODO add interaction profile checks so this can't happen"
-                                    ),
-                                        None => false,
-                                    }
-                                })
-                                .is_some()
-                            {
-                                None
-                            } else {
-                                Some(InputComponentState::Button(false))
-                            }
-                        }
-                    }
+                    InputComponentEvent::Button(event_pressed) => helper
+                        .aggregate::<bool>((*user_path, event.path), event_pressed, event_device_id)
+                        .map(|(state, _)| InputComponentState::Button(state)),
                     InputComponentEvent::Move2D(_) => Some(InputComponentState::NonApplicable),
                     InputComponentEvent::Cursor(cursor) => {
                         Some(InputComponentState::Cursor(cursor))
                     }
-                    InputComponentEvent::Trigger(state) => {
-                        let old_state = match self.input_components.get(&(*user_path, event.path)) {
-                            Some(InputComponentData {
-                                state: InputComponentState::Trigger(old_state),
-                                ..
-                            }) => *old_state,
-                            _ => 0.,
-                        };
-
-                        if state > old_state {
-                            Some(InputComponentState::Trigger(state))
-                        } else {
-                            if device_ids
-                                .iter()
-                                .filter(|id| **id != event_device_id)
-                                .find(|id| {
-                                    let (_, device_state, _) = devices.get(**id).unwrap();
-                                    match device_state.input_components.get(&event.path) {
-                                        Some(InputComponentData {
-                                            state: InputComponentState::Trigger(other_state),
-                                            ..
-                                        }) => *other_state >= state,
-                                        Some(_) => todo!(
-                                        "TODO add interaction profile checks so this can't happen"
-                                    ),
-                                        None => false,
-                                    }
-                                })
-                                .is_some()
-                            {
-                                None
-                            } else {
-                                Some(InputComponentState::Trigger(state))
-                            }
-                        }
-                    }
+                    InputComponentEvent::Trigger(state) => helper
+                        .aggregate::<Value>((*user_path, event.path), state, event_device_id)
+                        .map(|state| InputComponentState::Trigger(state)),
                     InputComponentEvent::Joystick(_) => None,
                     InputComponentEvent::Gyro(_) => None,
                     InputComponentEvent::Accel(_) => None,
@@ -144,4 +93,46 @@ impl InteractionProfileState {
     }
 
     pub fn device_removed(&mut self, id: Index, devices: &Arena<(SuPath, DeviceState, Index)>) {}
+}
+
+struct IESHelper<'a> {
+    profile: &'a InteractionProfileState,
+    devices: &'a thunderdome::Arena<(SuPath, DeviceState, Index)>,
+}
+
+impl<'a> InputEventSources for IESHelper<'a> {
+    type Index = (UserPath, InputPath);
+    type SourceIndex = Index;
+
+    type Sources = IntoIter<Self::SourceIndex>;
+
+    fn get_state<I: InputEventType>(&self, idx: Self::Index) -> Option<I::Value> {
+        self.profile
+            .input_components
+            .get(&idx)
+            .map(|data| I::from_ics(&data.state))
+    }
+
+    fn get_source_state<I: InputEventType>(
+        &self,
+        (_, input_path): Self::Index,
+        source_idx: Self::SourceIndex,
+    ) -> Option<I::Value> {
+        let (_, device_state, _) = self.devices.get(source_idx).unwrap();
+        device_state
+            .input_components
+            .get(&input_path)
+            .map(|data| I::from_ics(&data.state))
+    }
+
+    fn get_sources<I: InputEventType>(&self, (user_path, _): Self::Index) -> Self::Sources {
+        self.profile
+            .devices
+            .get(&user_path)
+            .unwrap()
+            .iter()
+            .map(|idx| *idx)
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
 }
