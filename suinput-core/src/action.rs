@@ -34,6 +34,14 @@ pub enum ParentActionType {
         positive: Arc<Action>,
         negative: Arc<Action>,
     },
+    Axis2D {
+        up: Arc<Action>,
+        down: Arc<Action>,
+        left: Arc<Action>,
+        right: Arc<Action>,
+        vertical: Arc<Action>,
+        horizontal: Arc<Action>,
+    },
     None,
 }
 
@@ -42,7 +50,9 @@ pub enum ActionType {
     Boolean,
     Delta2D,
     Cursor,
+    Value,
     Axis1D,
+    Axis2D,
 }
 
 impl Action {

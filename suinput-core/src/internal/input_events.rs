@@ -98,7 +98,10 @@ impl InputEventType for Value {
     type EventOut = f32;
 
     fn from_ase(ase: &ActionStateEnum) -> Self::Value {
-        todo!()
+        match ase {
+            ActionStateEnum::Value(value) => *value,
+            _ => panic!()
+        }
     }
 
     fn aggregate<'a>(

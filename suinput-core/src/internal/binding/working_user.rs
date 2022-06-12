@@ -13,7 +13,7 @@ use suinput_types::{
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::{
-        input_events::{InputEventSources, InputEventType},
+        input_events::{InputEventSources, InputEventType, Value},
         interaction_profile_type::InteractionProfileType,
         paths::InteractionProfilePath,
     },
@@ -132,6 +132,29 @@ impl WorkingUser {
                     normalized_window_coords,
                 })
             }
+            ActionStateEnum::Value(value) => {
+                match binding_layout.aggregate::<Value>(action_handle, value, binding_index) {
+                    Some(value) => {
+                        binding_layout
+                            .action_states
+                            .insert(action_handle, ActionStateEnum::Value(value));
+
+                        UserActions {
+                            attached_binding_layouts: &self.binding_layouts,
+                            action_states: &self.action_states,
+                        }
+                        .aggregate::<Value>(action_handle, value, interaction_profile_id)
+                        .map(|value| {
+                            self.action_states
+                                .insert(action_handle, ActionStateEnum::Value(value));
+                            ActionEventEnum::Value { state: value }
+                        })
+                    }
+                    None => None,
+                }
+            }
+            ActionStateEnum::Axis1D(_) => todo!(),
+            ActionStateEnum::Axis2D(_) => todo!(),
         };
 
         if let Some(event) = event {
@@ -144,8 +167,16 @@ impl WorkingUser {
                     ParentActionType::StickyBool { .. } => {
                         self.handle_sticky_bool_event(action_handle)
                     }
-                    ParentActionType::Axis1D { .. } => todo!(),
                     ParentActionType::None => Some(event),
+                    ParentActionType::Axis1D { .. } => todo!(),
+                    ParentActionType::Axis2D {
+                        up,
+                        down,
+                        left,
+                        right,
+                        vertical,
+                        horizontal,
+                    } => todo!(),
                 },
                 ActionHierarchyType::Child { parent, ty } => {
                     let parent_handle = parent.upgrade().unwrap().handle;

@@ -15,6 +15,7 @@ struct Listener {
     zoom: SuAction,
     turn: SuAction,
     cursor: SuAction,
+    thrust: SuAction,
 }
 
 impl ActionListener for Listener {
@@ -46,6 +47,10 @@ impl ActionListener for Listener {
                     // println!("cursor moved to {normalized_window_coords:?}");
                 }
             }
+        } else if event.action_handle == self.thrust.handle() {
+            if let ActionEventEnum::Value { state } = event.data {
+                println!("thrust {state}");
+            }
         }
     }
 }
@@ -67,6 +72,7 @@ fn main() -> Result<(), anyhow::Error> {
     let zoom_action = action_set.create_action("zoom", ActionCreateInfo::Boolean { sticky: true });
     let turn_action = action_set.create_action("turn", ActionCreateInfo::Delta2D);
     let cursor_action = action_set.create_action("cursor", ActionCreateInfo::Cursor);
+    let thrust_action = action_set.create_action("thrust", ActionCreateInfo::Value);
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -120,6 +126,10 @@ fn main() -> Result<(), anyhow::Error> {
                 action: zoom_action.handle(),
                 path: instance.get_path("/user/gamepad/input/trigger_left/value")?,
             },
+            SimpleBinding {
+                action: thrust_action.handle(),
+                path: instance.get_path("/user/gamepad/input/trigger_right/value")?,
+            },
         ],
     )?;
 
@@ -137,6 +147,7 @@ fn main() -> Result<(), anyhow::Error> {
         zoom: zoom_action.clone(),
         turn: turn_action.clone(),
         cursor: cursor_action.clone(),
+        thrust: thrust_action.clone(),
         session: session.clone(),
     }));
 

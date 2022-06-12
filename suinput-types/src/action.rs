@@ -7,10 +7,19 @@ pub enum ActionCreateInfo {
     },
     Delta2D,
     Cursor,
+    Value,
     Axis1D {
         positive: Option<String>,
         negative: Option<String>,
     },
+    Axis2D {
+        up: Option<String>,
+        down: Option<String>,
+        left: Option<String>,
+        right: Option<String>,
+        vertical: Option<String>,
+        horizontal: Option<String>,
+    }
 }
 
 pub trait ActionListener: Send + Sync {
@@ -36,6 +45,9 @@ pub enum ActionEventEnum {
     Cursor {
         normalized_window_coords: (f64, f64),
     },
+    Value {
+        state: f32,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -43,6 +55,9 @@ pub enum ActionStateEnum {
     Boolean(bool),
     Delta2D((f64, f64)),
     Cursor((f64, f64)),
+    Value(f32),
+    Axis1D(f32),
+    Axis2D((f32, f32)),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,10 +67,10 @@ pub enum ChildActionType {
     StickyRelease,
     Positive,
     Negative,
-    North,
-    East,
-    South,
-    West,
+    Up,
+    Right,
+    Down,
+    Left,
     Vertical,
     Horizontal,
     Move,

@@ -97,6 +97,8 @@ impl ProcessedBindingLayout {
                 Some(InputComponentType::Trigger) => {
                     if action.data_type == ActionType::Boolean {
                         ProcessedBinding::Trigger2Bool
+                    } else if action.data_type == ActionType::Value {
+                        ProcessedBinding::Trigger2Value
                     } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
@@ -129,7 +131,9 @@ impl ProcessedBindingLayout {
                 ActionType::Boolean => ActionStateEnum::Boolean(false),
                 ActionType::Delta2D => ActionStateEnum::Delta2D((0., 0.)),
                 ActionType::Cursor => ActionStateEnum::Cursor((0., 0.)),
-                ActionType::Axis1D => todo!(),
+                ActionType::Axis1D => ActionStateEnum::Axis1D(0.),
+                ActionType::Value => ActionStateEnum::Value(0.),
+                ActionType::Axis2D => ActionStateEnum::Axis2D((0., 0.)),
             };
 
             bindings_index.push((processed_binding, action_state, action.handle));
@@ -189,6 +193,7 @@ pub enum ProcessedBinding {
     Move2d2Delta2d { sensitivity: (f64, f64) },
     Cursor2Cursor,
     Trigger2Bool,
+    Trigger2Value,
 }
 
 pub(crate) fn execute_binding(
@@ -198,9 +203,7 @@ pub(crate) fn execute_binding(
 ) -> Option<(ActionStateEnum, u64)> {
     let (binding, _, action_handle) = &mut bindings_index[binding_index];
 
-    binding.on_event(event).map(|some| {
-        (some, *action_handle)
-    })
+    binding.on_event(event).map(|some| (some, *action_handle))
 }
 
 impl ProcessedBinding {
@@ -212,6 +215,9 @@ impl ProcessedBinding {
             }
             (ProcessedBinding::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
                 Some(ActionStateEnum::Boolean(state > 0.5))
+            }
+            (ProcessedBinding::Trigger2Value, InputComponentEvent::Trigger(state)) => {
+                Some(ActionStateEnum::Value(state))
             }
             (
                 ProcessedBinding::Move2d2Delta2d { sensitivity },

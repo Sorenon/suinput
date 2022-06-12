@@ -74,6 +74,7 @@ impl ActionSet {
                 }
                 ActionCreateInfo::Delta2D => (ActionType::Delta2D, ParentActionType::None),
                 ActionCreateInfo::Cursor => (ActionType::Cursor, ParentActionType::None),
+                ActionCreateInfo::Value => (ActionType::Value, ParentActionType::None),
                 ActionCreateInfo::Axis1D { positive, negative } => (
                     ActionType::Axis1D,
                     ParentActionType::Axis1D {
@@ -82,7 +83,7 @@ impl ActionSet {
                             &mut set_actions,
                             action.clone(),
                             positive.unwrap_or("positive".into()),
-                            ActionType::Boolean, //TODO Value Action Type
+                            ActionType::Value,
                             ChildActionType::Positive,
                         ),
                         negative: self.create_child_action(
@@ -90,11 +91,71 @@ impl ActionSet {
                             &mut set_actions,
                             action.clone(),
                             negative.unwrap_or("negative".into()),
-                            ActionType::Boolean,
+                            ActionType::Value,
                             ChildActionType::Negative,
                         ),
                     },
                 ),
+                ActionCreateInfo::Axis2D {
+                    up,
+                    down,
+                    left,
+                    right,
+                    vertical,
+                    horizontal,
+                } => (
+                    ActionType::Axis2D,
+                    ParentActionType::Axis2D {
+                        up: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            up.unwrap_or("up".into()),
+                            ActionType::Value,
+                            ChildActionType::Up,
+                        ),
+                        down: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            down.unwrap_or("down".into()),
+                            ActionType::Value,
+                            ChildActionType::Down,
+                        ),
+                        left: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            left.unwrap_or("left".into()),
+                            ActionType::Value,
+                            ChildActionType::Left,
+                        ),
+                        right: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            right.unwrap_or("right".into()),
+                            ActionType::Value,
+                            ChildActionType::Right,
+                        ),
+                        vertical: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            vertical.unwrap_or("vertical".into()),
+                            ActionType::Axis1D,
+                            ChildActionType::Vertical,
+                        ),
+                        horizontal: self.create_child_action(
+                            &mut instance_actions,
+                            &mut set_actions,
+                            action.clone(),
+                            horizontal.unwrap_or("horizontal".into()),
+                            ActionType::Axis1D,
+                            ChildActionType::Horizontal,
+                        ),
+                    },
+                )
             };
 
             Action {
