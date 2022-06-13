@@ -136,19 +136,24 @@ impl GameController {
     }
 
     pub fn get_thumbstick(&self, left: bool) -> Vector2<f32> {
+        const MAX: f32 = i16::MAX as f32;
+        const MIN: f32 = -(i16::MIN as f32);
+
+        let x = self.get_axis_state(if left {
+            SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX
+        } else {
+            SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX
+        }) as f32;
+
+        let y = self.get_axis_state(if left {
+            SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY
+        } else {
+            SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY
+        }) as f32;
+
         Vector2::new(
-            self.get_axis_state(if left {
-                SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX
-            } else {
-                SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX
-            }) as f32
-                / 32767.,
-            self.get_axis_state(if left {
-                SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY
-            } else {
-                SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX
-            }) as f32
-                / 32767.,
+            if x > 0. { x / MAX } else { x / MIN },
+            if y > 0. { -y / MAX } else { -y / MIN },
         )
     }
 

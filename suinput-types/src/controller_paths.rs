@@ -63,7 +63,6 @@ pub struct GameControllerPaths {
     pub accel: SuPath,
 
     pub touchpad: SuPath,
-
 }
 
 impl GameControllerPaths {
@@ -113,7 +112,7 @@ impl GameControllerPaths {
             left_trigger: get_path("/input/trigger_left/value"),
             right_trigger: get_path("/input/trigger_right/value"),
             left_joystick: get_path("/input/joystick_left/position"),
-            right_joystick: get_path("/input/joystick_left/position"),
+            right_joystick: get_path("/input/joystick_right/position"),
             gyro: get_path("/input/motion/gyro"),
             accel: get_path("/input/motion/accel"),
             touchpad: get_path("/input/touchpad/points"),

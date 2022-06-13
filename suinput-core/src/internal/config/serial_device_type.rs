@@ -54,7 +54,7 @@ pub enum Component {
     Rumble(#[knuffel(argument)] String),
 }
 
-pub static DEVICES: &str = include_str!("devices.kdl"); 
+pub static DEVICES: &str = include_str!("devices.kdl");
 
 #[rustfmt::skip]
 pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
@@ -68,7 +68,7 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
                 Some(match component {
                     Component::Button(name) => (InputComponentType::Button, name),
                     Component::Trigger(name) => (InputComponentType::Trigger, name),
-                    Component::Joystick(_) => return None,
+                    Component::Joystick(name) => (InputComponentType::Joystick, name),
                     Component::Cursor(name) => (InputComponentType::Cursor, name),
                     Component::Move2d(name) => (InputComponentType::Move2D, name),
                     Component::Gyro(_, _) => return None,

@@ -75,9 +75,9 @@ impl ActionSet {
                 ActionCreateInfo::Delta2D => (ActionType::Delta2D, ParentActionType::None),
                 ActionCreateInfo::Cursor => (ActionType::Cursor, ParentActionType::None),
                 ActionCreateInfo::Value => (ActionType::Value, ParentActionType::None),
-                ActionCreateInfo::Axis1D { positive, negative } => (
-                    ActionType::Axis1D,
-                    ParentActionType::Axis1D {
+                ActionCreateInfo::Axis1d { positive, negative } => (
+                    ActionType::Axis1d,
+                    ParentActionType::Axis1d {
                         positive: self.create_child_action(
                             &mut instance_actions,
                             &mut set_actions,
@@ -96,7 +96,7 @@ impl ActionSet {
                         ),
                     },
                 ),
-                ActionCreateInfo::Axis2D {
+                ActionCreateInfo::Axis2d {
                     up,
                     down,
                     left,
@@ -104,8 +104,8 @@ impl ActionSet {
                     vertical,
                     horizontal,
                 } => (
-                    ActionType::Axis2D,
-                    ParentActionType::Axis2D {
+                    ActionType::Axis2d,
+                    ParentActionType::Axis2d {
                         up: self.create_child_action(
                             &mut instance_actions,
                             &mut set_actions,
@@ -143,7 +143,7 @@ impl ActionSet {
                             &mut set_actions,
                             action.clone(),
                             vertical.unwrap_or("vertical".into()),
-                            ActionType::Axis1D,
+                            ActionType::Axis1d,
                             ChildActionType::Vertical,
                         ),
                         horizontal: self.create_child_action(
@@ -151,11 +151,11 @@ impl ActionSet {
                             &mut set_actions,
                             action.clone(),
                             horizontal.unwrap_or("horizontal".into()),
-                            ActionType::Axis1D,
+                            ActionType::Axis1d,
                             ChildActionType::Horizontal,
                         ),
                     },
-                )
+                ),
             };
 
             Action {

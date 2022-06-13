@@ -1,10 +1,11 @@
+mod processed_binding;
+
 use std::collections::{hash_map::Entry, HashMap};
 
+use nalgebra::Vector2;
 use suinput_types::{
-    action::ActionStateEnum,
-    binding::SimpleBinding,
-    event::{InputComponentEvent, InputEvent},
-    CreateBindingLayoutError, SuPath,
+    action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
+    SuPath,
 };
 
 use crate::{
@@ -15,6 +16,8 @@ use crate::{
         paths::{InputPath, InteractionProfilePath, UserPath},
     },
 };
+
+use self::processed_binding::ProcessedBinding;
 
 #[derive(Debug, Clone)]
 pub struct ProcessedBindingLayout {
@@ -88,11 +91,13 @@ impl ProcessedBindingLayout {
 
             let processed_binding = match device.input_components.get(&component_path) {
                 Some(InputComponentType::Button) => {
-                    if action.data_type != ActionType::Boolean {
+                    if action.data_type == ActionType::Boolean {
+                        ProcessedBinding::Button2Bool
+                    } else if action.data_type == ActionType::Value {
+                        ProcessedBinding::Button2Value
+                    } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
-
-                    ProcessedBinding::Button2Bool
                 }
                 Some(InputComponentType::Trigger) => {
                     if action.data_type == ActionType::Boolean {
@@ -119,6 +124,13 @@ impl ProcessedBindingLayout {
 
                     ProcessedBinding::Cursor2Cursor
                 }
+                Some(InputComponentType::Joystick) => {
+                    if action.data_type != ActionType::Axis2d {
+                        return Err(CreateBindingLayoutError::BadBinding(*binding));
+                    }
+
+                    ProcessedBinding::Joystick2Axis2d
+                }
                 None => {
                     return Err(instance.get_path_string(component_path).map_or(
                         CreateBindingLayoutError::InvalidPathHandle(interaction_profile),
@@ -131,9 +143,9 @@ impl ProcessedBindingLayout {
                 ActionType::Boolean => ActionStateEnum::Boolean(false),
                 ActionType::Delta2D => ActionStateEnum::Delta2D((0., 0.)),
                 ActionType::Cursor => ActionStateEnum::Cursor((0., 0.)),
-                ActionType::Axis1D => ActionStateEnum::Axis1D(0.),
+                ActionType::Axis1d => ActionStateEnum::Axis1d(0.),
                 ActionType::Value => ActionStateEnum::Value(0.),
-                ActionType::Axis2D => ActionStateEnum::Axis2D((0., 0.)),
+                ActionType::Axis2d => ActionStateEnum::Axis2d(Vector2::new(0., 0.).into()),
             };
 
             bindings_index.push((processed_binding, action_state, action.handle));
@@ -187,15 +199,6 @@ impl ProcessedBindingLayout {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum ProcessedBinding {
-    Button2Bool,
-    Move2d2Delta2d { sensitivity: (f64, f64) },
-    Cursor2Cursor,
-    Trigger2Bool,
-    Trigger2Value,
-}
-
 pub(crate) fn execute_binding(
     binding_index: usize,
     bindings_index: &mut Vec<(ProcessedBinding, ActionStateEnum, u64)>,
@@ -204,32 +207,4 @@ pub(crate) fn execute_binding(
     let (binding, _, action_handle) = &mut bindings_index[binding_index];
 
     binding.on_event(event).map(|some| (some, *action_handle))
-}
-
-impl ProcessedBinding {
-    /// Returns None if the action state should not be changed / an even should not fire
-    pub(crate) fn on_event(&mut self, event: &InputEvent) -> Option<ActionStateEnum> {
-        match (self, event.data) {
-            (ProcessedBinding::Button2Bool, InputComponentEvent::Button(state)) => {
-                Some(ActionStateEnum::Boolean(state))
-            }
-            (ProcessedBinding::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
-                Some(ActionStateEnum::Boolean(state > 0.5))
-            }
-            (ProcessedBinding::Trigger2Value, InputComponentEvent::Trigger(state)) => {
-                Some(ActionStateEnum::Value(state))
-            }
-            (
-                ProcessedBinding::Move2d2Delta2d { sensitivity },
-                InputComponentEvent::Move2D(delta),
-            ) => Some(ActionStateEnum::Delta2D((
-                delta.x * sensitivity.0,
-                delta.y * sensitivity.1,
-            ))),
-            (ProcessedBinding::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
-                Some(ActionStateEnum::Cursor(cursor.normalized_screen_coords))
-            }
-            _ => todo!(),
-        }
-    }
 }

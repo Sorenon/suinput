@@ -13,7 +13,7 @@ use thunderdome::{Arena, Index};
 use super::{
     device::DeviceState,
     input_component::{InputComponentData, InputComponentState},
-    input_events::{InputEventSources, InputEventType, Value},
+    input_events::{Axis2d, InputEventSources, InputEventType, Value},
     interaction_profile_type::InteractionProfileType,
     paths::{InputPath, UserPath},
 };
@@ -72,7 +72,13 @@ impl InteractionProfileState {
                     InputComponentEvent::Trigger(state) => helper
                         .aggregate::<Value>((*user_path, event.path), state, event_device_id)
                         .map(|state| InputComponentState::Trigger(state)),
-                    InputComponentEvent::Joystick(_) => None,
+                    InputComponentEvent::Joystick(state) => helper
+                        .aggregate::<Axis2d>(
+                            (*user_path, event.path),
+                            state.into(),
+                            event_device_id,
+                        )
+                        .map(|state| InputComponentState::Joystick(state)),
                     InputComponentEvent::Gyro(_) => None,
                     InputComponentEvent::Accel(_) => None,
                 };

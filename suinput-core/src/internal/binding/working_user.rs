@@ -13,19 +13,24 @@ use suinput_types::{
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::{
-        input_events::{InputEventSources, InputEventType, Value},
+        input_events::{Axis2d, InputEventSources, InputEventType, Value},
         interaction_profile_type::InteractionProfileType,
         paths::InteractionProfilePath,
     },
     session::Session,
 };
 
-use super::binding_engine::ProcessedBindingLayout;
+use super::{
+    action_hierarchy::{
+        handle_axis1d_event, handle_axis2d_event, handle_sticky_bool_event, ParentActionState,
+    },
+    binding_engine::ProcessedBindingLayout,
+};
 
 pub struct WorkingUser {
     pub binding_layouts: HashMap<SuPath, AttachedBindingLayout>,
 
-    action_states: ActionStates,
+    pub action_states: ActionStates,
     pub parent_action_states: HashMap<u64, ParentActionState>,
 }
 
@@ -153,8 +158,29 @@ impl WorkingUser {
                     None => None,
                 }
             }
-            ActionStateEnum::Axis1D(_) => todo!(),
-            ActionStateEnum::Axis2D(_) => todo!(),
+            ActionStateEnum::Axis1d(_) => todo!(),
+            ActionStateEnum::Axis2d(state) => {
+                match binding_layout.aggregate::<Axis2d>(action_handle, state.into(), binding_index)
+                {
+                    Some(value) => {
+                        binding_layout
+                            .action_states
+                            .insert(action_handle, ActionStateEnum::Axis2d(state));
+
+                        UserActions {
+                            attached_binding_layouts: &self.binding_layouts,
+                            action_states: &self.action_states,
+                        }
+                        .aggregate::<Axis2d>(action_handle, state.into(), interaction_profile_id)
+                        .map(|value| {
+                            self.action_states
+                                .insert(action_handle, ActionStateEnum::Axis2d(state));
+                            ActionEventEnum::Axis2d { state }
+                        })
+                    }
+                    None => None,
+                }
+            }
         };
 
         if let Some(event) = event {
@@ -164,34 +190,83 @@ impl WorkingUser {
 
             let event = match &action.hierarchy_type {
                 ActionHierarchyType::Parent { ty } => match ty {
-                    ParentActionType::StickyBool { .. } => {
-                        self.handle_sticky_bool_event(action_handle)
-                    }
+                    ParentActionType::StickyBool { .. } => handle_sticky_bool_event(
+                        action_handle,
+                        &mut self.parent_action_states,
+                        &self.action_states,
+                    ),
+                    ParentActionType::Axis1d { .. } => handle_axis1d_event(
+                        action_handle,
+                        &mut self.parent_action_states,
+                        &self.action_states,
+                    ),
+                    ParentActionType::Axis2d { .. } => handle_axis2d_event(
+                        action_handle,
+                        &mut self.parent_action_states,
+                        &self.action_states,
+                    ),
                     ParentActionType::None => Some(event),
-                    ParentActionType::Axis1D { .. } => todo!(),
-                    ParentActionType::Axis2D {
-                        up,
-                        down,
-                        left,
-                        right,
-                        vertical,
-                        horizontal,
-                    } => todo!(),
                 },
                 ActionHierarchyType::Child { parent, ty } => {
                     let parent_handle = parent.upgrade().unwrap().handle;
                     action_handle = parent_handle;
 
                     match ty {
-                        ChildActionType::StickyPress => {
-                            self.handle_sticky_bool_event(parent_handle)
-                        }
-                        ChildActionType::StickyRelease => {
-                            self.handle_sticky_bool_event(parent_handle)
-                        }
-                        ChildActionType::StickyToggle => {
-                            self.handle_sticky_bool_event(parent_handle)
-                        }
+                        ChildActionType::StickyPress => handle_sticky_bool_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::StickyRelease => handle_sticky_bool_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::StickyToggle => handle_sticky_bool_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Positive => handle_axis1d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Negative => handle_axis1d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Up => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Down => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Left => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Right => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Horizontal => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
+                        ChildActionType::Vertical => handle_axis2d_event(
+                            parent_handle,
+                            &mut self.parent_action_states,
+                            &self.action_states,
+                        ),
                         _ => todo!(),
                     }
                 }
@@ -209,57 +284,6 @@ impl WorkingUser {
             }
         }
     }
-
-    //TODO make this truly event based to allow for repeat presses
-    pub fn handle_sticky_bool_event(&mut self, parent: u64) -> Option<ActionEventEnum> {
-        if let Some(ParentActionState::StickyBool {
-            combined_state,
-            stuck,
-            press,
-            release,
-            toggle,
-        }) = self.parent_action_states.get_mut(&parent)
-        {
-            let parent = self.action_states.get_bool(parent).unwrap_or_default();
-            let toggle = self.action_states.get_bool(*toggle).unwrap_or_default();
-            let release = self.action_states.get_bool(*release).unwrap_or_default();
-            let press = self.action_states.get_bool(*press).unwrap_or_default();
-
-            if toggle {
-                *stuck = !*stuck;
-            }
-
-            if *stuck && release || press {
-                *stuck = press;
-            }
-
-            let last_state = *combined_state;
-
-            *combined_state = parent || *stuck;
-
-            if last_state != *combined_state {
-                Some(ActionEventEnum::Boolean {
-                    state: *combined_state,
-                    changed: true,
-                })
-            } else {
-                None
-            }
-        } else {
-            panic!()
-        }
-    }
-}
-
-pub enum ParentActionState {
-    StickyBool {
-        combined_state: bool,
-        stuck: bool,
-
-        press: u64,
-        release: u64,
-        toggle: u64,
-    },
 }
 
 pub struct AttachedBindingLayout {
@@ -284,8 +308,8 @@ impl AttachedBindingLayout {
     }
 }
 
-struct ActionStates {
-    states: HashMap<u64, ActionStateEnum>,
+pub struct ActionStates {
+    pub states: HashMap<u64, ActionStateEnum>,
 }
 
 impl ActionStates {

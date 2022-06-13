@@ -30,6 +30,8 @@ use suinput_types::{
     If we can't fix it in SDL we could just compare the joystick's system ids to the ones exposed by win32
     Hopefully GDK input will mitigate this problem
 
+    This issue is made FAR worse when Steam is running
+
     Should I make a standalone alternative to SDL2's gamecontroller support?
     Pros:
     Can be pure rust for added simplicity and safety

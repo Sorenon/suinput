@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use mint::Vector2;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActionCreateInfo {
     Boolean {
@@ -8,18 +10,18 @@ pub enum ActionCreateInfo {
     Delta2D,
     Cursor,
     Value,
-    Axis1D {
+    Axis1d {
         positive: Option<String>,
         negative: Option<String>,
     },
-    Axis2D {
+    Axis2d {
         up: Option<String>,
         down: Option<String>,
         left: Option<String>,
         right: Option<String>,
         vertical: Option<String>,
         horizontal: Option<String>,
-    }
+    },
 }
 
 pub trait ActionListener: Send + Sync {
@@ -47,7 +49,13 @@ pub enum ActionEventEnum {
     },
     Value {
         state: f32,
-    }
+    },
+    Axis1d {
+        state: f32,
+    },
+    Axis2d {
+        state: Vector2<f32>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,8 +64,8 @@ pub enum ActionStateEnum {
     Delta2D((f64, f64)),
     Cursor((f64, f64)),
     Value(f32),
-    Axis1D(f32),
-    Axis2D((f32, f32)),
+    Axis1d(f32),
+    Axis2d(Vector2<f32>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

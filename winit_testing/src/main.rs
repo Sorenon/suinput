@@ -16,6 +16,7 @@ struct Listener {
     turn: SuAction,
     cursor: SuAction,
     thrust: SuAction,
+    r#move: SuAction,
 }
 
 impl ActionListener for Listener {
@@ -48,8 +49,12 @@ impl ActionListener for Listener {
                 }
             }
         } else if event.action_handle == self.thrust.handle() {
-            if let ActionEventEnum::Value { state } = event.data {
+            if let ActionEventEnum::Axis1d { state } = event.data {
                 println!("thrust {state}");
+            }
+        } else if event.action_handle == self.r#move.handle() {
+            if let ActionEventEnum::Axis2d { state } = event.data {
+                println!("move {state:?}");
             }
         }
     }
@@ -72,7 +77,24 @@ fn main() -> Result<(), anyhow::Error> {
     let zoom_action = action_set.create_action("zoom", ActionCreateInfo::Boolean { sticky: true });
     let turn_action = action_set.create_action("turn", ActionCreateInfo::Delta2D);
     let cursor_action = action_set.create_action("cursor", ActionCreateInfo::Cursor);
-    let thrust_action = action_set.create_action("thrust", ActionCreateInfo::Value);
+    let thrust_action = action_set.create_action(
+        "thrust",
+        ActionCreateInfo::Axis1d {
+            positive: Some("forward_thrust".into()),
+            negative: Some("backward_thrust".into()),
+        },
+    );
+    let move_action = action_set.create_action(
+        "move",
+        ActionCreateInfo::Axis2d {
+            up: Some("move_forward".into()),
+            down: Some("move_back".into()),
+            left: Some("move_left".into()),
+            right: Some("move_right".into()),
+            vertical: Some("move_forward_and_back".into()),
+            horizontal: Some("move_sideways".into()),
+        },
+    );
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -107,6 +129,30 @@ fn main() -> Result<(), anyhow::Error> {
                 action: cursor_action.handle(),
                 path: instance.get_path("/user/desktop/cursor/input/cursor/point")?,
             },
+            SimpleBinding {
+                action: thrust_action.get_child_action(ChildActionType::Positive),
+                path: instance.get_path("/user/desktop/keyboard/input/button_up/click")?,
+            },
+            SimpleBinding {
+                action: thrust_action.get_child_action(ChildActionType::Negative),
+                path: instance.get_path("/user/desktop/keyboard/input/button_down/click")?,
+            },
+            SimpleBinding {
+                action: move_action.get_child_action(ChildActionType::Up),
+                path: instance.get_path("/user/desktop/keyboard/input/button_w/click")?,
+            },
+            SimpleBinding {
+                action: move_action.get_child_action(ChildActionType::Right),
+                path: instance.get_path("/user/desktop/keyboard/input/button_d/click")?,
+            },
+            SimpleBinding {
+                action: move_action.get_child_action(ChildActionType::Down),
+                path: instance.get_path("/user/desktop/keyboard/input/button_s/click")?,
+            },
+            SimpleBinding {
+                action: move_action.get_child_action(ChildActionType::Left),
+                path: instance.get_path("/user/desktop/keyboard/input/button_a/click")?,
+            },
         ],
     )?;
 
@@ -127,8 +173,16 @@ fn main() -> Result<(), anyhow::Error> {
                 path: instance.get_path("/user/gamepad/input/trigger_left/value")?,
             },
             SimpleBinding {
-                action: thrust_action.handle(),
+                action: thrust_action.get_child_action(ChildActionType::Positive),
                 path: instance.get_path("/user/gamepad/input/trigger_right/value")?,
+            },
+            SimpleBinding {
+                action: thrust_action.get_child_action(ChildActionType::Negative),
+                path: instance.get_path("/user/gamepad/input/shoulder_right/click")?,
+            },
+            SimpleBinding {
+                action: move_action.handle(),
+                path: instance.get_path("/user/gamepad/input/joystick_left/position")?,
             },
         ],
     )?;
@@ -149,6 +203,7 @@ fn main() -> Result<(), anyhow::Error> {
         cursor: cursor_action.clone(),
         thrust: thrust_action.clone(),
         session: session.clone(),
+        r#move: move_action.clone(),
     }));
 
     // session.poll();

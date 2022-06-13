@@ -8,6 +8,7 @@ use std::{
 
 use flume::Receiver;
 
+use nalgebra::Vector2;
 use parking_lot::Mutex;
 
 use suinput_types::{
@@ -25,7 +26,10 @@ use crate::{
 };
 
 use super::{
-    binding::working_user::{ParentActionState, WorkingUser, AttachedBindingLayout},
+    binding::{
+        action_hierarchy::{handle_sticky_bool_event, ParentActionState},
+        working_user::{AttachedBindingLayout, WorkingUser},
+    },
     device::DeviceState,
 };
 
@@ -99,16 +103,45 @@ pub fn spawn_thread(
                                         toggle: sticky_toggle.handle,
                                     },
                                 )),
+                                ActionHierarchyType::Parent {
+                                    ty: ParentActionType::Axis1d { positive, negative },
+                                } => Some((
+                                    action.handle,
+                                    ParentActionState::Axis1d {
+                                        combined_state: 0.,
+                                        positive: positive.handle,
+                                        negative: negative.handle,
+                                    },
+                                )),
+                                ActionHierarchyType::Parent {
+                                    ty:
+                                        ParentActionType::Axis2d {
+                                            up,
+                                            down,
+                                            left,
+                                            right,
+                                            vertical,
+                                            horizontal,
+                                        },
+                                } => Some((
+                                    action.handle,
+                                    ParentActionState::Axis2d {
+                                        combined_state: Vector2::new(0., 0.),
+                                        up: up.handle,
+                                        down: down.handle,
+                                        left: left.handle,
+                                        right: right.handle,
+                                        vertical: vertical.handle,
+                                        horizontal: horizontal.handle,
+                                    },
+                                )),
                                 _ => None,
                             })
                             .collect();
 
                         sessions.insert(
                             session.runtime_handle,
-                            (
-                                session.clone(),
-                                WorkingUser::new(parent_action_states),
-                            ),
+                            (session.clone(), WorkingUser::new(parent_action_states)),
                         );
                     }
 
@@ -117,7 +150,9 @@ pub fn spawn_thread(
                     let user = &session.user;
 
                     for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
-                        working_user.binding_layouts.insert(profile, AttachedBindingLayout::new(binding_layout));
+                        working_user
+                            .binding_layouts
+                            .insert(profile, AttachedBindingLayout::new(binding_layout));
                     }
                 }
                 WorkerThreadEvent::DriverEvent { id, event } => {
@@ -229,7 +264,11 @@ pub fn spawn_thread(
                             *stuck = false;
                         }
 
-                        if let Some(event) = working_user.handle_sticky_bool_event(action) {
+                        if let Some(event) = handle_sticky_bool_event(
+                            action,
+                            &mut working_user.parent_action_states,
+                            &working_user.action_states,
+                        ) {
                             let event = ActionEvent {
                                 action_handle: action,
                                 time: Instant::now(),

@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use nalgebra::Vector2;
 use suinput_types::event::Cursor;
 
 #[derive(Debug)]
@@ -13,6 +14,7 @@ pub enum InputComponentState {
     Button(bool),
     Cursor(Cursor),
     Trigger(f32),
+    Joystick(Vector2<f32>),
     NonApplicable,
 }
 
@@ -22,4 +24,5 @@ pub enum InputComponentType {
     Trigger,
     Move2D,
     Cursor,
+    Joystick,
 }

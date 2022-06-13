@@ -30,11 +30,11 @@ pub enum ParentActionType {
         sticky_release: Arc<Action>,
         sticky_toggle: Arc<Action>,
     },
-    Axis1D {
+    Axis1d {
         positive: Arc<Action>,
         negative: Arc<Action>,
     },
-    Axis2D {
+    Axis2d {
         up: Arc<Action>,
         down: Arc<Action>,
         left: Arc<Action>,
@@ -51,8 +51,8 @@ pub enum ActionType {
     Delta2D,
     Cursor,
     Value,
-    Axis1D,
-    Axis2D,
+    Axis1d,
+    Axis2d,
 }
 
 impl Action {
@@ -69,9 +69,25 @@ impl Action {
                     ChildActionType::StickyToggle => sticky_toggle.handle,
                     _ => todo!(),
                 },
-                ParentActionType::Axis1D { positive, negative } => match ty {
+                ParentActionType::Axis1d { positive, negative } => match ty {
                     ChildActionType::Positive => positive.handle,
                     ChildActionType::Negative => negative.handle,
+                    _ => todo!(),
+                },
+                ParentActionType::Axis2d {
+                    up,
+                    down,
+                    left,
+                    right,
+                    vertical,
+                    horizontal,
+                } => match ty {
+                    ChildActionType::Up => up.handle,
+                    ChildActionType::Down => down.handle,
+                    ChildActionType::Left => left.handle,
+                    ChildActionType::Right => right.handle,
+                    ChildActionType::Vertical => vertical.handle,
+                    ChildActionType::Horizontal => horizontal.handle,
                     _ => todo!(),
                 },
                 _ => todo!(),

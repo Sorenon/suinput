@@ -1,3 +1,4 @@
+use nalgebra::Vector2;
 use suinput_types::action::ActionStateEnum;
 
 use super::input_component::InputComponentState;
@@ -100,7 +101,7 @@ impl InputEventType for Value {
     fn from_ase(ase: &ActionStateEnum) -> Self::Value {
         match ase {
             ActionStateEnum::Value(value) => *value,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -127,6 +128,83 @@ impl InputEventType for Value {
         match ics {
             InputComponentState::Trigger(val) => *val,
             _ => panic!(),
+        }
+    }
+}
+
+pub struct Axis1d;
+
+impl InputEventType for Axis1d {
+    type Value = f32;
+    type EventOut = f32;
+
+    fn from_ase(ase: &ActionStateEnum) -> Self::Value {
+        match ase {
+            ActionStateEnum::Axis1d(value) => *value,
+            _ => panic!(),
+        }
+    }
+
+    fn aggregate<'a>(
+        event_state: f32,
+        prev_state: Self::Value,
+        mut iter: impl Iterator<Item = Self::Value>,
+    ) -> Option<Self::EventOut> {
+        let abs = event_state.abs();
+        if abs > prev_state.abs() {
+            Some(event_state)
+        } else {
+            if iter.find(|other_state| other_state.abs() >= abs).is_some() {
+                None
+            } else {
+                Some(event_state)
+            }
+        }
+    }
+
+    fn from_ics(ics: &InputComponentState) -> Self::Value {
+        todo!()
+    }
+}
+
+pub struct Axis2d;
+
+impl InputEventType for Axis2d {
+    type Value = Vector2<f32>;
+
+    type EventOut = Vector2<f32>;
+
+    fn from_ase(ase: &ActionStateEnum) -> Self::Value {
+        match ase {
+            ActionStateEnum::Axis2d(state) => (*state).into(),
+            _ => panic!(),
+        }
+    }
+
+    fn from_ics(ics: &InputComponentState) -> Self::Value {
+        match ics {
+            InputComponentState::Joystick(state) => *state,
+            _ => panic!(),
+        }
+    }
+
+    fn aggregate<'a>(
+        event_state: Self::Value,
+        prev_state: Self::Value,
+        mut iter: impl Iterator<Item = Self::Value>,
+    ) -> Option<Self::EventOut> {
+        let lensq = event_state.magnitude_squared();
+        if lensq > prev_state.magnitude_squared() {
+            Some(event_state)
+        } else {
+            if iter
+                .find(|other_state| other_state.magnitude_squared() >= lensq)
+                .is_some()
+            {
+                None
+            } else {
+                Some(event_state)
+            }
         }
     }
 }
