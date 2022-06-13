@@ -166,8 +166,8 @@ pub fn handle_axis2d_event(
             .unwrap_or_default();
 
         let new_combined_state = Vector2::new(
-            (right - left + horizontal).clamp(-1., 1.),
-            (up - down + vertical).clamp(-1., 1.),
+            (right - left + horizontal + parent.x).clamp(-1., 1.),
+            (up - down + vertical + parent.y).clamp(-1., 1.),
         );
 
         if new_combined_state != *combined_state {

@@ -162,20 +162,22 @@ impl WorkingUser {
             ActionStateEnum::Axis2d(state) => {
                 match binding_layout.aggregate::<Axis2d>(action_handle, state.into(), binding_index)
                 {
-                    Some(value) => {
+                    Some(state) => {
                         binding_layout
                             .action_states
-                            .insert(action_handle, ActionStateEnum::Axis2d(state));
+                            .insert(action_handle, ActionStateEnum::Axis2d(state.into()));
 
                         UserActions {
                             attached_binding_layouts: &self.binding_layouts,
                             action_states: &self.action_states,
                         }
                         .aggregate::<Axis2d>(action_handle, state.into(), interaction_profile_id)
-                        .map(|value| {
+                        .map(|state| {
                             self.action_states
-                                .insert(action_handle, ActionStateEnum::Axis2d(state));
-                            ActionEventEnum::Axis2d { state }
+                                .insert(action_handle, ActionStateEnum::Axis2d(state.into()));
+                            ActionEventEnum::Axis2d {
+                                state: state.into(),
+                            }
                         })
                     }
                     None => None,
