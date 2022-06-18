@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use nalgebra::Vector2;
@@ -15,12 +15,13 @@ mod concurrent_sdl;
 use concurrent_sdl::*;
 use game_controller::*;
 use joystick::*;
+use suinput::driver_interface::*;
 use suinput_types::{
     controller_paths::GameControllerPaths,
-    driver_interface::{RuntimeInterface, SuInputDriver},
     event::{InputComponentEvent, InputEvent},
     SuPath, Time,
 };
+
 /*
     TODO sort out the controller dupe bug when using winit
     I would sort this out now but with GDK Input around the corner I don't know if my time will have been wasted
@@ -159,6 +160,7 @@ impl ThreadState {
 
         for (controller, state) in self.game_controllers.values_mut() {
             if controller.sdl.get_type() == SDL_GameControllerType::SDL_CONTROLLER_TYPE_PS5 {
+                controller.update_idx += 1;
                 state.update(&controller, &self.interface, &self.paths);
             }
         }
@@ -217,6 +219,8 @@ struct ControllerDevice {
     start: SuPath,
     back: SuPath,
     misc1: SuPath,
+
+    update_idx: usize,
 }
 
 impl ControllerDevice {
@@ -263,6 +267,7 @@ impl ControllerDevice {
             back: paths.create,
             start: paths.options,
             misc1: paths.mute,
+            update_idx: 0,
         }
     }
 }
@@ -326,6 +331,9 @@ impl DeviceState {
     ) {
         use sdl2_sys::SDL_GameControllerButton as Button;
 
+        let mut batch_update =
+            interface.start_batch_input_update(device.idx.unwrap(), Instant::now());
+
         for button_idx in 0..SDL_BUTTON_NUM {
             let (button, path) = match button_idx {
                 0 => (Button::SDL_CONTROLLER_BUTTON_A, paths.diamond_down),
@@ -366,92 +374,55 @@ impl DeviceState {
 
             let state = device.sdl.get_button(button);
             if state != self.buttons[button_idx] {
-                interface
-                    .send_component_event(InputEvent {
-                        device: device.idx.unwrap(),
-                        path: path,
-                        time: Time(0),
-                        data: InputComponentEvent::Button(state),
-                    })
-                    .unwrap();
+                batch_update.add_event(path, InputComponentEvent::Button(state));
                 self.buttons[button_idx] = state;
             }
         }
 
         let left_thumbstick = device.sdl.get_thumbstick(true);
         if left_thumbstick != self.left_thumbstick {
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.left_joystick,
-                    time: Time(0),
-                    data: InputComponentEvent::Joystick(left_thumbstick.into()),
-                })
-                .unwrap();
+            batch_update.add_event(
+                paths.left_joystick,
+                InputComponentEvent::Joystick(left_thumbstick.into()),
+            );
             self.left_thumbstick = left_thumbstick;
         }
 
         let right_thumbstick = device.sdl.get_thumbstick(false);
         if right_thumbstick != self.right_thumbstick {
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.right_joystick,
-                    time: Time(0),
-                    data: InputComponentEvent::Joystick(right_thumbstick.into()),
-                })
-                .unwrap();
+            batch_update.add_event(
+                paths.right_joystick,
+                InputComponentEvent::Joystick(right_thumbstick.into()),
+            );
             self.right_thumbstick = right_thumbstick;
         }
 
         let left_trigger = device.sdl.get_trigger(true);
         if left_trigger != self.left_trigger {
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.left_trigger,
-                    time: Time(0),
-                    data: InputComponentEvent::Trigger(left_trigger),
-                })
-                .unwrap();
+            batch_update.add_event(
+                paths.left_trigger,
+                InputComponentEvent::Trigger(left_trigger),
+            );
             self.left_trigger = left_trigger;
         }
 
         let right_trigger = device.sdl.get_trigger(false);
         if right_trigger != self.right_trigger {
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.right_trigger,
-                    time: Time(0),
-                    data: InputComponentEvent::Trigger(right_trigger),
-                })
-                .unwrap();
+            batch_update.add_event(
+                paths.right_trigger,
+                InputComponentEvent::Trigger(right_trigger),
+            );
             self.right_trigger = right_trigger;
         }
 
         if device.has_gyro {
             let gyro = device.sdl.get_gyro_state().unwrap();
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.gyro,
-                    time: Time(0),
-                    data: InputComponentEvent::Gyro(gyro.into()),
-                })
-                .unwrap();
+            batch_update.add_event(paths.gyro, InputComponentEvent::Gyro(gyro.into()));
         }
 
         if device.has_accel {
             let accel = device.sdl.get_accel_state().unwrap();
-            interface
-                .send_component_event(InputEvent {
-                    device: device.idx.unwrap(),
-                    path: paths.accel,
-                    time: Time(0),
-                    data: InputComponentEvent::Accel(accel.into()),
-                })
-                .unwrap();
+            batch_update.add_event(paths.accel, InputComponentEvent::Accel(accel.into()));
         }
 
         //TODO
@@ -466,5 +437,7 @@ impl DeviceState {
                 self.touchpad_2 = point_2;
             }
         }
+
+        interface.send_batch_input_update(batch_update);
     }
 }

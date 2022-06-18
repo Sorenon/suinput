@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     ops::Deref,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -13,16 +14,12 @@ use itertools::Itertools;
 use parking_lot::{Mutex, RwLock};
 
 use suinput_types::{
-    controller_paths::GameControllerPaths,
-    driver_interface::{
-        RuntimeInterface, RuntimeInterfaceError, RuntimeInterfaceTrait, SuInputDriver,
-    },
-    event::{InputEvent, PathFormatError},
-    keyboard::KeyboardPaths,
-    SuPath,
+    controller_paths::GameControllerPaths, event::InputEvent, event::PathFormatError,
+    keyboard::KeyboardPaths, SuPath,
 };
 
 use crate::{
+    driver_interface::*,
     internal::{
         device_types::DeviceTypes,
         interaction_profile_types::InteractionProfileTypes,
@@ -227,6 +224,28 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
     fn get_path_string(&self, path: SuPath) -> Option<String> {
         self.paths.get_path_string(path)
     }
+
+    fn start_batch_input_update(&self, device: u64, time: Instant) -> BatchInputUpdate {
+        //TODO cache BatchInputUpdate to prevent extra heap allocations
+        BatchInputUpdate::new(device, time)
+    }
+
+    fn send_batch_input_update(
+        &self,
+        batch_update: BatchInputUpdate,
+    ) -> Result<(), RuntimeInterfaceError> {
+        if !self.ready.load(Ordering::Relaxed) {
+            return Err(RuntimeInterfaceError::DriverUninitialized);
+        }
+
+        self.sender
+            .send(WorkerThreadEvent::DriverEvent {
+                id: self.idx,
+                event: Driver2RuntimeEvent::BatchInput(batch_update),
+            })
+            .unwrap();
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -234,9 +253,10 @@ pub(crate) enum Driver2RuntimeEventResponse {
     DeviceId(u64),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Driver2RuntimeEvent {
     RegisterDevice(SuPath),
     DisconnectDevice(u64),
     Input(InputEvent),
+    BatchInput(BatchInputUpdate),
 }

@@ -8,6 +8,7 @@ suinput-types = { path = "../../suinput-types" }
 thiserror = "1.0"
 once_cell = "1.10"
 parking_lot = "0.12"
+suinput = { path = "../../suinput" }
 
 [dependencies.windows-sys]
 version = "0.36"

@@ -280,7 +280,7 @@ impl WorkingUser {
                     time: Instant::now(),
                     data: event,
                 };
-                for listener in session.listeners.read().iter() {
+                for listener in session.listeners.write().iter_mut() {
                     listener.handle_event(event, 0);
                 }
             }

@@ -1,19 +1,19 @@
-use std::{collections::HashMap, f32::consts::PI};
+use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
+use suinput::driver_interface::RuntimeInterface;
 use suinput_types::{
-    driver_interface::RuntimeInterface,
     event::{Cursor, InputComponentEvent, InputEvent},
     SuPath, Time,
 };
 use windows_sys::Win32::{
     Foundation::HANDLE,
-    Graphics::Gdi::{ClientToScreen, MapWindowPoints},
+    Graphics::Gdi::MapWindowPoints,
     UI::WindowsAndMessaging::{
-        CallNextHookEx, GetClientRect, GetPhysicalCursorPos, GetWindowRect,
-        GetWindowThreadProcessId, SetWindowsHookExW, UnhookWindowsHookEx, CWPSTRUCT, MSG,
-        PM_REMOVE, WH_CALLWNDPROC, WH_GETMESSAGE, WM_CHAR, WM_SETCURSOR,
+        CallNextHookEx, GetClientRect, GetPhysicalCursorPos, GetWindowThreadProcessId,
+        SetWindowsHookExW, UnhookWindowsHookEx, CWPSTRUCT, MSG, PM_REMOVE, WH_CALLWNDPROC,
+        WH_GETMESSAGE, WM_CHAR, WM_SETCURSOR,
     },
 };
 

@@ -8,5 +8,6 @@ pub mod input_events;
 pub mod interaction_profile;
 pub mod interaction_profile_type;
 pub mod interaction_profile_types;
+pub mod motion;
 pub mod paths;
 pub mod worker_thread;

@@ -1,8 +1,8 @@
-use std::{fmt::Debug, ops::Deref, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, ops::Deref, sync::Arc, time::Instant};
 
 use thiserror::Error;
 
-use crate::{event::*, SuPath};
+use suinput_types::{event::*, SuPath};
 
 /**
  * The connection from a driver to the runtime
@@ -31,8 +31,34 @@ pub trait RuntimeInterfaceTrait: Debug + Send + Sync {
         &self,
         component_event: InputEvent,
     ) -> Result<(), RuntimeInterfaceError>;
+    fn start_batch_input_update(&self, device: u64, time: Instant) -> BatchInputUpdate;
+    fn send_batch_input_update(
+        &self,
+        batch_update: BatchInputUpdate,
+    ) -> Result<(), RuntimeInterfaceError>;
     fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError>;
     fn get_path_string(&self, path: SuPath) -> Option<String>;
+}
+
+#[derive(Debug, Clone)]
+pub struct BatchInputUpdate {
+    pub(crate) device: u64,
+    pub(crate) time: Instant,
+    pub(crate) inner: HashMap<SuPath, InputComponentEvent>,
+}
+
+impl BatchInputUpdate {
+    pub(crate) fn new(device: u64, time: Instant) -> Self {
+        Self {
+            device,
+            time,
+            inner: HashMap::new(),
+        }
+    }
+
+    pub fn add_event(&mut self, path: SuPath, event: InputComponentEvent) {
+        self.inner.insert(path, event);
+    }
 }
 
 pub trait SuInputDriver: Send + Sync {

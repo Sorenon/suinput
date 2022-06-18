@@ -1,4 +1,5 @@
-use suinput_types::{driver_interface::RuntimeInterfaceTrait, SuPath};
+use suinput::driver_interface::RuntimeInterfaceTrait;
+use suinput_types::SuPath;
 
 pub struct CommonPaths {
     pub mouse: SuPath,

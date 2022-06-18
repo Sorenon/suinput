@@ -1,3 +1,6 @@
+use std::time::Instant;
+
+use nalgebra::ComplexField;
 use suinput_types::{
     action::ActionStateEnum,
     event::{InputComponentEvent, InputEvent},
@@ -7,11 +10,17 @@ use suinput_types::{
 pub enum ProcessedBinding {
     Button2Bool,
     Button2Value,
-    Move2d2Delta2d { sensitivity: (f64, f64) },
+    Move2d2Delta2d {
+        sensitivity: (f64, f64),
+    },
     Cursor2Cursor,
     Trigger2Bool,
     Trigger2Value,
     Joystick2Axis2d,
+    Gyro2Delta2d {
+        sensitivity: (f64, f64),
+        last_time: Option<Instant>,
+    },
 }
 
 impl ProcessedBinding {
@@ -42,6 +51,33 @@ impl ProcessedBinding {
             }
             (ProcessedBinding::Joystick2Axis2d, InputComponentEvent::Joystick(state)) => {
                 Some(ActionStateEnum::Axis2d(state))
+            }
+            (
+                ProcessedBinding::Gyro2Delta2d {
+                    sensitivity,
+                    last_time,
+                },
+                InputComponentEvent::Gyro(angular_velocity),
+            ) => {
+                if let Some(last_time) = last_time {
+                    let now = Instant::now();
+                    let delta_time = (now - *last_time).as_secs_f32();
+                    *last_time = now;
+
+                    let delta = (
+                        (angular_velocity.x * delta_time) as f64 * sensitivity.0,
+                        (angular_velocity.y * delta_time) as f64 * sensitivity.1,
+                    );
+
+                    if delta.0.abs() < 0.001 || delta.1.abs() < 0.001 {
+                        return None;
+                    }
+
+                    Some(ActionStateEnum::Delta2D(delta))
+                } else {
+                    *last_time = Some(Instant::now());
+                    None
+                }
             }
             _ => todo!(),
         }

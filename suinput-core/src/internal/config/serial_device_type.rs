@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use suinput_types::{event::PathFormatError, SuPath};
+use suinput_types::event::PathFormatError;
 
-use crate::{
-    internal::{device_type::DeviceType, input_component::InputComponentType, paths::PathManager},
-    runtime::Runtime,
+use crate::internal::{
+    device_type::DeviceType, input_component::InputComponentType, paths::PathManager,
 };
 
 #[derive(Debug, knuffel::Decode)]
@@ -71,8 +70,8 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
                     Component::Joystick(name) => (InputComponentType::Joystick, name),
                     Component::Cursor(name) => (InputComponentType::Cursor, name),
                     Component::Move2d(name) => (InputComponentType::Move2D, name),
-                    Component::Gyro(_, _) => return None,
-                    Component::Accel(_) => return None,
+                    Component::Gyro(name, cal) => (InputComponentType::Gyro(*cal), name),
+                    Component::Accel(name) => (InputComponentType::Accel, name),
                     Component::AdaptiveTrigger(_) => return None,
                     Component::Touchpad(_, _, _) => return None,
                     Component::Led(_) => return None,
@@ -86,10 +85,29 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
             })
         }
     ).collect::<Result<HashMap<_, _>, PathFormatError>>().unwrap();
+    
+    let mut gyro = None;
+    let mut accel = None;
+
+    for (path, ty) in &input_components {
+        match ty {
+            InputComponentType::Gyro(_) => gyro = Some(*path),
+            InputComponentType::Accel => accel = Some(*path),
+            _ => ()
+        }
+    }
 
     DeviceType {
         id,
         input_components,
+        gyro,
+        accel,
     }
     }).collect()
+}
+
+#[test]
+fn test_device_types() {
+    let paths = PathManager::new();
+    println!("{} device types", deserialize(&paths).len())
 }

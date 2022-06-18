@@ -25,7 +25,7 @@ pub enum ActionCreateInfo {
 }
 
 pub trait ActionListener: Send + Sync {
-    fn handle_event(&self, event: ActionEvent, user: u64);
+    fn handle_event(&mut self, event: ActionEvent, user: u64);
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -131,6 +131,19 @@ impl ProcessedBindingLayout {
 
                     ProcessedBinding::Joystick2Axis2d
                 }
+                Some(InputComponentType::Gyro(_)) => {
+                    if action.data_type != ActionType::Delta2D {
+                        return Err(CreateBindingLayoutError::BadBinding(*binding));
+                    }
+
+                    ProcessedBinding::Gyro2Delta2d {
+                        sensitivity: (1., 1.),
+                        last_time: None,
+                    }
+                }
+                Some(InputComponentType::Accel) => {
+                    return Err(CreateBindingLayoutError::BadBinding(*binding));
+                }
                 None => {
                     return Err(instance.get_path_string(component_path).map_or(
                         CreateBindingLayoutError::InvalidPathHandle(interaction_profile),

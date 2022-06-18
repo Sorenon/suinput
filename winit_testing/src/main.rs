@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
     ActionCreateInfo, ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding,
@@ -20,7 +22,7 @@ struct Listener {
 }
 
 impl ActionListener for Listener {
-    fn handle_event(&self, event: ActionEvent, user: u64) {
+    fn handle_event(&mut self, event: ActionEvent, user: u64) {
         assert_eq!(user, 0);
 
         if event.action_handle == self.jump.handle() {
@@ -183,6 +185,10 @@ fn main() -> Result<(), anyhow::Error> {
             SimpleBinding {
                 action: move_action.handle(),
                 path: instance.get_path("/user/gamepad/input/joystick_left/position")?,
+            },
+            SimpleBinding {
+                action: turn_action.handle(),
+                path: instance.get_path("/user/gamepad/input/motion/gyro")?,
             },
         ],
     )?;

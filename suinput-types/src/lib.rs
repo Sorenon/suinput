@@ -6,7 +6,6 @@ use thiserror::Error;
 pub mod action;
 pub mod binding;
 pub mod controller_paths;
-pub mod driver_interface;
 pub mod event;
 pub mod keyboard;
 

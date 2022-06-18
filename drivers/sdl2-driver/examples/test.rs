@@ -1,5 +1,5 @@
 use sdl2::{event::Event, keyboard::Keycode};
-use suinput_types::driver_interface::SuInputDriver;
+// use suinput_types::driver_interface::SuInputDriver;
 
 fn main() {
     // let sdl_context = sdl2::init().unwrap();

@@ -32,3 +32,19 @@ pub struct Cursor {
     pub normalized_screen_coords: (f64, f64),
     pub window: Option<WindowHandle>,
 }
+
+impl InputComponentEvent {
+    pub fn get_gyro(self) -> Result<Vector3<f32>, ()> {
+        match self {
+            InputComponentEvent::Gyro(state) => Ok(state),
+            _ => Err(()),
+        }
+    }
+
+    pub fn get_accel(self) -> Result<Vector3<f32>, ()> {
+        match self {
+            InputComponentEvent::Accel(state) => Ok(state),
+            _ => Err(()),
+        }
+    }
+}

@@ -8,7 +8,7 @@ use sdl2_sys::{
     SDL_GameControllerGetProduct, SDL_GameControllerGetSensorData,
     SDL_GameControllerGetTouchpadFinger, SDL_GameControllerGetType, SDL_GameControllerGetVendor,
     SDL_GameControllerHasSensor, SDL_GameControllerName, SDL_GameControllerSetSensorEnabled,
-    SDL_GameControllerType, SDL_SensorType,
+    SDL_GameControllerType, SDL_SensorType, SDL_STANDARD_GRAVITY,
 };
 use sdl2_sys::{
     SDL_GameControllerOpen, SDL_GameControllerUpdate, SDL_IsGameController, SDL_bool,
@@ -185,6 +185,7 @@ impl GameController {
     pub fn get_accel_state(&self) -> Result<Vector3<f32>> {
         let mut out = Vector3::default();
         self.get_sensor_state(SDL_SensorType::SDL_SENSOR_ACCEL, out.as_mut_slice())?;
+        out.scale_mut(1. / SDL_STANDARD_GRAVITY as f32);
         Ok(out)
     }
 }

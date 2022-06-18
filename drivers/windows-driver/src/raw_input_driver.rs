@@ -4,8 +4,8 @@ use std::{
     os::windows::prelude::OsStrExt,
 };
 
+use suinput::driver_interface::RuntimeInterfaceTrait;
 use suinput_types::{
-    driver_interface::RuntimeInterfaceTrait,
     event::{InputComponentEvent, InputEvent},
     keyboard::{HIDScanCode, KeyboardPaths},
     Time,

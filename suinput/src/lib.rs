@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
-use suinput_types::{
-    driver_interface::{RuntimeInterface, SuInputDriver},
-    event::PathFormatError,
-};
+use suinput_core::driver_interface::RuntimeInterface;
+use suinput_core::driver_interface::SuInputDriver;
+use suinput_types::event::PathFormatError;
 
 use suinput_core::*;
+
+pub use suinput_core::driver_interface;
 
 pub fn load_runtime() -> SuInputRuntime {
     SuInputRuntime(Inner::Embedded(runtime::Runtime::new()))

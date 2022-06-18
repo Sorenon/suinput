@@ -79,7 +79,11 @@ impl InteractionProfileState {
                             event_device_id,
                         )
                         .map(|state| InputComponentState::Joystick(state)),
-                    InputComponentEvent::Gyro(_) => None,
+                    InputComponentEvent::Gyro(_) =>
+                    //TODO only have one active gyro for component per interaction profile
+                    {
+                        Some(InputComponentState::NonApplicable)
+                    }
                     InputComponentEvent::Accel(_) => None,
                 };
 
@@ -126,7 +130,7 @@ impl<'a> InputEventSources for IESHelper<'a> {
     ) -> Option<I::Value> {
         let (_, device_state, _) = self.devices.get(source_idx).unwrap();
         device_state
-            .input_components
+            .input_component_states
             .get(&input_path)
             .map(|data| I::from_ics(&data.state))
     }

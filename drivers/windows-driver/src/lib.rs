@@ -1,11 +1,9 @@
 use std::{ops::Deref, thread::JoinHandle};
 
 use hooks::Hooks;
-use suinput_types::{
-    driver_interface::{RuntimeInterface, SuInputDriver},
-    SuPath,
-};
-use windows_sys::Win32::Foundation::{GetLastError, HANDLE};
+use suinput::driver_interface::{RuntimeInterface, SuInputDriver};
+use suinput_types::SuPath;
+use windows_sys::Win32::Foundation::GetLastError;
 
 //TODO replace with hid_cm
 pub mod hid;

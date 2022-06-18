@@ -1,6 +1,6 @@
-use std::time::Instant;
+use std::{collections::VecDeque, time::Instant};
 
-use nalgebra::Vector2;
+use nalgebra::{Vector2, Vector3};
 use suinput_types::event::Cursor;
 
 #[derive(Debug)]
@@ -25,4 +25,6 @@ pub enum InputComponentType {
     Move2D,
     Cursor,
     Joystick,
+    Gyro(bool),
+    Accel,
 }

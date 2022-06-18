@@ -133,3 +133,28 @@ device vendor="microsoft" name="xbox_one" {
     }
     //TODO speaker, microphone and battery
 }
+
+device vendor="nintendo" name="wiimote" {
+    identifier "dpad_up" { button "click"; }
+    identifier "dpad_left" { button "click"; }
+    identifier "dpad_right" { button "click"; }
+    identifier "dpad_down" { button "click"; }
+    identifier "button_a" { button "click"; }
+    identifier "button_b" { button "click"; }
+    identifier "button_minus" { button "click"; }
+    identifier "guide" { button "click"; }
+    identifier "button_plus" { button "click"; }
+    identifier "button_1" { button "click"; }
+    identifier "button_2" { button "click"; }
+    identifier "pointer" { cursor "point"; }
+    identifier "motion" { 
+        //TODO some wiimotes don't have built-in gyros
+        gyro "gyro" calibrated=false
+        accel "accel" 
+    }
+    identifier "out" {
+        player-number "player_number" min=0 max=4
+        rumble "rumble"
+    }
+    //TODO speaker, battery and IR
+}
