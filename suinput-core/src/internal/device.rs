@@ -7,8 +7,7 @@ use suinput_types::{
 };
 
 use super::{
-    device_type::DeviceType,
-    input_component::{InputComponentData, InputComponentType},
+    device_type::DeviceType, input_component::InputComponentData, motion::GamepadMotion,
     paths::InputPath,
 };
 
@@ -16,13 +15,8 @@ use super::{
 pub struct DeviceState {
     pub ty: Arc<DeviceType>,
     pub input_component_states: HashMap<InputPath, InputComponentData>,
-    motion: TmpMotion,
-}
-
-#[derive(Debug, Default)]
-struct TmpMotion {
-    ticks: u64,
-    cal_data: Vector3<f32>,
+    pub motion: GamepadMotion,
+    last_update: Option<Instant>,
 }
 
 impl DeviceState {
@@ -30,82 +24,46 @@ impl DeviceState {
         Self {
             ty,
             input_component_states: HashMap::new(),
-            motion: TmpMotion::default(),
+            motion: GamepadMotion::new(),
+            last_update: None,
         }
     }
 
     pub fn handle_batch(
         &mut self,
         time: Instant,
-        batch: HashMap<SuPath, InputComponentEvent>,
+        batch: &HashMap<SuPath, InputComponentEvent>,
     ) -> Result<(), ()> {
-        if self.ty.gyro.is_some() || self.ty.accel.is_some() {
-            let test = if let Some(path) = self.ty.gyro {
-                let reading = if let Some(component) = batch.get(&path) {
-                    Some(component.get_gyro()?)
-                } else {
-                    None
-                };
-                reading
-            } else {
-                None
+        if self.ty.gyro.is_some() && self.ty.accel.is_some() {
+            let gyro_path = self.ty.gyro.unwrap();
+            let accel_path = self.ty.accel.unwrap();
+
+            let gyro: Vector3<f32> = match batch.get(&gyro_path).unwrap() {
+                InputComponentEvent::Gyro(gyro) => (*gyro).into(),
+                _ => todo!(),
             };
 
-            let accel_update =
-                if let Some(component) = self.ty.accel.map(|path| batch.get(&path)).flatten() {
-                    Some(component.get_accel()?)
-                } else {
-                    None
-                };
+            let accel: Vector3<f32> = match batch.get(&accel_path).unwrap() {
+                InputComponentEvent::Accel(accel) => (*accel).into(),
+                _ => todo!(),
+            };
+
+            let delta_time = if let Some(last_time) = &mut self.last_update {
+                let delta_time = (time - *last_time).as_secs_f32();
+                *last_time = time;
+                delta_time
+            } else {
+                self.last_update = Some(time);
+                0.
+            };
+
+            self.motion.process_motion(&gyro, &accel, delta_time);
         }
 
         Ok(())
-
-        // for (path, event) in &batch {
-        //     if let Some(component_ty) = self.ty.input_components.get(path) {
-        //         match (component_ty, event) {
-        //             (
-        //                 InputComponentType::Gyro(calibrated),
-        //                 InputComponentEvent::Gyro(new_gyro_reading),
-        //             ) => {
-
-        //             }
-        //             (InputComponentType::Accel, InputComponentEvent::Accel(_)) => todo!(),
-        //             _ => (),
-        //         }
-        //     }
-        // }
     }
-    //process_input_event -> applies calibration
 
-    pub fn process_input_event(&mut self, mut event: InputEvent) -> Option<InputEvent> {
-        match event.data {
-            InputComponentEvent::Gyro(raw_angular_velocity) => {
-                let raw_angular_velocity: Vector3<f32> = raw_angular_velocity.into();
-
-                if self.motion.ticks < 400 {
-                    self.motion.ticks += 1;
-
-                    if self.motion.ticks == 1 {
-                        self.motion.cal_data = raw_angular_velocity;
-                    } else {
-                        self.motion.cal_data =
-                            self.motion.cal_data.lerp(&raw_angular_velocity, 0.1);
-                    }
-
-                    if self.motion.ticks == 400 {
-                        println!("CALIBRATION DONE! -> {:?}", self.motion.cal_data)
-                    } else {
-                        return None;
-                    }
-                }
-
-                event.data =
-                    InputComponentEvent::Gyro((raw_angular_velocity - self.motion.cal_data).into());
-            }
-            _ => (),
-        }
-
+    pub fn process_input_event(&mut self, event: InputEvent) -> Option<InputEvent> {
         // if let Some(calibration) = self.calibration_data.get(&event.path) {
         //     match (event.data, calibration) {
         //         (InputComponentEvent::Joystick(value), CalibrationData::Joystick { deadzone }) => {
@@ -136,25 +94,3 @@ impl DeviceState {
         Some(event)
     }
 }
-
-#[derive(Debug)]
-enum Test {
-    Accel(AccelState),
-    Gyro(GyroState),
-}
-
-#[derive(Debug)]
-struct AccelState {
-    smoothed_linear_velocity: Vector3<f32>,
-}
-
-#[derive(Debug)]
-struct GyroState {
-    smoothed_raw_angular_velocity: Vector3<f32>,
-}
-
-// #[derive(Debug)]
-// pub enum CalibrationData {
-//     Joystick { deadzone: f32 },
-//     Gyro { idle: Vector3<f32> },
-// }

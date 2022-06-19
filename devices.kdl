@@ -47,52 +47,56 @@ device vendor="oculus" name="touch_controller_left_generic" {
 device vendor="oculus" name="touch_controller_left_rift_s" parent="device/oculus/touch_controller_left_generic"
 
 device vendor="sony" name="dualsense" {
-    identifier "diamond_up" { button "click"; }
-    identifier "diamond_left" { button "click"; }
-    identifier "diamond_right" { button "click"; }
-    identifier "diamond_down" { button "click"; }
-    identifier "dpad_up" { button "click"; }
-    identifier "dpad_left" { button "click"; }
-    identifier "dpad_right" { button "click"; }
-    identifier "dpad_down" { button "click"; }
-    identifier "shoulder_left" { button "click"; }
-    identifier "shoulder_right" { button "click"; }
-    identifier "guide" { button "click"; }
-    identifier "create" { button "click"; }
-    identifier "options" { button "click"; }
-    identifier "mute" { 
+    dpad "diamond" {
+        dpad-up "up"
+        dpad-left "left"
+        dpad-down "right"
+        dpad-right "down"
+    }
+    dpad "dpad" {
+        dpad-up "up"
+        dpad-left "left"
+        dpad-down "right"
+        dpad-right "down"
+    }
+    generic "shoulder_left" { button "click"; }
+    generic "shoulder_right" { button "click"; }
+    generic "create" { button "click"; }
+    generic "guide" { button "click"; }
+    generic "options" { button "click"; }
+    generic "mute" { 
         button "click"
         led "light"
     }
-    identifier "touchpad" {
+    generic "touchpad" {
         button "click"
         touchpad "points" max_points=2 pressure=false
     }
-    identifier "joystick_left" { 
+    generic "joystick_left" { 
         joystick "position"
         button "click"
     }
-    identifier "joystick_right" { 
+    generic "joystick_right" { 
         joystick "position"
         button "click"
     }
-    identifier "trigger_left" {
+    generic "trigger_left" {
         trigger "value"
         adaptive-trigger "adaptive_trigger"
     }
-    identifier "trigger_right" {
+    generic "trigger_right" {
         trigger "value"
         adaptive-trigger "adaptive_trigger"
     }
-    identifier "motion" { 
-        gyro "gyro" calibrated=false
-        accel "accel" 
+    motion "motion" { 
+        motion-gyro "gyro" calibrated=false
+        motion-accel "accel" 
     }
-    identifier "out" {
+    generic "out" {
         led "led"
         player-number "player_number" min=0 max=5
         hd-rumble "haptic_left"
         hd-rumble "haptic_right"
     }
-    //TODO speaker and microphone
+    //TODO speaker, microphone and battery
 }

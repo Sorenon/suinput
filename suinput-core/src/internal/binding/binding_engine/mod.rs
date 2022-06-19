@@ -7,17 +7,20 @@ use suinput_types::{
     action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
     SuPath,
 };
+use thunderdome::{Arena, Index};
 
 use crate::{
     action::ActionType,
     instance::{BindingLayout, Instance},
     internal::{
+        device::DeviceState,
         input_component::InputComponentType,
+        interaction_profile::InteractionProfileState,
         paths::{InputPath, InteractionProfilePath, UserPath},
     },
 };
 
-use self::processed_binding::ProcessedBinding;
+use self::processed_binding::{Axis, GyroBindingSpace, ProcessedBinding, Sensitivity};
 
 #[derive(Debug, Clone)]
 pub struct ProcessedBindingLayout {
@@ -136,9 +139,20 @@ impl ProcessedBindingLayout {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
+                    //TODO default depending on controller type somehow
+                    //Handheld -> Local
+                    //Controller -> Player
                     ProcessedBinding::Gyro2Delta2d {
-                        sensitivity: (1., 1.),
                         last_time: None,
+                        space: GyroBindingSpace::PlayerSpace {
+                            relax_factor: GyroBindingSpace::calc_relax_factor(60.),
+                            x_axis: Axis::Yaw,
+                        },
+                        cut_off_speed: 0.,
+                        cut_off_recovery: 0.,
+                        smooth_threshold: 0.,
+                        smooth_time: 0.125,
+                        sensitivity: Sensitivity::Linear(1.),
                     }
                 }
                 Some(InputComponentType::Accel) => {
@@ -194,16 +208,27 @@ impl ProcessedBindingLayout {
         binding_layout.processed.clone()
     }
 
-    pub fn on_event<F>(&mut self, user_path: SuPath, event: &InputEvent, mut on_action_event: F)
-    where
+    pub(crate) fn on_event<F>(
+        &mut self,
+        user_path: SuPath,
+        event: &InputEvent,
+        interaction_profile: &InteractionProfileState,
+        devices: &Arena<(DeviceState, Index)>,
+        mut on_action_event: F,
+    ) where
         F: FnMut(u64, usize, &ActionStateEnum),
     {
         if let Some(component_bindings) = self.input_bindings.get(&user_path) {
             if let Some(bindings) = component_bindings.get(&event.path) {
                 for &binding_index in bindings {
-                    if let Some((new_binding_state, action_handle)) =
-                        execute_binding(binding_index, &mut self.bindings_index, event)
-                    {
+                    if let Some((new_binding_state, action_handle)) = execute_binding(
+                        binding_index,
+                        &mut self.bindings_index,
+                        user_path,
+                        event,
+                        interaction_profile,
+                        devices,
+                    ) {
                         on_action_event(action_handle, binding_index, &new_binding_state)
                     }
                 }
@@ -212,12 +237,17 @@ impl ProcessedBindingLayout {
     }
 }
 
-pub(crate) fn execute_binding(
+fn execute_binding(
     binding_index: usize,
     bindings_index: &mut Vec<(ProcessedBinding, ActionStateEnum, u64)>,
+    user_path: SuPath,
     event: &InputEvent,
+    interaction_profile: &InteractionProfileState,
+    devices: &Arena<(DeviceState, Index)>,
 ) -> Option<(ActionStateEnum, u64)> {
     let (binding, _, action_handle) = &mut bindings_index[binding_index];
 
-    binding.on_event(event).map(|some| (some, *action_handle))
+    binding
+        .on_event(user_path, event, interaction_profile, devices)
+        .map(|some| (some, *action_handle))
 }

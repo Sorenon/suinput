@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
     ActionCreateInfo, ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding,
@@ -12,6 +10,9 @@ use winit::{
 };
 
 struct Listener {
+    idx: usize,
+    pitch: f32,
+    yaw: f32,
     session: SuSession,
     jump: SuAction,
     zoom: SuAction,
@@ -37,7 +38,15 @@ impl ActionListener for Listener {
             println!("zoom {:?}", event.data)
         } else if event.action_handle == self.turn.handle() {
             if let ActionEventEnum::Delta2D { delta } = event.data {
-                println!("turn {delta:?}");
+                // println!("turn {delta:?}");
+
+                self.pitch += delta.1 as f32;
+                self.yaw += delta.0 as f32;
+                self.idx += 1;
+
+                if self.idx % 30 == 0 {
+                    println!("{:4?}, {:4?}", self.pitch, self.yaw)
+                }
             }
         } else if event.action_handle == self.cursor.handle() {
             if let ActionEventEnum::Cursor {
@@ -210,6 +219,9 @@ fn main() -> Result<(), anyhow::Error> {
         thrust: thrust_action.clone(),
         session: session.clone(),
         r#move: move_action.clone(),
+        idx: 0,
+        pitch: 0.,
+        yaw: 0.,
     }));
 
     // session.poll();

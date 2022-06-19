@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 use suinput_types::{
     action::ActionEvent,
     event::{Cursor, InputComponentEvent, InputEvent},
-    SuPath, Time,
+    Time,
 };
 use thunderdome::{Arena, Index};
 
@@ -75,6 +75,15 @@ pub fn spawn_thread(
                         worker_thread.on_input_event(event);
                     }
                     Driver2RuntimeEvent::BatchInput(batch_update) => {
+                        let (device, _) = worker_thread
+                            .device_states
+                            .get_mut(Index::from_bits(batch_update.device).unwrap())
+                            .unwrap();
+
+                        device
+                            .handle_batch(batch_update.time, &batch_update.inner)
+                            .unwrap();
+
                         for (path, data) in batch_update.inner {
                             worker_thread.on_input_event(InputEvent {
                                 device: batch_update.device,
@@ -86,7 +95,7 @@ pub fn spawn_thread(
                     }
                     Driver2RuntimeEvent::DisconnectDevice(id) => {
                         let device_idx = Index::from_bits(id).unwrap();
-                        let (_, _, interaction_profile_id) =
+                        let (_, interaction_profile_id) =
                             worker_thread.device_states.get(device_idx).unwrap();
 
                         worker_thread
@@ -135,7 +144,7 @@ struct WorkerThread {
     //For now we just assume one user per session
     sessions: HashMap<u64, (Arc<Session>, WorkingUser)>,
 
-    device_states: Arena<(SuPath, DeviceState, Index)>,
+    device_states: Arena<(DeviceState, Index)>,
     interaction_profile_states: Arena<InteractionProfileState>,
 
     desktop_profile_id: Index,
@@ -145,9 +154,6 @@ impl WorkerThread {
     pub fn new(runtime: Weak<Runtime>) -> Self {
         let runtime = runtime.upgrade().unwrap();
 
-        let sessions = HashMap::<u64, (Arc<Session>, WorkingUser)>::new();
-
-        let device_states = Arena::<(SuPath, DeviceState, Index)>::new();
         let mut interaction_profile_states = Arena::<InteractionProfileState>::new();
 
         let desktop_profile_id = interaction_profile_states.insert(InteractionProfileState::new(
@@ -160,8 +166,8 @@ impl WorkerThread {
 
         Self {
             runtime,
-            sessions,
-            device_states,
+            sessions: HashMap::new(),
+            device_states: Arena::new(),
             interaction_profile_states,
             desktop_profile_id,
         }
@@ -268,8 +274,7 @@ impl WorkerThread {
 
         //TODO: Device ID persistence
         let device_id = self.device_states.insert((
-            ty,
-            DeviceState::new(Arc::new(self.runtime.device_types.get(ty).unwrap().clone())),
+            DeviceState::new(self.runtime.device_types.get(ty).unwrap().clone()),
             interaction_profile_id,
         ));
 
@@ -291,15 +296,15 @@ impl WorkerThread {
         let device_idx = Index::from_bits(event.device).unwrap();
 
         let device = self.device_states.get_mut(device_idx).unwrap();
-        if let Some(event) = device.1.process_input_event(event) {
-            let (_, _, interaction_profile_id) = self.device_states.get(device_idx).unwrap();
+        if let Some(event) = device.0.process_input_event(event) {
+            let (_, interaction_profile_id) = self.device_states.get(device_idx).unwrap();
             self.interaction_profile_states
                 .get_mut(*interaction_profile_id)
                 .unwrap()
                 .update_component(
                     &event,
                     &self.device_states,
-                    |profile_state, user_path, event| {
+                    |profile_state, user_path, event, devices| {
                         // println!("{event:?}");
 
                         for (session, working_user) in self.sessions.values_mut() {
@@ -318,12 +323,7 @@ impl WorkerThread {
                                 }
                             }
 
-                            working_user.on_event(
-                                &profile_state.profile,
-                                user_path,
-                                event,
-                                session,
-                            );
+                            working_user.on_event(&profile_state, user_path, event, session, devices);
                         }
                     },
                 );

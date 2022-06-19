@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     ops::Deref,
     sync::{
         atomic::{AtomicBool, Ordering},

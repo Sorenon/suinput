@@ -9,12 +9,14 @@ use suinput_types::{
     event::InputEvent,
     SuPath,
 };
+use thunderdome::{Arena, Index};
 
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::{
+        device::DeviceState,
         input_events::{Axis2d, InputEventSources, InputEventType, Value},
-        interaction_profile_type::InteractionProfileType,
+        interaction_profile::InteractionProfileState,
         paths::InteractionProfilePath,
     },
     session::Session,
@@ -48,22 +50,25 @@ impl WorkingUser {
 
     pub(crate) fn on_event(
         &mut self,
-        interaction_profile: &InteractionProfileType,
+        interaction_profile: &InteractionProfileState,
         user_path: SuPath,
         event: &InputEvent,
         session: &Session,
+        devices: &Arena<(DeviceState, Index)>,
     ) {
         let mut binding_events = Vec::new();
 
-        if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.id) {
+        if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.ty.id) {
             binding_layout.binding_layout.on_event(
                 user_path,
                 event,
+                interaction_profile,
+                devices,
                 |action_handle, binding_index, &binding_event| {
                     binding_events.push((
                         action_handle,
                         binding_index,
-                        interaction_profile.id,
+                        interaction_profile.ty.id,
                         binding_event,
                     ))
                 },

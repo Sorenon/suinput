@@ -2,14 +2,14 @@
 
 use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 struct MotionCalibration {
     pub gyro_offset: Vector3<f32>,
     pub accel_magnitude: f32,
     pub num_samples: u32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 struct SensorMinMaxWindow {
     pub min_gyro: Vector3<f32>,
     pub max_gyro: Vector3<f32>,
@@ -22,7 +22,7 @@ struct SensorMinMaxWindow {
     pub time_sampled: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct AutoCalibration {
     pub min_max_window: SensorMinMaxWindow,
     pub smoothed_angular_velocity_gyro: Vector3<f32>,
@@ -38,7 +38,7 @@ struct AutoCalibration {
     time_steady_stillness: f32,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 struct Motion {
     pub orientation: UnitQuaternion<f32>,
     pub accel: Vector3<f32>,
@@ -48,15 +48,15 @@ struct Motion {
     pub shakiness: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum CalibrationMode {
     Manual,
     Stillness { sensor_fusion: bool },
     SensorFusion,
 }
 
-#[derive(Debug)]
-struct GamepadMotionSettings {
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadMotionSettings {
     pub min_stillness_samples: u32,
     pub min_stillness_collection_time: f32,
     pub min_stillness_correction_time: f32,
@@ -88,8 +88,8 @@ struct GamepadMotionSettings {
     pub gravity_correction_minimum_speed: f32,
 }
 
-#[derive(Debug)]
-struct GamepadMotion {
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadMotion {
     pub settings: GamepadMotionSettings,
 
     gyro: Vector3<f32>,
@@ -124,14 +124,19 @@ impl Motion {
         const SMOOTHED_ACCEL_HALF_LIFE: f32 = 0.25;
 
         let angle_speed = gyro.magnitude().to_radians();
-        let angle = angle_speed * delta_time;
-
-        //Rotate
-        let rotation = UnitQuaternion::from_axis_angle(&UnitVector3::new_normalize(*gyro), angle);
-        self.orientation *= rotation;
+        let rotation = if angle_speed > 0. {
+            let rotation = UnitQuaternion::from_axis_angle(
+                &UnitVector3::new_normalize(*gyro),
+                angle_speed * delta_time,
+            );
+            self.orientation *= rotation;
+            rotation
+        } else {
+            UnitQuaternion::default()
+        };
 
         if accel.magnitude() > 0. {
-            let accel_dir = UnitVector3::new_normalize(self.accel);
+            let accel_dir = UnitVector3::new_normalize(*accel);
 
             // account for rotation when tracking smoothed acceleration
             self.smooth_accel = rotation.inverse() * self.smooth_accel;
@@ -208,7 +213,7 @@ impl Motion {
             if grav_to_accel_delta.magnitude_squared() < grav_to_accel.magnitude_squared() {
                 self.grav += grav_to_accel_delta;
             } else {
-                self.grav += accel_dir.scale(-gravity_length);
+                self.grav = accel_dir.scale(-gravity_length);
             }
 
             //If there is a deviation between orientation and the local gravity direction we rotate to orientation to match
@@ -357,14 +362,14 @@ impl AutoCalibration {
                 self.time_steady_stillness / settings.stillness_calibration_ease_in_time
             };
 
-            let calibrated_gyro = &self.min_max_window.min_gyro;
+            let calibrated_gyro = &self.min_max_window.mean_gyro;
 
             let old_gyro_bias =
                 calibration_data.gyro_offset / (calibration_data.num_samples as f32).max(1.);
             let stillness_lerp_factor = if settings.stillness_calibration_half_time <= 0. {
                 0.
             } else {
-                (-calibration_ease_in * delta_time / settings.stillness_calibration_half_time)
+                ((calibration_ease_in * -delta_time) / settings.stillness_calibration_half_time)
                     .exp2()
             };
             let mut new_gyro_bias = calibrated_gyro.lerp(&old_gyro_bias, stillness_lerp_factor);

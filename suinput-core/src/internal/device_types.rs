@@ -1,8 +1,7 @@
+use std::sync::Arc;
+
 use dashmap::{mapref::one::Ref, DashMap};
-use suinput_types::{
-    controller_paths::{self, GameControllerPaths},
-    keyboard::KeyboardPaths,
-};
+use suinput_types::keyboard::KeyboardPaths;
 
 use super::{
     config::serial_device_type,
@@ -11,7 +10,7 @@ use super::{
 };
 
 pub struct DeviceTypes {
-    cache: DashMap<DevicePath, DeviceType>,
+    cache: DashMap<DevicePath, Arc<DeviceType>>,
 }
 
 impl DeviceTypes {
@@ -24,12 +23,12 @@ impl DeviceTypes {
             cache: [DeviceType::create_keyboard(&common_paths, &keyboard_paths)]
                 .into_iter()
                 .chain(serial_device_type::deserialize(paths))
-                .map(|device_type| (device_type.id, device_type))
+                .map(|device_type| (device_type.id, Arc::new(device_type)))
                 .collect(),
         }
     }
 
-    pub fn get(&self, path: DevicePath) -> Option<Ref<'_, DevicePath, DeviceType>> {
+    pub fn get(&self, path: DevicePath) -> Option<Ref<'_, DevicePath, Arc<DeviceType>>> {
         self.cache.get(&path)
     }
 }
