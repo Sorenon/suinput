@@ -1,8 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, ops::Deref, sync::Arc, time::Instant};
+use std::{fmt::Debug, ops::Deref, sync::Arc, time::Instant};
 
 use thiserror::Error;
 
 use suinput_types::{event::*, SuPath};
+
+use crate::internal::types::HashMap;
 
 /**
  * The connection from a driver to the runtime

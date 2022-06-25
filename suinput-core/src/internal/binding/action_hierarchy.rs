@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use crate::{internal::{input_events::InputEventType, types::HashMap}, types::action_type::{Value, Axis1d, Axis2d}};
 
 use nalgebra::Vector2;
-use suinput_types::action::ActionEventEnum;
-
-use crate::internal::input_events::{Axis1d, Axis2d, InputEventType, Value};
+use suinput_types::{
+    action::ActionEventEnum,
+};
 
 use super::working_user::ActionStates;
 

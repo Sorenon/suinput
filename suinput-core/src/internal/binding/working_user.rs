@@ -1,8 +1,4 @@
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    time::Instant,
-    vec::IntoIter,
-};
+use std::{time::Instant, vec::IntoIter};
 
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionStateEnum, ChildActionType},
@@ -11,11 +7,12 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
+use crate::{internal::types::{hash_map::Entry, HashMap}, types::action_type::{Value, Axis2d}};
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::{
         device::DeviceState,
-        input_events::{Axis2d, InputEventSources, InputEventType, Value},
+        input_events::{InputEventSources, InputEventType},
         interaction_profile::InteractionProfileState,
         paths::InteractionProfilePath,
     },
@@ -131,10 +128,10 @@ impl WorkingUser {
                     None => None,
                 }
             }
-            ActionStateEnum::Delta2D(delta) => {
+            ActionStateEnum::Delta2d(delta) => {
                 //Update accumulated delta
                 self.action_states.append_delta2d(action_handle, delta);
-                Some(ActionEventEnum::Delta2D { delta })
+                Some(ActionEventEnum::Delta2d { delta })
             }
             ActionStateEnum::Cursor(normalized_window_coords) => {
                 self.action_states.insert(action_handle, binding_event);
@@ -328,17 +325,17 @@ impl ActionStates {
         }
     }
 
-    pub fn append_delta2d(&mut self, handle: u64, delta: (f64, f64)) {
+    pub fn append_delta2d(&mut self, handle: u64, delta: mint::Vector2<f64>) {
         match self.states.entry(handle) {
             Entry::Occupied(mut entry) => match entry.get_mut() {
-                ActionStateEnum::Delta2D(acc) => {
-                    acc.0 += delta.0;
-                    acc.1 += delta.1;
+                ActionStateEnum::Delta2d(acc) => {
+                    acc.x += delta.x;
+                    acc.y += delta.y;
                 }
                 _ => panic!(),
             },
             Entry::Vacant(entry) => {
-                entry.insert(ActionStateEnum::Delta2D(delta));
+                entry.insert(ActionStateEnum::Delta2d(delta));
             }
         }
     }

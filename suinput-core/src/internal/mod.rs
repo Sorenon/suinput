@@ -11,4 +11,5 @@ pub mod interaction_profile_types;
 #[allow(dead_code)]
 pub mod motion;
 pub mod paths;
+pub mod types;
 pub mod worker_thread;

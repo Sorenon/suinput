@@ -1,7 +1,11 @@
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
-    ActionCreateInfo, ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding,
-    SuAction, SuSession,
+    action_type::{
+        Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo,
+        Cursor, Delta2d,
+    },
+    ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding, SuAction,
+    SuSession,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -10,16 +14,13 @@ use winit::{
 };
 
 struct Listener {
-    idx: usize,
-    pitch: f32,
-    yaw: f32,
     session: SuSession,
-    jump: SuAction,
-    zoom: SuAction,
-    turn: SuAction,
-    cursor: SuAction,
-    thrust: SuAction,
-    r#move: SuAction,
+    jump: SuAction<bool>,
+    zoom: SuAction<bool>,
+    // turn: SuAction,
+    cursor: SuAction<Cursor>,
+    thrust: SuAction<Axis1d>,
+    r#move: SuAction<Axis2d>,
 }
 
 impl ActionListener for Listener {
@@ -36,25 +37,25 @@ impl ActionListener for Listener {
             }
         } else if event.action_handle == self.zoom.handle() {
             println!("zoom {:?}", event.data)
-        } else if event.action_handle == self.turn.handle() {
-            if let ActionEventEnum::Delta2D { delta } = event.data {
-                // println!("turn {delta:?}");
+        // } else if event.action_handle == self.turn.handle() {
+        //     if let ActionEventEnum::Delta2D { delta } = event.data {
+        //         // println!("turn {delta:?}");
 
-                self.pitch += delta.1 as f32;
-                self.yaw += delta.0 as f32;
-                self.idx += 1;
+        //         // self.pitch += delta.1 as f32;
+        //         // self.yaw += delta.0 as f32;
+        //         // self.idx += 1;
 
-                if self.idx % 30 == 0 {
-                    println!("{:4?}, {:4?}", self.pitch, self.yaw)
-                }
-            }
+        //         // if self.idx % 30 == 0 {
+        //         //     println!("{:4?}, {:4?}", self.pitch, self.yaw)
+        //         // }
+        //     }
         } else if event.action_handle == self.cursor.handle() {
             if let ActionEventEnum::Cursor {
                 normalized_window_coords,
             } = event.data
             {
-                let x = normalized_window_coords.0;
-                let y = normalized_window_coords.1;
+                let x = normalized_window_coords.x;
+                let y = normalized_window_coords.y;
                 if x <= 1. && x >= 0. && y <= 1. && y >= 0. {
                     // println!("cursor moved to {normalized_window_coords:?}");
                 }
@@ -84,20 +85,20 @@ fn main() -> Result<(), anyhow::Error> {
     let instance = runtime.create_instance("Test Application");
 
     let action_set = instance.create_action_set("gameplay", 0);
-    let jump_action = action_set.create_action("jump", ActionCreateInfo::Boolean { sticky: false });
-    let zoom_action = action_set.create_action("zoom", ActionCreateInfo::Boolean { sticky: true });
-    let turn_action = action_set.create_action("turn", ActionCreateInfo::Delta2D);
-    let cursor_action = action_set.create_action("cursor", ActionCreateInfo::Cursor);
+    let jump_action = action_set.create_action("jump", BooleanActionCreateInfo { sticky: false });
+    let zoom_action = action_set.create_action("zoom", BooleanActionCreateInfo { sticky: true });
+    let turn_action = action_set.create_action("turn", ());
+    let cursor_action = action_set.create_action("cursor", ());
     let thrust_action = action_set.create_action(
         "thrust",
-        ActionCreateInfo::Axis1d {
+        Axis1dActionCreateInfo {
             positive: Some("forward_thrust".into()),
             negative: Some("backward_thrust".into()),
         },
     );
     let move_action = action_set.create_action(
         "move",
-        ActionCreateInfo::Axis2d {
+        Axis2dActionCreateInfo {
             up: Some("move_forward".into()),
             down: Some("move_back".into()),
             left: Some("move_left".into()),
@@ -214,20 +215,18 @@ fn main() -> Result<(), anyhow::Error> {
     session.register_event_listener(Box::new(Listener {
         jump: jump_action.clone(),
         zoom: zoom_action.clone(),
-        turn: turn_action.clone(),
+        // turn: turn_action.clone(),
         cursor: cursor_action.clone(),
         thrust: thrust_action.clone(),
         session: session.clone(),
         r#move: move_action.clone(),
-        idx: 0,
-        pitch: 0.,
-        yaw: 0.,
     }));
 
-    // session.poll();
+    let mut yaw = 0.;
+    let mut pitch = 0.;
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Poll;
 
         match event {
             Event::WindowEvent {
@@ -236,6 +235,20 @@ fn main() -> Result<(), anyhow::Error> {
             } if window_id == window.id() => {
                 *control_flow = ControlFlow::Exit;
                 runtime.destroy();
+            }
+            Event::MainEventsCleared => {
+                std::thread::sleep(std::time::Duration::from_millis(16));
+
+                session.poll();
+
+                if let Ok(delta) = session.get_action_state::<Delta2d>(&turn_action) {
+                    yaw += delta.x;
+                    pitch += delta.y;
+
+                    if delta.x != 0. || delta.y != 0. {
+                        println!("{yaw} {pitch}")
+                    }
+                }
             }
             _ => (),
         }

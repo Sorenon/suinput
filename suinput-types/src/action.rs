@@ -41,11 +41,11 @@ pub enum ActionEventEnum {
         state: bool,
         changed: bool,
     },
-    Delta2D {
-        delta: (f64, f64),
+    Delta2d {
+        delta: Vector2<f64>,
     },
     Cursor {
-        normalized_window_coords: (f64, f64),
+        normalized_window_coords: Vector2<f64>,
     },
     Value {
         state: f32,
@@ -61,8 +61,8 @@ pub enum ActionEventEnum {
 #[derive(Debug, Clone, Copy)]
 pub enum ActionStateEnum {
     Boolean(bool),
-    Delta2D((f64, f64)),
-    Cursor((f64, f64)),
+    Delta2d(Vector2<f64>),
+    Cursor(Vector2<f64>),
     Value(f32),
     Axis1d(f32),
     Axis2d(Vector2<f32>),

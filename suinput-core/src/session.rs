@@ -1,12 +1,12 @@
 use std::{
-    collections::HashMap,
     num::NonZeroUsize,
-    sync::{Arc, Weak},
+    sync::{atomic::AtomicBool, Arc, Weak},
 };
 
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
 
+use crate::{internal::types::HashMap, types::action_type::ActionType};
 use crate::{
     action::Action,
     action_set::ActionSet,
@@ -29,6 +29,8 @@ pub struct Session {
 
     pub(crate) action_sets: Vec<Arc<ActionSet>>,
     pub(crate) actions: HashMap<u64, Arc<Action>>, //TODO dynamic action sets
+
+    pub(crate) done: AtomicBool,
 }
 
 impl Session {
@@ -41,6 +43,9 @@ impl Session {
     }
 
     pub fn poll(&self) {
+        //TODO investigate performance of this and alternatives (e.g. CondVars)
+        self.done.store(false, std::sync::atomic::Ordering::Relaxed);
+
         self.runtime
             .upgrade()
             .unwrap()
@@ -49,6 +54,10 @@ impl Session {
                 session: self.runtime_handle,
             })
             .unwrap();
+
+        while !self.done.load(std::sync::atomic::Ordering::Relaxed) {
+            std::hint::spin_loop();
+        }
     }
 
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
@@ -67,5 +76,14 @@ impl Session {
                 action: action.handle,
             }))
             .unwrap();
+    }
+
+    pub fn get_action_state<T: ActionType>(&self, action: &Action) -> Result<T::Value, ()> {
+        let action_states = self.user.action_states.read();
+        action_states
+            .get(&action.handle)
+            .map(|state| T::from_ase(state))
+            .flatten()
+            .ok_or(())
     }
 }

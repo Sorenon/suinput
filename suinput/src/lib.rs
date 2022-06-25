@@ -1,9 +1,12 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
-use suinput_core::driver_interface::RuntimeInterface;
-use suinput_core::driver_interface::SuInputDriver;
-use suinput_types::event::PathFormatError;
+pub use suinput_core::driver_interface::RuntimeInterface;
+pub use suinput_core::driver_interface::SuInputDriver;
+use suinput_core::types::action_type::ActionType;
+pub use suinput_core::types::*;
+pub use suinput_types::event::PathFormatError;
 
 use suinput_core::*;
 
@@ -149,6 +152,8 @@ impl SuInstance {
 #[derive(Clone)]
 pub struct SuSession(Inner<session::Session>);
 
+pub use suinput_types::action::ActionStateEnum;
+
 impl SuSession {
     pub fn set_window(&self, window: usize) {
         match &self.0 {
@@ -185,9 +190,19 @@ impl SuSession {
         }
     }
 
-    pub fn unstick_bool_action(&self, action: &SuAction) {
+    pub fn unstick_bool_action<T: ActionType>(&self, action: &SuAction<T>) {
         match (&self.0, &action.0) {
             (Inner::Embedded(inner), Inner::Embedded(action)) => inner.unstick_bool_action(action),
+            (Inner::FFI(), Inner::FFI()) => todo!(),
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_action_state<T: ActionType>(&self, action: &SuAction<T>) -> Result<T::Value, ()> {
+        match (&self.0, &action.0) {
+            (Inner::Embedded(inner), Inner::Embedded(action)) => {
+                inner.get_action_state::<T>(action)
+            }
             (Inner::FFI(), Inner::FFI()) => todo!(),
             _ => panic!(),
         }
@@ -206,11 +221,20 @@ pub struct SuActionSet(Inner<action_set::ActionSet>);
 pub use suinput_types::action::ActionCreateInfo;
 
 impl SuActionSet {
-    pub fn create_action(&self, name: &str, action_type: ActionCreateInfo) -> SuAction {
-        SuAction(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_action(name, action_type)),
-            Inner::FFI() => todo!(),
-        })
+    pub fn create_action<T: ActionType>(
+        &self,
+        name: &str,
+        create_info: T::CreateInfo,
+    ) -> SuAction<T> {
+        SuAction(
+            match &self.0 {
+                Inner::Embedded(inner) => {
+                    Inner::Embedded(inner.create_action::<T>(name, create_info))
+                }
+                Inner::FFI() => todo!(),
+            },
+            PhantomData,
+        )
     }
 
     pub fn create_action_layer(&self, name: &str, default_priority: u32) {
@@ -219,11 +243,11 @@ impl SuActionSet {
 }
 
 #[derive(Clone)]
-pub struct SuAction(Inner<action::Action>);
+pub struct SuAction<T: ActionType>(Inner<action::Action>, PhantomData<T>);
 
 pub use suinput_types::action::ChildActionType;
 
-impl SuAction {
+impl<T: ActionType> SuAction<T> {
     pub fn handle(&self) -> u64 {
         match &self.0 {
             Inner::Embedded(inner) => inner.handle,

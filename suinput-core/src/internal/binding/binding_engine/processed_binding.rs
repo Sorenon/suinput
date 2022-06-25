@@ -24,10 +24,10 @@ pub enum ProcessedBinding {
     Gyro2Delta2d {
         last_time: Option<Instant>,
         space: GyroBindingSpace,
-        cut_off_speed: f32,
-        cut_off_recovery: f32,
-        smooth_threshold: f32,
-        smooth_time: f32,
+        // cut_off_speed: f32,
+        // cut_off_recovery: f32,
+        // smooth_threshold: f32,
+        // smooth_time: f32,
         sensitivity: Sensitivity<f32>,
     },
 }
@@ -57,12 +57,15 @@ impl ProcessedBinding {
             (
                 ProcessedBinding::Move2d2Delta2d { sensitivity },
                 InputComponentEvent::Move2D(delta),
-            ) => Some(ActionStateEnum::Delta2D((
-                delta.x * sensitivity.0,
-                delta.y * sensitivity.1,
-            ))),
+            ) => Some(ActionStateEnum::Delta2d(mint::Vector2 {
+                x: delta.x * sensitivity.0,
+                y: delta.y * sensitivity.1,
+            })),
             (ProcessedBinding::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
-                Some(ActionStateEnum::Cursor(cursor.normalized_screen_coords))
+                Some(ActionStateEnum::Cursor(mint::Vector2 {
+                    x: cursor.normalized_screen_coords.0,
+                    y: cursor.normalized_screen_coords.1,
+                }))
             }
             (ProcessedBinding::Joystick2Axis2d, InputComponentEvent::Joystick(state)) => {
                 Some(ActionStateEnum::Axis2d(state))
@@ -71,10 +74,6 @@ impl ProcessedBinding {
                 ProcessedBinding::Gyro2Delta2d {
                     last_time,
                     space,
-                    cut_off_speed,
-                    cut_off_recovery,
-                    smooth_threshold,
-                    smooth_time,
                     sensitivity,
                 },
                 InputComponentEvent::Gyro(_),
@@ -109,10 +108,10 @@ impl ProcessedBinding {
                     };
 
                     //TODO investigate turning sign relation
-                    Some(ActionStateEnum::Delta2D((
-                        (-delta.x * delta_time * sensitivity) as f64,
-                        (delta.y * delta_time * sensitivity) as f64,
-                    )))
+                    Some(ActionStateEnum::Delta2d(mint::Vector2 {
+                        x: (-delta.x * delta_time * sensitivity) as f64,
+                        y: (delta.y * delta_time * sensitivity) as f64,
+                    }))
                 } else {
                     *last_time = Some(Instant::now());
                     None

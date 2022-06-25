@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Instant,
-    vec::IntoIter,
-};
+use std::{collections::HashSet, time::Instant, vec::IntoIter};
 
 use suinput_types::{
     event::{InputComponentEvent, InputEvent},
@@ -13,11 +9,12 @@ use thunderdome::{Arena, Index};
 use super::{
     device::DeviceState,
     input_component::{InputComponentData, InputComponentState},
-    input_events::{Axis2d, InputEventSources, InputEventType, Value},
+    input_events::{InputEventSources, InputEventType},
     interaction_profile_type::InteractionProfileType,
     motion::GamepadMotion,
     paths::{InputPath, UserPath},
 };
+use crate::{internal::types::HashMap, types::action_type::{Value, Axis2d}};
 
 #[derive(Debug)]
 pub(crate) struct InteractionProfileState {

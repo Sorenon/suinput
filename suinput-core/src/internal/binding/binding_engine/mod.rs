@@ -1,7 +1,5 @@
 mod processed_binding;
 
-use std::collections::{hash_map::Entry, HashMap};
-
 use nalgebra::Vector2;
 use suinput_types::{
     action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
@@ -9,8 +7,9 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
+use crate::internal::types::{hash_map::Entry, HashMap};
 use crate::{
-    action::ActionType,
+    action::ActionTypeEnum,
     instance::{BindingLayout, Instance},
     internal::{
         device::DeviceState,
@@ -94,25 +93,25 @@ impl ProcessedBindingLayout {
 
             let processed_binding = match device.input_components.get(&component_path) {
                 Some(InputComponentType::Button) => {
-                    if action.data_type == ActionType::Boolean {
+                    if action.data_type == ActionTypeEnum::Boolean {
                         ProcessedBinding::Button2Bool
-                    } else if action.data_type == ActionType::Value {
+                    } else if action.data_type == ActionTypeEnum::Value {
                         ProcessedBinding::Button2Value
                     } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
                 }
                 Some(InputComponentType::Trigger) => {
-                    if action.data_type == ActionType::Boolean {
+                    if action.data_type == ActionTypeEnum::Boolean {
                         ProcessedBinding::Trigger2Bool
-                    } else if action.data_type == ActionType::Value {
+                    } else if action.data_type == ActionTypeEnum::Value {
                         ProcessedBinding::Trigger2Value
                     } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
                 }
                 Some(InputComponentType::Move2D) => {
-                    if action.data_type != ActionType::Delta2D {
+                    if action.data_type != ActionTypeEnum::Delta2d {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
@@ -121,21 +120,21 @@ impl ProcessedBindingLayout {
                     }
                 }
                 Some(InputComponentType::Cursor) => {
-                    if action.data_type != ActionType::Cursor {
+                    if action.data_type != ActionTypeEnum::Cursor {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
                     ProcessedBinding::Cursor2Cursor
                 }
                 Some(InputComponentType::Joystick) => {
-                    if action.data_type != ActionType::Axis2d {
+                    if action.data_type != ActionTypeEnum::Axis2d {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
                     ProcessedBinding::Joystick2Axis2d
                 }
                 Some(InputComponentType::Gyro(_)) => {
-                    if action.data_type != ActionType::Delta2D {
+                    if action.data_type != ActionTypeEnum::Delta2d {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
@@ -148,10 +147,10 @@ impl ProcessedBindingLayout {
                             relax_factor: GyroBindingSpace::calc_relax_factor(60.),
                             x_axis: Axis::Yaw,
                         },
-                        cut_off_speed: 0.,
-                        cut_off_recovery: 0.,
-                        smooth_threshold: 0.,
-                        smooth_time: 0.125,
+                        // cut_off_speed: 0.,
+                        // cut_off_recovery: 0.,
+                        // smooth_threshold: 0.,
+                        // smooth_time: 0.125,
                         sensitivity: Sensitivity::Linear(1.),
                     }
                 }
@@ -167,12 +166,12 @@ impl ProcessedBindingLayout {
             };
 
             let action_state = match action.data_type {
-                ActionType::Boolean => ActionStateEnum::Boolean(false),
-                ActionType::Delta2D => ActionStateEnum::Delta2D((0., 0.)),
-                ActionType::Cursor => ActionStateEnum::Cursor((0., 0.)),
-                ActionType::Axis1d => ActionStateEnum::Axis1d(0.),
-                ActionType::Value => ActionStateEnum::Value(0.),
-                ActionType::Axis2d => ActionStateEnum::Axis2d(Vector2::new(0., 0.).into()),
+                ActionTypeEnum::Boolean => ActionStateEnum::Boolean(false),
+                ActionTypeEnum::Delta2d => ActionStateEnum::Delta2d(Vector2::new(0., 0.).into()),
+                ActionTypeEnum::Cursor => ActionStateEnum::Cursor(Vector2::new(0., 0.).into()),
+                ActionTypeEnum::Axis1d => ActionStateEnum::Axis1d(0.),
+                ActionTypeEnum::Value => ActionStateEnum::Value(0.),
+                ActionTypeEnum::Axis2d => ActionStateEnum::Axis2d(Vector2::new(0., 0.).into()),
             };
 
             bindings_index.push((processed_binding, action_state, action.handle));

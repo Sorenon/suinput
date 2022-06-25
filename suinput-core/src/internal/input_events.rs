@@ -92,9 +92,7 @@ impl InputEventType for bool {
     }
 }
 
-pub struct Value;
-
-impl InputEventType for Value {
+impl InputEventType for crate::types::action_type::Value {
     type Value = f32;
     type EventOut = f32;
 
@@ -132,9 +130,7 @@ impl InputEventType for Value {
     }
 }
 
-pub struct Axis1d;
-
-impl InputEventType for Axis1d {
+impl InputEventType for crate::types::action_type::Axis1d {
     type Value = f32;
     type EventOut = f32;
 
@@ -167,9 +163,7 @@ impl InputEventType for Axis1d {
     }
 }
 
-pub struct Axis2d;
-
-impl InputEventType for Axis2d {
+impl InputEventType for crate::types::action_type::Axis2d {
     type Value = Vector2<f32>;
 
     type EventOut = Vector2<f32>;

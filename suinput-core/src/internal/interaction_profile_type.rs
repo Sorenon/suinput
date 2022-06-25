@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap};
+use crate::internal::types::{hash_map::Entry, HashMap};
 
 use suinput_types::SuPath;
 

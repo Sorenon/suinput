@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use nalgebra::Vector3;
 use suinput_types::{
@@ -10,6 +10,7 @@ use super::{
     device_type::DeviceType, input_component::InputComponentData, motion::GamepadMotion,
     paths::InputPath,
 };
+use crate::internal::types::HashMap;
 
 #[derive(Debug)]
 pub struct DeviceState {
@@ -40,12 +41,12 @@ impl DeviceState {
 
             let gyro: Vector3<f32> = match batch.get(&gyro_path).unwrap() {
                 InputComponentEvent::Gyro(gyro) => (*gyro).into(),
-                _ => todo!(),
+                _ => return Ok(()),
             };
 
             let accel: Vector3<f32> = match batch.get(&accel_path).unwrap() {
                 InputComponentEvent::Accel(accel) => (*accel).into(),
-                _ => todo!(),
+                _ => return Ok(()),
             };
 
             let delta_time = if let Some(last_time) = &mut self.last_update {

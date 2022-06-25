@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
@@ -12,12 +11,13 @@ use nalgebra::Vector2;
 use parking_lot::Mutex;
 
 use suinput_types::{
-    action::ActionEvent,
+    action::{ActionEvent, ActionStateEnum},
     event::{Cursor, InputComponentEvent, InputEvent},
     Time,
 };
 use thunderdome::{Arena, Index};
 
+use crate::internal::types::HashMap;
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::interaction_profile::InteractionProfileState,
@@ -250,6 +250,23 @@ impl WorkerThread {
                 .binding_layouts
                 .insert(profile, AttachedBindingLayout::new(binding_layout));
         }
+
+        let mut user_action_states = session.user.action_states.write();
+
+        for (path, action_state) in working_user.action_states.states.iter_mut() {
+            user_action_states.insert(*path, *action_state);
+
+            match action_state {
+                ActionStateEnum::Delta2d(delta) => {
+                    *delta = mint::Vector2 { x: 0., y: 0. };
+                }
+                _ => (),
+            }
+        }
+
+        session
+            .done
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn register_new_device(&mut self, driver_id: usize, ty: DevicePath) {
@@ -323,7 +340,13 @@ impl WorkerThread {
                                 }
                             }
 
-                            working_user.on_event(&profile_state, user_path, event, session, devices);
+                            working_user.on_event(
+                                &profile_state,
+                                user_path,
+                                event,
+                                session,
+                                devices,
+                            );
                         }
                     },
                 );

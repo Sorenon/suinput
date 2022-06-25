@@ -1,7 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Weak},
-};
+use std::sync::{atomic::AtomicBool, Arc, Weak};
+
+use crate::internal::types::HashMap;
 
 use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RwLock};
@@ -171,6 +170,7 @@ impl Instance {
                     })
                     .collect(),
                 action_sets,
+                done: AtomicBool::new(false),
             });
 
             runtime_sessions.push(session.clone());

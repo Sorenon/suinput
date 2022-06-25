@@ -18,3 +18,5 @@ once_cell = "1.10"
 knuffel = "2.0"
 nalgebra = { version = "0.31", features = ["convert-mint"] }
 thiserror = "1.0"
+hashbrown = "0.12"
+mint = "0.5"

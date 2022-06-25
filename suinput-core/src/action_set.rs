@@ -2,9 +2,12 @@ use std::sync::{Arc, Weak};
 
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
-use suinput_types::action::{ActionCreateInfo, ChildActionType};
+use suinput_types::action::ChildActionType;
 
-use crate::action::{Action, ActionHierarchyType, ActionType, ParentActionType};
+use crate::{
+    action::{Action, ActionHierarchyType, ActionTypeEnum, ParentActionType},
+    types::action_type::ActionType,
+};
 
 use super::instance::Instance;
 
@@ -20,10 +23,10 @@ pub struct ActionSet {
 }
 
 impl ActionSet {
-    pub fn create_action(
+    pub fn create_action<T: ActionType>(
         self: &Arc<Self>,
         name: &str,
-        create_info: ActionCreateInfo,
+        create_info: T::CreateInfo,
     ) -> Arc<Action> {
         let instance = self
             .instance
@@ -33,129 +36,33 @@ impl ActionSet {
         let mut instance_actions = instance.actions.write();
         let mut set_actions = self.actions.write();
 
+        use crate::types::action_type::private::InternalActionType;
+
         let action = Arc::new_cyclic(|action| {
-            let (action_type, hierarchy_type) = match create_info {
-                ActionCreateInfo::Boolean {
-                    sticky: has_sticky_child,
-                } => {
-                    if has_sticky_child {
-                        (
-                            ActionType::Boolean,
-                            ParentActionType::StickyBool {
-                                sticky_press: self.create_child_action(
-                                    &mut instance_actions,
-                                    &mut set_actions,
-                                    action.clone(),
-                                    "sticky_press".into(),
-                                    ActionType::Boolean,
-                                    ChildActionType::StickyPress,
-                                ),
-                                sticky_release: self.create_child_action(
-                                    &mut instance_actions,
-                                    &mut set_actions,
-                                    action.clone(),
-                                    "sticky_release".into(),
-                                    ActionType::Boolean,
-                                    ChildActionType::StickyRelease,
-                                ),
-                                sticky_toggle: self.create_child_action(
-                                    &mut instance_actions,
-                                    &mut set_actions,
-                                    action.clone(),
-                                    "sticky_toggle".into(),
-                                    ActionType::Boolean,
-                                    ChildActionType::StickyToggle,
-                                ),
-                            },
-                        )
-                    } else {
-                        (ActionType::Boolean, ParentActionType::None)
-                    }
+            let action_type = T::Internal::action_type();
+
+            let parent_action_type = match action_type {
+                ActionTypeEnum::Boolean | ActionTypeEnum::Axis1d | ActionTypeEnum::Axis2d => {
+                    T::Internal::create_child_actions(
+                        T::appease_the_type_checker(create_info),
+                        action,
+                        |parent: Weak<Action>,
+                         name: String,
+                         action_type: ActionTypeEnum,
+                         child_action_type: ChildActionType|
+                         -> Arc<Action> {
+                            self.create_child_action(
+                                &mut instance_actions,
+                                &mut set_actions,
+                                parent,
+                                name,
+                                action_type,
+                                child_action_type,
+                            )
+                        },
+                    )
                 }
-                ActionCreateInfo::Delta2D => (ActionType::Delta2D, ParentActionType::None),
-                ActionCreateInfo::Cursor => (ActionType::Cursor, ParentActionType::None),
-                ActionCreateInfo::Value => (ActionType::Value, ParentActionType::None),
-                ActionCreateInfo::Axis1d { positive, negative } => (
-                    ActionType::Axis1d,
-                    ParentActionType::Axis1d {
-                        positive: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            positive.unwrap_or("positive".into()),
-                            ActionType::Value,
-                            ChildActionType::Positive,
-                        ),
-                        negative: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            negative.unwrap_or("negative".into()),
-                            ActionType::Value,
-                            ChildActionType::Negative,
-                        ),
-                    },
-                ),
-                ActionCreateInfo::Axis2d {
-                    up,
-                    down,
-                    left,
-                    right,
-                    vertical,
-                    horizontal,
-                } => (
-                    ActionType::Axis2d,
-                    ParentActionType::Axis2d {
-                        up: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            up.unwrap_or("up".into()),
-                            ActionType::Value,
-                            ChildActionType::Up,
-                        ),
-                        down: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            down.unwrap_or("down".into()),
-                            ActionType::Value,
-                            ChildActionType::Down,
-                        ),
-                        left: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            left.unwrap_or("left".into()),
-                            ActionType::Value,
-                            ChildActionType::Left,
-                        ),
-                        right: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            right.unwrap_or("right".into()),
-                            ActionType::Value,
-                            ChildActionType::Right,
-                        ),
-                        vertical: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            vertical.unwrap_or("vertical".into()),
-                            ActionType::Axis1d,
-                            ChildActionType::Vertical,
-                        ),
-                        horizontal: self.create_child_action(
-                            &mut instance_actions,
-                            &mut set_actions,
-                            action.clone(),
-                            horizontal.unwrap_or("horizontal".into()),
-                            ActionType::Axis1d,
-                            ChildActionType::Horizontal,
-                        ),
-                    },
-                ),
+                _ => ParentActionType::None,
             };
 
             Action {
@@ -163,7 +70,9 @@ impl ActionSet {
                 action_set: Arc::downgrade(self),
                 name: name.into(),
                 data_type: action_type,
-                hierarchy_type: ActionHierarchyType::Parent { ty: hierarchy_type },
+                hierarchy_type: ActionHierarchyType::Parent {
+                    ty: parent_action_type,
+                },
             }
         });
 
@@ -179,7 +88,7 @@ impl ActionSet {
         set_actions: &mut Vec<Arc<Action>>,
         parent: Weak<Action>,
         name: String,
-        action_type: ActionType,
+        action_type: ActionTypeEnum,
         child_action_type: ChildActionType,
     ) -> Arc<Action> {
         let action = Arc::new(Action {

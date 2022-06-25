@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use strum::IntoEnumIterator;
 use suinput_types::{
     keyboard::{HIDScanCode, KeyboardPaths},
@@ -7,6 +5,7 @@ use suinput_types::{
 };
 
 use crate::internal::paths::CommonPaths;
+use crate::internal::types::HashMap;
 
 use super::{
     input_component::InputComponentType,

@@ -10,7 +10,7 @@ pub struct Action {
 
     pub name: String,
 
-    pub data_type: ActionType,
+    pub data_type: ActionTypeEnum,
     pub hierarchy_type: ActionHierarchyType,
 }
 
@@ -46,9 +46,9 @@ pub enum ParentActionType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActionType {
+pub enum ActionTypeEnum {
     Boolean,
-    Delta2D,
+    Delta2d,
     Cursor,
     Value,
     Axis1d,

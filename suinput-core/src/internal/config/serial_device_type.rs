@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use suinput_types::event::PathFormatError;
 
+use crate::internal::types::HashMap;
 use crate::internal::{
     device_type::DeviceType, input_component::InputComponentType, paths::PathManager,
 };
