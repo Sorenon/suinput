@@ -178,66 +178,9 @@ impl WorkerThread {
             let runtime_sessions = self.runtime.sessions.read();
             let session = runtime_sessions.get(session as usize - 1).unwrap();
 
-            let parent_action_states = session
-                .actions
-                .values()
-                .filter_map(|action| match &action.hierarchy_type {
-                    ActionHierarchyType::Parent {
-                        ty:
-                            ParentActionType::StickyBool {
-                                sticky_press,
-                                sticky_release,
-                                sticky_toggle,
-                            },
-                    } => Some((
-                        action.handle,
-                        ParentActionState::StickyBool {
-                            combined_state: false,
-                            stuck: false,
-                            press: sticky_press.handle,
-                            release: sticky_release.handle,
-                            toggle: sticky_toggle.handle,
-                        },
-                    )),
-                    ActionHierarchyType::Parent {
-                        ty: ParentActionType::Axis1d { positive, negative },
-                    } => Some((
-                        action.handle,
-                        ParentActionState::Axis1d {
-                            combined_state: 0.,
-                            positive: positive.handle,
-                            negative: negative.handle,
-                        },
-                    )),
-                    ActionHierarchyType::Parent {
-                        ty:
-                            ParentActionType::Axis2d {
-                                up,
-                                down,
-                                left,
-                                right,
-                                vertical,
-                                horizontal,
-                            },
-                    } => Some((
-                        action.handle,
-                        ParentActionState::Axis2d {
-                            combined_state: Vector2::new(0., 0.),
-                            up: up.handle,
-                            down: down.handle,
-                            left: left.handle,
-                            right: right.handle,
-                            vertical: vertical.handle,
-                            horizontal: horizontal.handle,
-                        },
-                    )),
-                    _ => None,
-                })
-                .collect();
-
             self.sessions.insert(
                 session.runtime_handle,
-                (session.clone(), WorkingUser::new(parent_action_states)),
+                (session.clone(), WorkingUser::new(&session.actions)),
             );
         }
 
@@ -254,7 +197,24 @@ impl WorkerThread {
         let mut user_action_states = session.user.action_states.write();
 
         for (path, action_state) in working_user.action_states.states.iter_mut() {
-            user_action_states.insert(*path, *action_state);
+            if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
+                user_action_states.insert(
+                    *path,
+                    match parent_action_state {
+                        ParentActionState::StickyBool { combined_state, .. } => {
+                            ActionStateEnum::Boolean(*combined_state)
+                        }
+                        ParentActionState::Axis1d { combined_state, .. } => {
+                            ActionStateEnum::Axis1d(*combined_state)
+                        }
+                        ParentActionState::Axis2d { combined_state, .. } => {
+                            ActionStateEnum::Axis2d((*combined_state).into())
+                        }
+                    },
+                );
+            } else {
+                user_action_states.insert(*path, *action_state);
+            }
 
             match action_state {
                 ActionStateEnum::Delta2d(delta) => {

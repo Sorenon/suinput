@@ -1,5 +1,6 @@
-use std::{time::Instant, vec::IntoIter};
+use std::{sync::Arc, time::Instant, vec::IntoIter};
 
+use nalgebra::Vector2;
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionStateEnum, ChildActionType},
     event::InputEvent,
@@ -7,7 +8,11 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::{internal::types::{hash_map::Entry, HashMap}, types::action_type::{Value, Axis2d}};
+use crate::{
+    action::{Action, ActionTypeEnum},
+    internal::types::{hash_map::Entry, HashMap},
+    types::action_type::{Axis2d, Value},
+};
 use crate::{
     action::{ActionHierarchyType, ParentActionType},
     internal::{
@@ -33,14 +38,91 @@ pub struct WorkingUser {
     pub parent_action_states: HashMap<u64, ParentActionState>,
 }
 
-//TODO combine action states across binding layouts
 impl WorkingUser {
-    pub fn new(parent_action_states: HashMap<u64, ParentActionState>) -> Self {
+    //TODO improve how child actions are handled
+    pub fn new(actions: &HashMap<u64, Arc<Action>>) -> Self {
+        let parent_action_states = actions
+            .values()
+            .filter_map(|action| match &action.hierarchy_type {
+                ActionHierarchyType::Parent {
+                    ty:
+                        ParentActionType::StickyBool {
+                            sticky_press,
+                            sticky_release,
+                            sticky_toggle,
+                        },
+                } => Some((
+                    action.handle,
+                    ParentActionState::StickyBool {
+                        combined_state: false,
+                        stuck: false,
+                        press: sticky_press.handle,
+                        release: sticky_release.handle,
+                        toggle: sticky_toggle.handle,
+                    },
+                )),
+                ActionHierarchyType::Parent {
+                    ty: ParentActionType::Axis1d { positive, negative },
+                } => Some((
+                    action.handle,
+                    ParentActionState::Axis1d {
+                        combined_state: 0.,
+                        positive: positive.handle,
+                        negative: negative.handle,
+                    },
+                )),
+                ActionHierarchyType::Parent {
+                    ty:
+                        ParentActionType::Axis2d {
+                            up,
+                            down,
+                            left,
+                            right,
+                            vertical,
+                            horizontal,
+                        },
+                } => Some((
+                    action.handle,
+                    ParentActionState::Axis2d {
+                        combined_state: Vector2::new(0., 0.),
+                        up: up.handle,
+                        down: down.handle,
+                        left: left.handle,
+                        right: right.handle,
+                        vertical: vertical.handle,
+                        horizontal: horizontal.handle,
+                    },
+                )),
+                _ => None,
+            })
+            .collect();
+
+        let states = actions
+            .values()
+            .map(|action| {
+                (
+                    action.handle,
+                    match action.data_type {
+                        ActionTypeEnum::Boolean => ActionStateEnum::Boolean(false),
+                        ActionTypeEnum::Delta2d => {
+                            ActionStateEnum::Delta2d(mint::Vector2 { x: 0., y: 0. })
+                        }
+                        ActionTypeEnum::Cursor => {
+                            ActionStateEnum::Cursor(mint::Vector2 { x: 0., y: 0. })
+                        }
+                        ActionTypeEnum::Value => ActionStateEnum::Value(0.),
+                        ActionTypeEnum::Axis1d => ActionStateEnum::Axis1d(0.),
+                        ActionTypeEnum::Axis2d => {
+                            ActionStateEnum::Axis2d(mint::Vector2 { x: 0., y: 0. })
+                        }
+                    },
+                )
+            })
+            .collect();
+
         Self {
             binding_layouts: HashMap::new(),
-            action_states: ActionStates {
-                states: HashMap::new(),
-            },
+            action_states: ActionStates { states },
             parent_action_states,
         }
     }
@@ -97,6 +179,7 @@ impl WorkingUser {
             .get_mut(&interaction_profile_id)
             .unwrap();
 
+        //Store updated binding endpoint action state and decide if an event should be thrown after aggregating against other bindings and then other binding layouts
         let event = match binding_event {
             ActionStateEnum::Boolean(new_binding_state) => {
                 match binding_layout.aggregate::<bool>(
@@ -160,6 +243,7 @@ impl WorkingUser {
                     None => None,
                 }
             }
+            //TODO support Axis1d binding endpoints
             ActionStateEnum::Axis1d(_) => todo!(),
             ActionStateEnum::Axis2d(state) => {
                 match binding_layout.aggregate::<Axis2d>(action_handle, state.into(), binding_index)
@@ -192,6 +276,8 @@ impl WorkingUser {
 
             let mut action_handle = action_handle;
 
+            //Child action processing
+            //TODO rewrite this to be event driven and lower amount of HashMap indirections
             let event = match &action.hierarchy_type {
                 ActionHierarchyType::Parent { ty } => match ty {
                     ParentActionType::StickyBool { .. } => handle_sticky_bool_event(
