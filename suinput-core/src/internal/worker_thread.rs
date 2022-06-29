@@ -7,7 +7,6 @@ use std::{
 
 use flume::Receiver;
 
-use nalgebra::Vector2;
 use parking_lot::Mutex;
 
 use suinput_types::{
@@ -19,7 +18,6 @@ use thunderdome::{Arena, Index};
 
 use crate::internal::types::HashMap;
 use crate::{
-    action::{ActionHierarchyType, ParentActionType},
     internal::interaction_profile::InteractionProfileState,
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
     session::Session,
@@ -180,7 +178,7 @@ impl WorkerThread {
 
             self.sessions.insert(
                 session.runtime_handle,
-                (session.clone(), WorkingUser::new(&session.actions)),
+                (session.clone(), WorkingUser::new(&session.action_sets)),
             );
         }
 
@@ -196,7 +194,8 @@ impl WorkerThread {
 
         let mut user_action_states = session.user.action_states.write();
 
-        for (path, action_state) in working_user.action_states.states.iter_mut() {
+        for (path, working_action_state) in working_user.action_states.iter_mut() {
+            let action_state = &mut working_action_state.state;
             if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
                 user_action_states.insert(
                     *path,

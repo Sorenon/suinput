@@ -14,7 +14,10 @@ use super::{
     motion::GamepadMotion,
     paths::{InputPath, UserPath},
 };
-use crate::{internal::types::HashMap, types::action_type::{Value, Axis2d}};
+use crate::{
+    internal::types::HashMap,
+    types::action_type::{Axis2d, Value},
+};
 
 #[derive(Debug)]
 pub(crate) struct InteractionProfileState {

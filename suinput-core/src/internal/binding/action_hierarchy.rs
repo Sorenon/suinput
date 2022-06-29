@@ -1,11 +1,12 @@
-use crate::{internal::{input_events::InputEventType, types::HashMap}, types::action_type::{Value, Axis1d, Axis2d}};
-
-use nalgebra::Vector2;
-use suinput_types::{
-    action::ActionEventEnum,
+use crate::{
+    internal::{input_events::InputEventType, types::HashMap},
+    types::action_type::{Axis1d, Axis2d, Value},
 };
 
-use super::working_user::ActionStates;
+use nalgebra::Vector2;
+use suinput_types::action::ActionEventEnum;
+
+use super::working_user::WorkingActionState;
 
 pub enum ParentActionState {
     StickyBool {
@@ -38,7 +39,7 @@ pub enum ParentActionState {
 pub fn handle_sticky_bool_event(
     parent: u64,
     parent_action_states: &mut HashMap<u64, ParentActionState>,
-    action_states: &ActionStates,
+    action_states: &HashMap<u64, WorkingActionState>,
 ) -> Option<ActionEventEnum> {
     if let Some(ParentActionState::StickyBool {
         combined_state,
@@ -48,10 +49,22 @@ pub fn handle_sticky_bool_event(
         toggle,
     }) = parent_action_states.get_mut(&parent)
     {
-        let parent = action_states.get_bool(parent).unwrap_or_default();
-        let toggle = action_states.get_bool(*toggle).unwrap_or_default();
-        let release = action_states.get_bool(*release).unwrap_or_default();
-        let press = action_states.get_bool(*press).unwrap_or_default();
+        let parent = action_states
+            .get(&parent)
+            .map(|v| bool::from_ase(&v.state))
+            .unwrap_or_default();
+        let toggle = action_states
+            .get(&toggle)
+            .map(|v| bool::from_ase(&v.state))
+            .unwrap_or_default();
+        let release = action_states
+            .get(&release)
+            .map(|v| bool::from_ase(&v.state))
+            .unwrap_or_default();
+        let press = action_states
+            .get(&press)
+            .map(|v| bool::from_ase(&v.state))
+            .unwrap_or_default();
 
         if toggle {
             *stuck = !*stuck;
@@ -81,7 +94,7 @@ pub fn handle_sticky_bool_event(
 pub fn handle_axis1d_event(
     parent: u64,
     parent_action_states: &mut HashMap<u64, ParentActionState>,
-    action_states: &ActionStates,
+    states: &HashMap<u64, WorkingActionState>,
 ) -> Option<ActionEventEnum> {
     if let Some(ParentActionState::Axis1d {
         combined_state,
@@ -89,18 +102,17 @@ pub fn handle_axis1d_event(
         negative,
     }) = parent_action_states.get_mut(&parent)
     {
-        let states = &action_states.states;
         let positive = states
             .get(&positive)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
         let negative = states
             .get(&negative)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
         let parent = states
             .get(&parent)
-            .map(|v| Axis1d::from_ase(v))
+            .map(|v| Axis1d::from_ase(&v.state))
             .unwrap_or_default();
 
         let new_combined_state = (positive - negative + parent).clamp(-1., 1.);
@@ -121,7 +133,7 @@ pub fn handle_axis1d_event(
 pub fn handle_axis2d_event(
     parent: u64,
     parent_action_states: &mut HashMap<u64, ParentActionState>,
-    action_states: &ActionStates,
+    states: &HashMap<u64, WorkingActionState>,
 ) -> Option<ActionEventEnum> {
     if let Some(ParentActionState::Axis2d {
         combined_state,
@@ -133,36 +145,35 @@ pub fn handle_axis2d_event(
         horizontal,
     }) = parent_action_states.get_mut(&parent)
     {
-        let states = &action_states.states;
         let parent = states
             .get(&parent)
-            .map(|v| Axis2d::from_ase(v))
+            .map(|v| Axis2d::from_ase(&v.state))
             .unwrap_or_default();
 
         let up = states
             .get(&up)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
         let down = states
             .get(&down)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
         let left = states
             .get(&left)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
         let right = states
             .get(&right)
-            .map(|v| Value::from_ase(v))
+            .map(|v| Value::from_ase(&v.state))
             .unwrap_or_default();
 
         let horizontal = states
             .get(&horizontal)
-            .map(|v| Axis1d::from_ase(v))
+            .map(|v| Axis1d::from_ase(&v.state))
             .unwrap_or_default();
         let vertical = states
             .get(&vertical)
-            .map(|v| Axis1d::from_ase(v))
+            .map(|v| Axis1d::from_ase(&v.state))
             .unwrap_or_default();
 
         let new_combined_state = Vector2::new(

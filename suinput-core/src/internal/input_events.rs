@@ -158,7 +158,7 @@ impl InputEventType for crate::types::action_type::Axis1d {
         }
     }
 
-    fn from_ics(ics: &InputComponentState) -> Self::Value {
+    fn from_ics(_: &InputComponentState) -> Self::Value {
         todo!()
     }
 }

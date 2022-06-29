@@ -1,7 +1,7 @@
 use parking_lot::{Mutex, RwLock};
 use suinput_types::{action::ActionStateEnum, SuPath};
 
-use crate::internal::binding::binding_engine::ProcessedBindingLayout;
+use crate::internal::binding::binding_engine::processed_binding_layout::ProcessedBindingLayout;
 use crate::internal::types::HashMap;
 
 #[derive(Default)]

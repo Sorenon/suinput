@@ -10,7 +10,7 @@ use suinput_types::{
 
 use crate::{
     action::Action,
-    internal::binding::binding_engine::ProcessedBindingLayout,
+    internal::binding::binding_engine::processed_binding_layout::ProcessedBindingLayout,
     session::{self, Session},
     user::User,
 };

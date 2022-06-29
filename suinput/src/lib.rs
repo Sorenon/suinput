@@ -152,8 +152,6 @@ impl SuInstance {
 #[derive(Clone)]
 pub struct SuSession(Inner<session::Session>);
 
-pub use suinput_types::action::ActionStateEnum;
-
 impl SuSession {
     pub fn set_window(&self, window: usize) {
         match &self.0 {

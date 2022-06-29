@@ -6,7 +6,6 @@ use std::{
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
 
-use crate::{internal::types::HashMap, types::action_type::ActionType};
 use crate::{
     action::Action,
     action_set::ActionSet,
@@ -15,6 +14,7 @@ use crate::{
     runtime::Runtime,
     user::User,
 };
+use crate::{internal::types::HashMap, types::action_type::ActionType};
 
 pub struct Session {
     pub runtime_handle: u64,

@@ -57,6 +57,7 @@ pub(crate) mod private {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BooleanActionCreateInfo {
     pub sticky: bool,
 }

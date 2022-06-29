@@ -21,6 +21,8 @@ struct Listener {
     cursor: SuAction<Cursor>,
     thrust: SuAction<Axis1d>,
     r#move: SuAction<Axis2d>,
+    overridden: SuAction<bool>,
+    priority_action: SuAction<bool>,
 }
 
 impl ActionListener for Listener {
@@ -37,29 +39,6 @@ impl ActionListener for Listener {
             }
         } else if event.action_handle == self.zoom.handle() {
             println!("zoom {:?}", event.data)
-        // } else if event.action_handle == self.turn.handle() {
-        //     if let ActionEventEnum::Delta2D { delta } = event.data {
-        //         // println!("turn {delta:?}");
-
-        //         // self.pitch += delta.1 as f32;
-        //         // self.yaw += delta.0 as f32;
-        //         // self.idx += 1;
-
-        //         // if self.idx % 30 == 0 {
-        //         //     println!("{:4?}, {:4?}", self.pitch, self.yaw)
-        //         // }
-        //     }
-        } else if event.action_handle == self.cursor.handle() {
-            if let ActionEventEnum::Cursor {
-                normalized_window_coords,
-            } = event.data
-            {
-                let x = normalized_window_coords.x;
-                let y = normalized_window_coords.y;
-                if x <= 1. && x >= 0. && y <= 1. && y >= 0. {
-                    // println!("cursor moved to {normalized_window_coords:?}");
-                }
-            }
         } else if event.action_handle == self.thrust.handle() {
             if let ActionEventEnum::Axis1d { state } = event.data {
                 println!("thrust {state}");
@@ -68,6 +47,10 @@ impl ActionListener for Listener {
             if let ActionEventEnum::Axis2d { state } = event.data {
                 println!("move {state:?}");
             }
+        } else if event.action_handle == self.overridden.handle() {
+            println!("This should not fire")
+        } else if event.action_handle == self.priority_action.handle() {
+            println!("Overridden")
         }
     }
 }
@@ -85,7 +68,8 @@ fn main() -> Result<(), anyhow::Error> {
     let instance = runtime.create_instance("Test Application");
 
     let action_set = instance.create_action_set("gameplay", 0);
-    let jump_action = action_set.create_action("jump", BooleanActionCreateInfo { sticky: false });
+    let priority_action_set = instance.create_action_set("higher_priority", 1);
+    let jump_action = action_set.create_action("jump", BooleanActionCreateInfo::default());
     let zoom_action = action_set.create_action("zoom", BooleanActionCreateInfo { sticky: true });
     let turn_action = action_set.create_action("turn", ());
     let cursor_action = action_set.create_action("cursor", ());
@@ -108,6 +92,10 @@ fn main() -> Result<(), anyhow::Error> {
         },
     );
 
+    let overridden = action_set.create_action("overriden", BooleanActionCreateInfo::default());
+    let priority_action =
+        priority_action_set.create_action("priority_action", BooleanActionCreateInfo::default());
+
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
     let binding_layout = instance.create_binding_layout(
@@ -117,6 +105,10 @@ fn main() -> Result<(), anyhow::Error> {
             SimpleBinding {
                 action: jump_action.handle(),
                 path: instance.get_path("/user/desktop/keyboard/input/button_space/click")?,
+            },
+            SimpleBinding {
+                action: jump_action.handle(),
+                path: instance.get_path("/user/desktop/keyboard/input/button_v/click")?,
             },
             //Zoom in if the user holds right click
             SimpleBinding {
@@ -165,6 +157,14 @@ fn main() -> Result<(), anyhow::Error> {
                 action: move_action.get_child_action(ChildActionType::Left),
                 path: instance.get_path("/user/desktop/keyboard/input/button_a/click")?,
             },
+            SimpleBinding {
+                action: overridden.handle(),
+                path: instance.get_path("/user/desktop/keyboard/input/button_t/click")?,
+            },
+            SimpleBinding {
+                action: priority_action.handle(),
+                path: instance.get_path("/user/desktop/keyboard/input/button_t/click")?,
+            },
         ],
     )?;
 
@@ -205,7 +205,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     instance.set_default_binding_layout(dualsense_profile, &binding_layout);
 
-    let session = instance.create_session(&[&action_set]);
+    let session = instance.create_session(&[&action_set, &priority_action_set]);
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;
@@ -220,6 +220,8 @@ fn main() -> Result<(), anyhow::Error> {
         thrust: thrust_action.clone(),
         session: session.clone(),
         r#move: move_action.clone(),
+        overridden,
+        priority_action,
     }));
 
     let mut yaw = 0.;
