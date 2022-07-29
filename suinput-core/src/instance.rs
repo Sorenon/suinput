@@ -1,6 +1,6 @@
-use std::sync::{atomic::AtomicBool, Arc, Weak};
+use std::sync::{Arc, Weak};
 
-use crate::internal::types::HashMap;
+use crate::internal::{inner_session::InnerSession, types::HashMap, worker_thread::WorkerThreadEvent};
 
 use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RwLock};
@@ -151,8 +151,9 @@ impl Instance {
                 })
                 .collect::<Vec<_>>();
 
+            let (driver_events_send, driver_events_rec) = flume::unbounded();
+
             let session = Arc::new(session::Session {
-                runtime_handle: runtime_sessions.len() as u64 + 1,
                 runtime: self.runtime.clone(),
                 instance: Arc::downgrade(self),
                 user: Arc::new(user),
@@ -169,12 +170,17 @@ impl Instance {
                             .map(|action| (action.handle, action.clone()))
                     })
                     .collect(),
+                inner: Mutex::new(InnerSession::new(&runtime, &action_sets)),
                 action_sets,
-                done: AtomicBool::new(false),
+                driver_events_send,
+                driver_events_rec,
             });
 
-            runtime_sessions.push(session.clone());
+
+            let handle = runtime_sessions.insert(session.clone());
             instance_sessions.push(session.clone());
+
+            runtime.worker_thread_sender.send(WorkerThreadEvent::CreateSession { handle }).unwrap();
 
             session
         };

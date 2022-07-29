@@ -3,22 +3,22 @@ use std::{
     sync::{atomic::AtomicBool, Arc, Weak},
 };
 
+use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
+use thunderdome::Index;
 
 use crate::{
     action::Action,
     action_set::ActionSet,
     instance::Instance,
-    internal::worker_thread::{OutputEvent, WorkerThreadEvent},
-    runtime::Runtime,
+    internal::inner_session::{InnerSession, Runtime2SessionEvent},
+    runtime::{Driver2RuntimeEvent, Runtime},
     user::User,
 };
 use crate::{internal::types::HashMap, types::action_type::ActionType};
 
 pub struct Session {
-    pub runtime_handle: u64,
-
     pub(crate) runtime: Weak<Runtime>,
     pub(crate) instance: Weak<Instance>,
     pub(crate) window: Mutex<Option<NonZeroUsize>>,
@@ -30,7 +30,10 @@ pub struct Session {
     pub(crate) action_sets: Vec<Arc<ActionSet>>,
     pub(crate) actions: HashMap<u64, Arc<Action>>, //TODO dynamic action sets
 
-    pub(crate) done: AtomicBool,
+    pub(crate) driver_events_send: Sender<Runtime2SessionEvent>,
+    pub(crate) driver_events_rec: Receiver<Runtime2SessionEvent>,
+    // pub(crate) action_events: RingBuffer<Driver2RuntimeEvent>,
+    pub(crate) inner: Mutex<InnerSession>,
 }
 
 impl Session {
@@ -43,21 +46,14 @@ impl Session {
     }
 
     pub fn poll(&self) {
-        //TODO investigate performance of this and alternatives (e.g. CondVars)
-        self.done.store(false, std::sync::atomic::Ordering::Relaxed);
-
-        self.runtime
-            .upgrade()
-            .unwrap()
-            .worker_thread_sender
-            .send(WorkerThreadEvent::Poll {
-                session: self.runtime_handle,
-            })
-            .unwrap();
-
-        while !self.done.load(std::sync::atomic::Ordering::Relaxed) {
-            std::hint::spin_loop();
-        }
+        let mut inner = self.inner.lock();
+        inner.sync(
+            self.runtime.upgrade().unwrap(),
+            &self.driver_events_rec,
+            &self.user,
+            &self.actions,
+            &mut self.listeners.write(),
+        );
     }
 
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
@@ -69,13 +65,15 @@ impl Session {
     pub fn unstick_bool_action(&self, action: &Action) {
         let runtime = self.runtime.upgrade().unwrap();
 
-        runtime
-            .worker_thread_sender
-            .send(WorkerThreadEvent::Output(OutputEvent::ReleaseStickyBool {
-                session: self.runtime_handle,
-                action: action.handle,
-            }))
-            .unwrap();
+        // runtime
+        //     .worker_thread_sender
+        //     .send(WorkerThreadEvent::Output(OutputEvent::ReleaseStickyBool {
+        //         session: self.runtime_handle,
+        //         action: action.handle,
+        //     }))
+        //     .unwrap();
+
+        todo!()
     }
 
     pub fn get_action_state<T: ActionType>(&self, action: &Action) -> Result<T::Value, ()> {

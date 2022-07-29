@@ -2,51 +2,47 @@ use std::{
     ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
-    time::Instant,
 };
 
 use flume::Receiver;
 
+use log::warn;
 use parking_lot::Mutex;
 
 use suinput_types::{
-    action::{ActionEvent, ActionStateEnum},
+    action::ActionStateEnum,
     event::{Cursor, InputComponentEvent, InputEvent},
     Time,
 };
 use thunderdome::{Arena, Index};
 
-use crate::internal::types::HashMap;
 use crate::{
     internal::interaction_profile::InteractionProfileState,
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
     session::Session,
 };
+use crate::{internal::types::HashMap, session};
 
 use super::{
     binding::{
-        action_hierarchy::{handle_sticky_bool_event, ParentActionState},
+        action_hierarchy::ParentActionState,
         working_user::{AttachedBindingLayout, WorkingUser},
     },
     device::DeviceState,
+    inner_session::Runtime2SessionEvent,
+    parallel_arena::ParallelArena,
     paths::DevicePath,
 };
 
 #[derive(Debug)]
 pub enum WorkerThreadEvent {
-    Poll {
-        session: u64,
-    },
-    Output(OutputEvent),
-    DriverEvent {
+    Driver {
         id: usize,
         event: Driver2RuntimeEvent,
     },
-}
-
-#[derive(Debug)]
-pub enum OutputEvent {
-    ReleaseStickyBool { session: u64, action: u64 },
+    CreateSession {
+        handle: Index,
+    },
 }
 
 pub fn spawn_thread(
@@ -62,10 +58,7 @@ pub fn spawn_thread(
 
         while let Ok(event) = driver2runtime_receiver.recv() {
             match event {
-                WorkerThreadEvent::Poll { session } => {
-                    worker_thread.poll(session);
-                }
-                WorkerThreadEvent::DriverEvent { id, event } => match event {
+                WorkerThreadEvent::Driver { id, event } => match event {
                     Driver2RuntimeEvent::RegisterDevice(ty) => {
                         worker_thread.register_new_device(id, ty);
                     }
@@ -73,64 +66,35 @@ pub fn spawn_thread(
                         worker_thread.on_input_event(event);
                     }
                     Driver2RuntimeEvent::BatchInput(batch_update) => {
-                        let (device, _) = worker_thread
-                            .device_states
-                            .get_mut(Index::from_bits(batch_update.device).unwrap())
-                            .unwrap();
-
-                        device
-                            .handle_batch(batch_update.time, &batch_update.inner)
-                            .unwrap();
-
-                        for (path, data) in batch_update.inner {
-                            worker_thread.on_input_event(InputEvent {
-                                device: batch_update.device,
-                                time: Time(0),
-                                path,
-                                data,
-                            })
-                        }
+                        todo!()
                     }
                     Driver2RuntimeEvent::DisconnectDevice(id) => {
                         let device_idx = Index::from_bits(id).unwrap();
-                        let (_, interaction_profile_id) =
-                            worker_thread.device_states.get(device_idx).unwrap();
 
-                        worker_thread
-                            .interaction_profile_states
-                            .get_mut(*interaction_profile_id)
-                            .unwrap()
-                            .device_removed(device_idx, &worker_thread.device_states);
                         worker_thread.device_states.remove(device_idx);
                     }
                 },
-                WorkerThreadEvent::Output(data) => match data {
-                    OutputEvent::ReleaseStickyBool { session, action } => {
-                        let (session, working_user) =
-                            worker_thread.sessions.get_mut(&session).unwrap();
-
-                        if let Some(ParentActionState::StickyBool { stuck, .. }) =
-                            working_user.parent_action_states.get_mut(&action)
-                        {
-                            *stuck = false;
+                WorkerThreadEvent::CreateSession { handle } => {
+                    let session = worker_thread.runtime.sessions.read().get(handle).cloned();
+                    if let Some(session) = session {
+                        for (device_index, device_state) in worker_thread.device_states.iter() {
+                            session
+                                .driver_events_send
+                                .send(Runtime2SessionEvent::RegisterDevice {
+                                    idx: device_index,
+                                    ty: device_state.ty.clone(),
+                                })
+                                .unwrap();
                         }
 
-                        if let Some(event) = handle_sticky_bool_event(
-                            action,
-                            &mut working_user.parent_action_states,
-                            &working_user.action_states,
-                        ) {
-                            let event = ActionEvent {
-                                action_handle: action,
-                                time: Instant::now(),
-                                data: event,
-                            };
-                            for listener in session.listeners.write().iter_mut() {
-                                listener.handle_event(event, 0);
-                            }
-                        }
+                        worker_thread.sessions.insert_at(handle, session);
+                    } else {
+                        warn!(
+                            "Session {:?} deleted before worker thread initialization",
+                            handle
+                        )
                     }
-                },
+                }
             }
         }
     })
@@ -138,121 +102,26 @@ pub fn spawn_thread(
 
 struct WorkerThread {
     runtime: Arc<Runtime>,
-
-    //For now we just assume one user per session
-    sessions: HashMap<u64, (Arc<Session>, WorkingUser)>,
-
-    device_states: Arena<(DeviceState, Index)>,
-    interaction_profile_states: Arena<InteractionProfileState>,
-
-    desktop_profile_id: Index,
+    sessions: ParallelArena<Arc<Session>>,
+    device_states: Arena<DeviceState>,
 }
 
 impl WorkerThread {
     pub fn new(runtime: Weak<Runtime>) -> Self {
-        let runtime = runtime.upgrade().unwrap();
-
-        let mut interaction_profile_states = Arena::<InteractionProfileState>::new();
-
-        let desktop_profile_id = interaction_profile_states.insert(InteractionProfileState::new(
-            runtime
-                .interaction_profile_types
-                .get(runtime.common_paths.desktop)
-                .unwrap()
-                .clone(),
-        ));
-
         Self {
-            runtime,
-            sessions: HashMap::new(),
+            runtime: runtime.upgrade().unwrap(),
+            sessions: ParallelArena::new(),
             device_states: Arena::new(),
-            interaction_profile_states,
-            desktop_profile_id,
         }
-    }
-
-    fn poll(&mut self, session: u64) {
-        if !self.sessions.contains_key(&session) {
-            let runtime_sessions = self.runtime.sessions.read();
-            let session = runtime_sessions.get(session as usize - 1).unwrap();
-
-            self.sessions.insert(
-                session.runtime_handle,
-                (session.clone(), WorkingUser::new(&session.action_sets)),
-            );
-        }
-
-        let (session, working_user) = self.sessions.get_mut(&session).unwrap();
-
-        let user = &session.user;
-
-        for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
-            working_user
-                .binding_layouts
-                .insert(profile, AttachedBindingLayout::new(binding_layout));
-        }
-
-        let mut user_action_states = session.user.action_states.write();
-
-        for (path, working_action_state) in working_user.action_states.iter_mut() {
-            let action_state = &mut working_action_state.state;
-            if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
-                user_action_states.insert(
-                    *path,
-                    match parent_action_state {
-                        ParentActionState::StickyBool { combined_state, .. } => {
-                            ActionStateEnum::Boolean(*combined_state)
-                        }
-                        ParentActionState::Axis1d { combined_state, .. } => {
-                            ActionStateEnum::Axis1d(*combined_state)
-                        }
-                        ParentActionState::Axis2d { combined_state, .. } => {
-                            ActionStateEnum::Axis2d((*combined_state).into())
-                        }
-                    },
-                );
-            } else {
-                user_action_states.insert(*path, *action_state);
-            }
-
-            match action_state {
-                ActionStateEnum::Delta2d(delta) => {
-                    *delta = mint::Vector2 { x: 0., y: 0. };
-                }
-                _ => (),
-            }
-        }
-
-        session
-            .done
-            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     fn register_new_device(&mut self, driver_id: usize, ty: DevicePath) {
-        let interaction_profile_id = if ty == self.runtime.common_paths.system_cursor
-            || ty == self.runtime.common_paths.keyboard
-            || ty == self.runtime.common_paths.mouse
-        {
-            self.desktop_profile_id
-        } else if ty == self.runtime.controller_paths.device_dual_sense {
-            let interaction_profile_type = self
-                .runtime
-                .interaction_profile_types
-                .get(self.runtime.controller_paths.interaction_profile_dualsense)
-                .unwrap();
-            self.interaction_profile_states
-                .insert(InteractionProfileState::new(
-                    interaction_profile_type.clone(),
-                ))
-        } else {
-            todo!()
-        };
+        let device_type = self.runtime.device_types.get(ty).unwrap();
 
         //TODO: Device ID persistence
-        let device_id = self.device_states.insert((
-            DeviceState::new(self.runtime.device_types.get(ty).unwrap().clone()),
-            interaction_profile_id,
-        ));
+        let device_id = self
+            .device_states
+            .insert(DeviceState::new(device_type.clone()));
 
         self.runtime
             .driver_response_senders
@@ -262,53 +131,26 @@ impl WorkerThread {
             .send(Driver2RuntimeEventResponse::DeviceId(device_id.to_bits()))
             .expect("Driver response channel closed unexpectedly");
 
-        self.interaction_profile_states
-            .get_mut(interaction_profile_id)
-            .unwrap()
-            .device_added(device_id, ty);
+        for session in self.sessions.iter() {
+            session
+                .driver_events_send
+                .send(Runtime2SessionEvent::RegisterDevice {
+                    idx: device_id,
+                    ty: device_type.clone(),
+                })
+                .unwrap();
+        }
     }
 
     fn on_input_event(&mut self, event: InputEvent) {
         let device_idx = Index::from_bits(event.device).unwrap();
+        self.device_states.get(device_idx).unwrap();
 
-        let device = self.device_states.get_mut(device_idx).unwrap();
-        if let Some(event) = device.0.process_input_event(event) {
-            let (_, interaction_profile_id) = self.device_states.get(device_idx).unwrap();
-            self.interaction_profile_states
-                .get_mut(*interaction_profile_id)
-                .unwrap()
-                .update_component(
-                    &event,
-                    &self.device_states,
-                    |profile_state, user_path, event, devices| {
-                        // println!("{event:?}");
-
-                        for (session, working_user) in self.sessions.values_mut() {
-                            if let InputComponentEvent::Cursor(Cursor {
-                                window: Some(window),
-                                ..
-                            }) = event.data
-                            {
-                                let session_window = session.window.lock();
-                                if let Some(session_window) = session_window.deref() {
-                                    if *session_window != window {
-                                        return;
-                                    }
-                                } else {
-                                    return;
-                                }
-                            }
-
-                            working_user.on_event(
-                                &profile_state,
-                                user_path,
-                                event,
-                                session,
-                                devices,
-                            );
-                        }
-                    },
-                );
+        for session in self.sessions.iter() {
+            session
+                .driver_events_send
+                .send(Runtime2SessionEvent::Input(event))
+                .unwrap();
         }
     }
 }

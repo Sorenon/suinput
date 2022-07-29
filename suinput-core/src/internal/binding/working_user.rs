@@ -2,16 +2,16 @@ use std::{sync::Arc, time::Instant, vec::IntoIter};
 
 use nalgebra::Vector2;
 use suinput_types::{
-    action::{ActionEvent, ActionEventEnum, ActionStateEnum, ChildActionType},
+    action::{ActionEvent, ActionEventEnum, ActionListener, ActionStateEnum, ChildActionType},
     event::InputEvent,
-    SuPath,
+    SuPath, ActionHandle,
 };
-use thunderdome::{Arena, Index};
+use thunderdome::Index;
 
 use crate::{
-    action::ActionTypeEnum,
+    action::{ActionTypeEnum, Action},
     action_set::ActionSet,
-    internal::types::HashMap,
+    internal::{parallel_arena::ParallelArena, types::HashMap},
     types::action_type::{Axis2d, Value},
 };
 use crate::{
@@ -162,8 +162,9 @@ impl WorkingUser {
         interaction_profile: &InteractionProfileState,
         user_path: SuPath,
         event: &InputEvent,
-        session: &Session,
-        devices: &Arena<(DeviceState, Index)>,
+        actions: &HashMap<u64, Arc<Action>>,
+        callbacks: &mut [Box<dyn ActionListener>],
+        devices: &ParallelArena<(DeviceState, Index)>,
     ) {
         if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.ty.id) {
             let mut wui = WorkingUserInterface {
@@ -194,7 +195,8 @@ impl WorkingUser {
 
             for (action_handle, interaction_profile_id, binding_event) in layout_events.drain(..) {
                 self.handle_binding_event(
-                    session,
+                    callbacks,
+                    actions,
                     action_handle,
                     interaction_profile_id,
                     binding_event,
@@ -207,7 +209,8 @@ impl WorkingUser {
 
     fn handle_binding_event(
         &mut self,
-        session: &Session,
+        callbacks: &mut [Box<dyn ActionListener>],
+        actions: &HashMap<u64, Arc<Action>>,
         action_handle: u64,
         interaction_profile_id: InteractionProfilePath,
         binding_event: ActionStateEnum,
@@ -271,7 +274,7 @@ impl WorkingUser {
         };
 
         if let Some(event) = event {
-            let action = session.actions.get(&action_handle).unwrap();
+            let action = actions.get(&action_handle).unwrap();
 
             let mut action_handle = action_handle;
 
@@ -367,7 +370,7 @@ impl WorkingUser {
                     time: Instant::now(),
                     data: event,
                 };
-                for listener in session.listeners.write().iter_mut() {
+                for listener in callbacks.iter_mut() {
                     listener.handle_event(event, 0);
                 }
             }

@@ -8,6 +8,7 @@ use suinput_types::{
 use thunderdome::{Arena, Index};
 
 use crate::internal::input_events::InputEventSources;
+use crate::internal::parallel_arena::ParallelArena;
 use crate::internal::types::{hash_map::Entry, HashMap};
 use crate::types::action_type::{Axis1d, Axis2d, Value};
 use crate::{
@@ -216,7 +217,7 @@ impl ProcessedBindingLayout {
         user_path: SuPath,
         event: &InputEvent,
         interaction_profile: &InteractionProfileState,
-        devices: &Arena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, Index)>,
         interface: &mut WorkingUserInterface,
     ) {
         if let Some(component_bindings) = self.input_bindings.get(&user_path) {

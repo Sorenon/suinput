@@ -16,6 +16,7 @@ use suinput_types::{
     controller_paths::GameControllerPaths, event::InputEvent, event::PathFormatError,
     keyboard::KeyboardPaths, SuPath,
 };
+use thunderdome::Arena;
 
 use crate::{
     driver_interface::*,
@@ -43,7 +44,7 @@ pub struct Runtime {
     drivers: RwLock<Vec<Box<dyn SuInputDriver>>>,
 
     pub(crate) instances: RwLock<Vec<Arc<Instance>>>,
-    pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
+    pub(crate) sessions: RwLock<Arena<Arc<Session>>>,
 }
 
 impl Runtime {
@@ -122,7 +123,7 @@ impl Runtime {
         let sessions = self.sessions.read();
         let window_guards = sessions
             .iter()
-            .map(|session| session.window.lock())
+            .map(|(_, session)| session.window.lock())
             .collect::<Vec<_>>();
 
         let windows = window_guards
@@ -170,7 +171,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send(WorkerThreadEvent::DriverEvent {
+            .send(WorkerThreadEvent::Driver {
                 id: self.idx,
                 event: Driver2RuntimeEvent::RegisterDevice(device_type),
             })
@@ -191,7 +192,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send(WorkerThreadEvent::DriverEvent {
+            .send(WorkerThreadEvent::Driver {
                 id: self.idx,
                 event: Driver2RuntimeEvent::DisconnectDevice(device_id),
             })
@@ -208,7 +209,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send(WorkerThreadEvent::DriverEvent {
+            .send(WorkerThreadEvent::Driver {
                 id: self.idx,
                 event: Driver2RuntimeEvent::Input(component_event),
             })
@@ -238,7 +239,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
         }
 
         self.sender
-            .send(WorkerThreadEvent::DriverEvent {
+            .send(WorkerThreadEvent::Driver {
                 id: self.idx,
                 event: Driver2RuntimeEvent::BatchInput(batch_update),
             })

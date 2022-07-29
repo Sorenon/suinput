@@ -8,7 +8,7 @@ use suinput_types::{
 };
 use thunderdome::{Arena, Index};
 
-use crate::internal::{device::DeviceState, interaction_profile::InteractionProfileState};
+use crate::internal::{device::DeviceState, interaction_profile::InteractionProfileState, parallel_arena::ParallelArena};
 
 #[derive(Debug, Clone)]
 pub enum ProcessedBinding {
@@ -39,7 +39,7 @@ impl ProcessedBinding {
         user_path: SuPath,
         event: &InputEvent,
         interaction_profile: &InteractionProfileState,
-        devices: &Arena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, Index)>,
     ) -> Option<ActionStateEnum> {
         match (self, event.data) {
             (ProcessedBinding::Button2Bool, InputComponentEvent::Button(state)) => {
