@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use suinput_types::action::ChildActionType;
 
 use crate::{
-    action::{Action, ActionHierarchyType, ActionTypeEnum, ParentActionType},
+    action::{Action, ActionCompoundType, ActionTypeEnum, ParentActionType},
     types::action_type::ActionType,
 };
 
@@ -70,7 +70,7 @@ impl ActionSet {
                 action_set: Arc::downgrade(self),
                 name: name.into(),
                 data_type: action_type,
-                hierarchy_type: ActionHierarchyType::Parent {
+                compound: ActionCompoundType::Parent {
                     ty: parent_action_type,
                 },
             }
@@ -96,7 +96,7 @@ impl ActionSet {
             action_set: Arc::downgrade(self),
             name: name,
             data_type: action_type,
-            hierarchy_type: ActionHierarchyType::Child {
+            compound: ActionCompoundType::Child {
                 parent,
                 ty: child_action_type,
             },

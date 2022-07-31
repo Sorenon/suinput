@@ -1,4 +1,6 @@
-use std::{borrow::BorrowMut, cell::RefCell, sync::Arc, time::Instant, vec::IntoIter, ops::DerefMut};
+use std::{
+    borrow::BorrowMut, cell::RefCell, ops::DerefMut, sync::Arc, time::Instant, vec::IntoIter,
+};
 
 use nalgebra::Vector2;
 use suinput_types::{
@@ -11,11 +13,15 @@ use thunderdome::Index;
 use crate::{
     action::{Action, ActionTypeEnum},
     action_set::ActionSet,
-    internal::{parallel_arena::ParallelArena, types::HashMap},
+    internal::{
+        compound_action::{CompoundActionState, StickyBoolState},
+        parallel_arena::ParallelArena,
+        types::HashMap,
+    },
     types::action_type::{Axis2d, Value},
 };
 use crate::{
-    action::{ActionHierarchyType, ParentActionType},
+    action::{ActionCompoundType, ParentActionType},
     internal::{
         device::DeviceState,
         input_events::{InputEventSources, InputEventType},
@@ -26,7 +32,7 @@ use crate::{
 
 use super::{
     action_hierarchy::{
-        handle_axis1d_event, handle_axis2d_event, handle_sticky_bool_event, ParentActionState,
+        handle_axis1d_event, handle_axis2d_event, ParentActionState,
     },
     binding_engine::{processed_binding_layout::ProcessedBindingLayout, WorkingUserInterface},
 };
@@ -36,6 +42,7 @@ pub struct WorkingUser {
 
     pub action_states: HashMap<u64, WorkingActionState>,
     pub parent_action_states: HashMap<u64, ParentActionState>,
+    pub compound_action_states: HashMap<u64, Box<dyn CompoundActionState>>,
 }
 
 pub struct WorkingActionState {
@@ -91,8 +98,8 @@ impl WorkingUser {
                     .get()
                     .expect("Session created with unbaked action set")
                     .iter()
-                    .filter_map(|action| match &action.hierarchy_type {
-                        ActionHierarchyType::Parent {
+                    .filter_map(|action| match &action.compound {
+                        ActionCompoundType::Parent {
                             ty:
                                 ParentActionType::StickyBool {
                                     sticky_press,
@@ -109,7 +116,7 @@ impl WorkingUser {
                                 toggle: sticky_toggle.handle,
                             },
                         )),
-                        ActionHierarchyType::Parent {
+                        ActionCompoundType::Parent {
                             ty: ParentActionType::Axis1d { positive, negative },
                         } => Some((
                             action.handle,
@@ -119,7 +126,7 @@ impl WorkingUser {
                                 negative: negative.handle,
                             },
                         )),
-                        ActionHierarchyType::Parent {
+                        ActionCompoundType::Parent {
                             ty:
                                 ParentActionType::Axis2d {
                                     up,
@@ -146,14 +153,35 @@ impl WorkingUser {
             })
             .collect();
 
+        let compound_action_states = action_sets
+            .iter()
+            .flat_map(|action_set| {
+                action_set
+                    .baked_actions
+                    .get()
+                    .expect("Session created with unbaked action set")
+                    .iter()
+                    .filter_map(|action| match &action.compound {
+                        ActionCompoundType::Parent {
+                            ty: ParentActionType::StickyBool { .. },
+                        } => Some((
+                            action.handle,
+                            Box::new(StickyBoolState::default()) as Box<dyn CompoundActionState>,
+                        )),
+                        _ => None,
+                    })
+            })
+            .collect();
+
         Self {
             binding_layouts: HashMap::new(),
             action_states,
             parent_action_states,
+            compound_action_states,
         }
     }
 
-    pub(crate) fn on_event(
+    pub(crate) fn on_interaction_profile_event(
         &mut self,
         interaction_profile: &InteractionProfileState,
         user_path: SuPath,
@@ -167,24 +195,25 @@ impl WorkingUser {
             let attached_binding_layout = attached_binding_layout_ref.deref_mut();
 
             let mut wui = WorkingUserInterface {
-                path: interaction_profile.ty.id,
                 binding_layout_action_states: &mut attached_binding_layout.action_states,
                 binding_layouts: &self.binding_layouts,
                 action_states: &mut self.action_states,
-                parent_action_states: &mut self.parent_action_states,
+                compound_action_states: &mut self.compound_action_states,
                 callbacks,
                 actions,
                 interaction_profile_id: interaction_profile.ty.id,
             };
 
-            attached_binding_layout.binding_layout.on_event(user_path, event, interaction_profile, devices, &mut wui);
+            attached_binding_layout
+                .binding_layout
+                .handle_component_event(user_path, event, interaction_profile, devices, &mut wui);
         }
     }
 
     pub fn handle_binding_event(
         action_states: &mut HashMap<u64, WorkingActionState>,
         binding_layouts: &HashMap<SuPath, RefCell<AttachedBindingLayout>>,
-        parent_action_states: &mut HashMap<u64, ParentActionState>,
+        compound_action_states: &mut HashMap<u64, Box<dyn CompoundActionState>>,
         callbacks: &mut [Box<dyn ActionListener>],
         actions: &HashMap<u64, Arc<Action>>,
         action_handle: u64,
@@ -252,97 +281,27 @@ impl WorkingUser {
         if let Some(event) = event {
             let action = actions.get(&action_handle).unwrap();
 
-            let mut action_handle = action_handle;
+            let mut out_action = action_handle;
 
             //Child action processing
             //TODO rewrite this to be event driven and lower amount of HashMap indirections
-            let event = match &action.hierarchy_type {
-                ActionHierarchyType::Parent { ty } => match ty {
-                    ParentActionType::StickyBool { .. } => handle_sticky_bool_event(
-                        action_handle,
-                        parent_action_states,
-                        &action_states,
-                    ),
-                    ParentActionType::Axis1d { .. } => handle_axis1d_event(
-                        action_handle,
-                        parent_action_states,
-                        &action_states,
-                    ),
-                    ParentActionType::Axis2d { .. } => handle_axis2d_event(
-                        action_handle,
-                        parent_action_states,
-                        &action_states,
-                    ),
-                    ParentActionType::None => Some(event),
+            let event = match &action.compound {
+                ActionCompoundType::Parent { ty } => {
+                    let compound_state = compound_action_states.get_mut(&action_handle).unwrap();
+                    compound_state.on_action_event(&event, ChildActionType::Parent)
                 },
-                ActionHierarchyType::Child { parent, ty } => {
+                ActionCompoundType::Child { parent, ty } => {
                     let parent_handle = parent.upgrade().unwrap().handle;
-                    action_handle = parent_handle;
+                    out_action = parent_handle;
 
-                    match ty {
-                        ChildActionType::StickyPress => handle_sticky_bool_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::StickyRelease => handle_sticky_bool_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::StickyToggle => handle_sticky_bool_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Positive => handle_axis1d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Negative => handle_axis1d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Up => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Down => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Left => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Right => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Horizontal => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        ChildActionType::Vertical => handle_axis2d_event(
-                            parent_handle,
-                            parent_action_states,
-                            &action_states,
-                        ),
-                        _ => todo!(),
-                    }
+                    let compound_state = compound_action_states.get_mut(&parent_handle).unwrap();
+                    compound_state.on_action_event(&event, *ty)
                 }
             };
 
             if let Some(event) = event {
                 let event = ActionEvent {
-                    action_handle,
+                    action_handle: out_action,
                     time: Instant::now(),
                     data: event,
                 };

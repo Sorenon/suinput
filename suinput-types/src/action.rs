@@ -70,6 +70,7 @@ pub enum ActionStateEnum {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChildActionType {
+    Parent,
     StickyPress,
     StickyToggle,
     StickyRelease,

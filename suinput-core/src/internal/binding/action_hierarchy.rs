@@ -35,62 +35,6 @@ pub enum ParentActionState {
     },
 }
 
-//TODO make this truly event based to allow for repeat presses
-pub fn handle_sticky_bool_event(
-    parent: u64,
-    parent_action_states: &mut HashMap<u64, ParentActionState>,
-    action_states: &HashMap<u64, WorkingActionState>,
-) -> Option<ActionEventEnum> {
-    if let Some(ParentActionState::StickyBool {
-        combined_state,
-        stuck,
-        press,
-        release,
-        toggle,
-    }) = parent_action_states.get_mut(&parent)
-    {
-        let parent = action_states
-            .get(&parent)
-            .map(|v| bool::from_ase(&v.state))
-            .unwrap_or_default();
-        let toggle = action_states
-            .get(&toggle)
-            .map(|v| bool::from_ase(&v.state))
-            .unwrap_or_default();
-        let release = action_states
-            .get(&release)
-            .map(|v| bool::from_ase(&v.state))
-            .unwrap_or_default();
-        let press = action_states
-            .get(&press)
-            .map(|v| bool::from_ase(&v.state))
-            .unwrap_or_default();
-
-        if toggle {
-            *stuck = !*stuck;
-        }
-
-        if *stuck && release || press {
-            *stuck = press;
-        }
-
-        let last_state = *combined_state;
-
-        *combined_state = parent || *stuck;
-
-        if last_state != *combined_state {
-            Some(ActionEventEnum::Boolean {
-                state: *combined_state,
-                changed: true,
-            })
-        } else {
-            None
-        }
-    } else {
-        panic!()
-    }
-}
-
 pub fn handle_axis1d_event(
     parent: u64,
     parent_action_states: &mut HashMap<u64, ParentActionState>,

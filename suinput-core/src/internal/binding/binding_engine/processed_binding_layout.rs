@@ -212,7 +212,7 @@ impl ProcessedBindingLayout {
         binding_layout.processed.clone()
     }
 
-    pub(crate) fn on_event(
+    pub(crate) fn handle_component_event(
         &mut self,
         user_path: SuPath,
         event: &InputEvent,

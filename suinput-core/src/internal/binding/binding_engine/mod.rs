@@ -7,7 +7,7 @@ use suinput_types::{
 
 use crate::{
     action::Action,
-    internal::{paths::InteractionProfilePath, types::HashMap, interaction_profile_type::InteractionProfileType},
+    internal::{paths::InteractionProfilePath, types::HashMap, interaction_profile_type::InteractionProfileType, compound_action::CompoundActionState},
 };
 
 use super::{
@@ -19,14 +19,13 @@ mod processed_binding;
 pub mod processed_binding_layout;
 
 pub struct WorkingUserInterface<'a> {
-    pub(crate) path: InteractionProfilePath,
     pub(crate) binding_layouts: &'a HashMap<SuPath, RefCell<AttachedBindingLayout>>,
     pub(crate) binding_layout_action_states: &'a mut HashMap<u64, ActionStateEnum>,
 
     pub(crate) interaction_profile_id: InteractionProfilePath,
 
     pub(crate) action_states: &'a mut HashMap<u64, WorkingActionState>,
-    pub(crate) parent_action_states: &'a mut HashMap<u64, ParentActionState>,
+    pub(crate) compound_action_states: &'a mut HashMap<u64, Box<dyn CompoundActionState>>,
     pub(crate) callbacks: &'a mut [Box<dyn ActionListener>],
     pub(crate) actions: &'a HashMap<u64, Arc<Action>>,
 }
@@ -39,7 +38,7 @@ impl<'a> WorkingUserInterface<'a> {
         WorkingUser::handle_binding_event(
             self.action_states,
             self.binding_layouts,
-            self.parent_action_states,
+            self.compound_action_states,
             self.callbacks,
             self.actions,
             action,

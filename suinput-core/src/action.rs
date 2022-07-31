@@ -11,10 +11,10 @@ pub struct Action {
     pub name: String,
 
     pub data_type: ActionTypeEnum,
-    pub hierarchy_type: ActionHierarchyType,
+    pub compound: ActionCompoundType,
 }
 
-pub enum ActionHierarchyType {
+pub enum ActionCompoundType {
     Child {
         parent: Weak<Action>,
         ty: ChildActionType,
@@ -57,7 +57,7 @@ pub enum ActionTypeEnum {
 
 impl Action {
     pub fn get_child_action(&self, ty: ChildActionType) -> u64 {
-        if let ActionHierarchyType::Parent { ty: parent_type } = &self.hierarchy_type {
+        if let ActionCompoundType::Parent { ty: parent_type } = &self.compound {
             match &parent_type {
                 ParentActionType::StickyBool {
                     sticky_press,

@@ -193,7 +193,7 @@ impl InnerSession {
                     |profile_state, user_path, event, devices| {
                         // println!("{event:?}");
 
-                        self.user.on_event(
+                        self.user.on_interaction_profile_event(
                             &profile_state,
                             user_path,
                             event,

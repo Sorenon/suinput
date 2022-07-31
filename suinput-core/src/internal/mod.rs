@@ -1,4 +1,5 @@
 pub mod binding;
+pub mod compound_action;
 pub mod config;
 pub mod device;
 pub mod device_type;
