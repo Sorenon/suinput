@@ -1,19 +1,18 @@
 use std::{
     num::NonZeroUsize,
-    sync::{atomic::AtomicBool, Arc, Weak},
+    sync::{Arc, Weak},
 };
 
 use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
-use thunderdome::Index;
 
 use crate::{
     action::Action,
     action_set::ActionSet,
     instance::Instance,
     internal::inner_session::{InnerSession, Runtime2SessionEvent},
-    runtime::{Driver2RuntimeEvent, Runtime},
+    runtime::Runtime,
     user::User,
 };
 use crate::{internal::types::HashMap, types::action_type::ActionType};
@@ -32,7 +31,6 @@ pub struct Session {
 
     pub(crate) driver_events_send: Sender<Runtime2SessionEvent>,
     pub(crate) driver_events_rec: Receiver<Runtime2SessionEvent>,
-    // pub(crate) action_events: RingBuffer<Driver2RuntimeEvent>,
     pub(crate) inner: Mutex<InnerSession>,
 }
 

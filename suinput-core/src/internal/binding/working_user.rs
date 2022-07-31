@@ -1,15 +1,15 @@
-use std::{sync::Arc, time::Instant, vec::IntoIter};
+use std::{borrow::BorrowMut, cell::RefCell, sync::Arc, time::Instant, vec::IntoIter, ops::DerefMut};
 
 use nalgebra::Vector2;
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionListener, ActionStateEnum, ChildActionType},
     event::InputEvent,
-    SuPath, ActionHandle,
+    SuPath,
 };
 use thunderdome::Index;
 
 use crate::{
-    action::{ActionTypeEnum, Action},
+    action::{Action, ActionTypeEnum},
     action_set::ActionSet,
     internal::{parallel_arena::ParallelArena, types::HashMap},
     types::action_type::{Axis2d, Value},
@@ -22,7 +22,6 @@ use crate::{
         interaction_profile::InteractionProfileState,
         paths::InteractionProfilePath,
     },
-    session::Session,
 };
 
 use super::{
@@ -33,12 +32,10 @@ use super::{
 };
 
 pub struct WorkingUser {
-    pub binding_layouts: HashMap<SuPath, AttachedBindingLayout>,
+    pub binding_layouts: HashMap<SuPath, RefCell<AttachedBindingLayout>>,
 
     pub action_states: HashMap<u64, WorkingActionState>,
     pub parent_action_states: HashMap<u64, ParentActionState>,
-
-    layout_events: Vec<(u64, SuPath, ActionStateEnum)>,
 }
 
 pub struct WorkingActionState {
@@ -153,7 +150,6 @@ impl WorkingUser {
             binding_layouts: HashMap::new(),
             action_states,
             parent_action_states,
-            layout_events: Vec::new(),
         }
     }
 
@@ -166,49 +162,29 @@ impl WorkingUser {
         callbacks: &mut [Box<dyn ActionListener>],
         devices: &ParallelArena<(DeviceState, Index)>,
     ) {
-        if let Some(binding_layout) = self.binding_layouts.get_mut(&interaction_profile.ty.id) {
+        if let Some(binding_layout_cell) = self.binding_layouts.get(&interaction_profile.ty.id) {
+            let mut attached_binding_layout_ref = binding_layout_cell.borrow_mut();
+            let attached_binding_layout = attached_binding_layout_ref.deref_mut();
+
             let mut wui = WorkingUserInterface {
                 path: interaction_profile.ty.id,
-                //Empty Vec does not allocate
-                layout_events: Vec::new(),
-                action_states: &binding_layout.action_states,
-                action_info: &self.action_states,
+                binding_layout_action_states: &mut attached_binding_layout.action_states,
+                binding_layouts: &self.binding_layouts,
+                action_states: &mut self.action_states,
+                parent_action_states: &mut self.parent_action_states,
+                callbacks,
+                actions,
+                interaction_profile_id: interaction_profile.ty.id,
             };
 
-            std::mem::swap(&mut self.layout_events, &mut wui.layout_events);
-
-            binding_layout.binding_layout.on_event(
-                user_path,
-                event,
-                interaction_profile,
-                devices,
-                &mut wui,
-            );
-
-            let mut layout_events = wui.layout_events;
-
-            for (action_handle, _, binding_event) in layout_events.iter() {
-                binding_layout
-                    .action_states
-                    .insert(*action_handle, *binding_event);
-            }
-
-            for (action_handle, interaction_profile_id, binding_event) in layout_events.drain(..) {
-                self.handle_binding_event(
-                    callbacks,
-                    actions,
-                    action_handle,
-                    interaction_profile_id,
-                    binding_event,
-                );
-            }
-
-            std::mem::swap(&mut self.layout_events, &mut layout_events);
+            attached_binding_layout.binding_layout.on_event(user_path, event, interaction_profile, devices, &mut wui);
         }
     }
 
-    fn handle_binding_event(
-        &mut self,
+    pub fn handle_binding_event(
+        action_states: &mut HashMap<u64, WorkingActionState>,
+        binding_layouts: &HashMap<SuPath, RefCell<AttachedBindingLayout>>,
+        parent_action_states: &mut HashMap<u64, ParentActionState>,
         callbacks: &mut [Box<dyn ActionListener>],
         actions: &HashMap<u64, Arc<Action>>,
         action_handle: u64,
@@ -218,13 +194,13 @@ impl WorkingUser {
         //Store updated binding endpoint action state and decide if an event should be thrown after aggregating against other bindings and then other binding layouts
         let event = match binding_event {
             ActionStateEnum::Boolean(new_binding_state) => UserActions {
-                attached_binding_layouts: &self.binding_layouts,
-                action_states: &self.action_states,
+                attached_binding_layouts: &binding_layouts,
+                action_states: &action_states,
             }
             .aggregate::<bool>(action_handle, new_binding_state, interaction_profile_id)
             .map(|(state, changed)| {
                 if changed {
-                    self.action_states.get_mut(&action_handle).unwrap().state =
+                    action_states.get_mut(&action_handle).unwrap().state =
                         ActionStateEnum::Boolean(state);
                 }
 
@@ -232,7 +208,7 @@ impl WorkingUser {
             }),
             ActionStateEnum::Delta2d(delta) => {
                 //Update accumulated delta
-                let working_state = self.action_states.get_mut(&action_handle).unwrap();
+                let working_state = action_states.get_mut(&action_handle).unwrap();
                 if let ActionStateEnum::Delta2d(acc_delta) = &mut working_state.state {
                     acc_delta.x += delta.x;
                     acc_delta.y += delta.y;
@@ -241,31 +217,31 @@ impl WorkingUser {
                 Some(ActionEventEnum::Delta2d { delta })
             }
             ActionStateEnum::Cursor(normalized_window_coords) => {
-                self.action_states.get_mut(&action_handle).unwrap().state =
+                action_states.get_mut(&action_handle).unwrap().state =
                     ActionStateEnum::Cursor(normalized_window_coords);
                 Some(ActionEventEnum::Cursor {
                     normalized_window_coords,
                 })
             }
             ActionStateEnum::Value(value) => UserActions {
-                attached_binding_layouts: &self.binding_layouts,
-                action_states: &self.action_states,
+                attached_binding_layouts: &binding_layouts,
+                action_states: &action_states,
             }
             .aggregate::<Value>(action_handle, value, interaction_profile_id)
             .map(|value| {
-                self.action_states.get_mut(&action_handle).unwrap().state =
+                action_states.get_mut(&action_handle).unwrap().state =
                     ActionStateEnum::Value(value);
                 ActionEventEnum::Value { state: value }
             }),
             //TODO support Axis1d binding endpoints
             ActionStateEnum::Axis1d(_) => todo!(),
             ActionStateEnum::Axis2d(state) => UserActions {
-                attached_binding_layouts: &self.binding_layouts,
-                action_states: &self.action_states,
+                attached_binding_layouts: &binding_layouts,
+                action_states: &action_states,
             }
             .aggregate::<Axis2d>(action_handle, state.into(), interaction_profile_id)
             .map(|state| {
-                self.action_states.get_mut(&action_handle).unwrap().state =
+                action_states.get_mut(&action_handle).unwrap().state =
                     ActionStateEnum::Axis2d(state.into());
                 ActionEventEnum::Axis2d {
                     state: state.into(),
@@ -284,18 +260,18 @@ impl WorkingUser {
                 ActionHierarchyType::Parent { ty } => match ty {
                     ParentActionType::StickyBool { .. } => handle_sticky_bool_event(
                         action_handle,
-                        &mut self.parent_action_states,
-                        &self.action_states,
+                        parent_action_states,
+                        &action_states,
                     ),
                     ParentActionType::Axis1d { .. } => handle_axis1d_event(
                         action_handle,
-                        &mut self.parent_action_states,
-                        &self.action_states,
+                        parent_action_states,
+                        &action_states,
                     ),
                     ParentActionType::Axis2d { .. } => handle_axis2d_event(
                         action_handle,
-                        &mut self.parent_action_states,
-                        &self.action_states,
+                        parent_action_states,
+                        &action_states,
                     ),
                     ParentActionType::None => Some(event),
                 },
@@ -306,58 +282,58 @@ impl WorkingUser {
                     match ty {
                         ChildActionType::StickyPress => handle_sticky_bool_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::StickyRelease => handle_sticky_bool_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::StickyToggle => handle_sticky_bool_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Positive => handle_axis1d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Negative => handle_axis1d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Up => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Down => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Left => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Right => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Horizontal => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         ChildActionType::Vertical => handle_axis2d_event(
                             parent_handle,
-                            &mut self.parent_action_states,
-                            &self.action_states,
+                            parent_action_states,
+                            &action_states,
                         ),
                         _ => todo!(),
                     }
@@ -394,7 +370,7 @@ impl AttachedBindingLayout {
 }
 
 struct UserActions<'a> {
-    attached_binding_layouts: &'a HashMap<InteractionProfilePath, AttachedBindingLayout>,
+    attached_binding_layouts: &'a HashMap<InteractionProfilePath, RefCell<AttachedBindingLayout>>,
     action_states: &'a HashMap<u64, WorkingActionState>,
 }
 
@@ -419,6 +395,7 @@ impl<'a> InputEventSources for UserActions<'a> {
         self.attached_binding_layouts
             .get(&source_idx)
             .unwrap()
+            .borrow()
             .action_states
             .get(&idx)
             .map(|state| I::from_ase(state))

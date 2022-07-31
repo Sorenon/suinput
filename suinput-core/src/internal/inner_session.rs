@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, cell::RefCell};
 
 use flume::Receiver;
 use hashbrown::HashMap;
@@ -73,7 +73,7 @@ impl InnerSession {
         for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
             working_user
                 .binding_layouts
-                .insert(profile, AttachedBindingLayout::new(binding_layout));
+                .insert(profile, RefCell::new(AttachedBindingLayout::new(binding_layout)));
         }
 
         let mut user_action_states = user.action_states.write();
