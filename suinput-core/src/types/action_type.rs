@@ -48,11 +48,11 @@ pub(crate) mod private {
             _create_info: Self::CreateInfo,
             _action: &Weak<Action>,
             _create_child_action: F,
-        ) -> ParentActionType
+        ) -> Option<ParentActionType>
         where
             F: FnMut(Weak<Action>, String, ActionTypeEnum, ChildActionType) -> Arc<Action>,
         {
-            ParentActionType::None
+            None
         }
     }
 }
@@ -91,12 +91,12 @@ impl InternalActionType for bool {
         create_info: Self::CreateInfo,
         action: &Weak<Action>,
         mut create_child_action: F,
-    ) -> ParentActionType
+    ) -> Option<ParentActionType>
     where
         F: FnMut(Weak<Action>, String, ActionTypeEnum, ChildActionType) -> Arc<Action>,
     {
         if create_info.sticky {
-            ParentActionType::StickyBool {
+            Some(ParentActionType::StickyBool {
                 sticky_press: create_child_action(
                     action.clone(),
                     "sticky_press".into(),
@@ -115,9 +115,9 @@ impl InternalActionType for bool {
                     ActionTypeEnum::Boolean,
                     ChildActionType::StickyToggle,
                 ),
-            }
+            })
         } else {
-            ParentActionType::None
+            None
         }
     }
 }
@@ -247,11 +247,11 @@ impl InternalActionType for Axis1d {
         create_info: Self::CreateInfo,
         action: &Weak<Action>,
         mut create_child_action: F,
-    ) -> ParentActionType
+    ) -> Option<ParentActionType>
     where
         F: FnMut(Weak<Action>, String, ActionTypeEnum, ChildActionType) -> Arc<Action>,
     {
-        ParentActionType::Axis1d {
+        Some(ParentActionType::Axis1d {
             positive: create_child_action(
                 action.clone(),
                 create_info.positive.unwrap_or_else(|| "positive".into()),
@@ -264,7 +264,7 @@ impl InternalActionType for Axis1d {
                 ActionTypeEnum::Value,
                 ChildActionType::Negative,
             ),
-        }
+        })
     }
 }
 
@@ -310,11 +310,11 @@ impl InternalActionType for Axis2d {
         create_info: Self::CreateInfo,
         action: &Weak<Action>,
         mut create_child_action: F,
-    ) -> ParentActionType
+    ) -> Option<ParentActionType>
     where
         F: FnMut(Weak<Action>, String, ActionTypeEnum, ChildActionType) -> Arc<Action>,
     {
-        ParentActionType::Axis2d {
+        Some(ParentActionType::Axis2d {
             up: create_child_action(
                 action.clone(),
                 create_info.up.unwrap_or_else(|| "up".into()),
@@ -353,6 +353,6 @@ impl InternalActionType for Axis2d {
                 ActionTypeEnum::Axis1d,
                 ChildActionType::Horizontal,
             ),
-        }
+        })
     }
 }

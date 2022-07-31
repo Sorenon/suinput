@@ -1,3 +1,4 @@
+use nalgebra::Vector2;
 use suinput_types::action::{ActionEventEnum, ChildActionType};
 
 pub trait CompoundActionState: Send {
@@ -96,6 +97,135 @@ impl CompoundActionState for StickyBoolState {
             };
             self.combined_state = new_state;
             Some(out)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct CompoundAxis1dState {
+    state: f32,
+
+    parent: f32,
+    positive: f32,
+    negative: f32,
+}
+
+impl CompoundActionState for CompoundAxis1dState {
+    fn on_action_event(
+        &mut self,
+        event: &ActionEventEnum,
+        child_type: ChildActionType,
+    ) -> Option<ActionEventEnum> {
+        match child_type {
+            ChildActionType::Parent => {
+                self.parent = match *event {
+                    ActionEventEnum::Axis1d { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Positive => {
+                self.positive = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Negative => {
+                self.negative = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            _ => panic!(),
+        }
+
+        let new_state = (self.positive - self.negative + self.parent).clamp(-1., 1.);
+        if new_state.abs() != self.state.abs() {
+            self.state = new_state;
+            Some(ActionEventEnum::Axis1d { state: new_state })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct CompoundAxis2dState {
+    state: Vector2<f32>,
+
+    parent: Vector2<f32>,
+    horizontal: f32,
+    vertical: f32,
+    up: f32,
+    down: f32,
+    left: f32,
+    right: f32,
+}
+
+impl CompoundActionState for CompoundAxis2dState {
+    fn on_action_event(
+        &mut self,
+        event: &ActionEventEnum,
+        child_type: ChildActionType,
+    ) -> Option<ActionEventEnum> {
+        match child_type {
+            ChildActionType::Parent => {
+                self.parent = match *event {
+                    ActionEventEnum::Axis2d { state } => state.into(),
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Horizontal => {
+                self.horizontal = match *event {
+                    ActionEventEnum::Axis1d { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Vertical => {
+                self.vertical = match *event {
+                    ActionEventEnum::Axis1d { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Up => {
+                self.up = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Down => {
+                self.down = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Left => {
+                self.left = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            ChildActionType::Right => {
+                self.right = match *event {
+                    ActionEventEnum::Value { state } => state,
+                    _ => panic!(),
+                };
+            }
+            _ => panic!(),
+        }
+
+        let new_state = Vector2::new(
+            (self.right - self.left + self.horizontal + self.parent.x).clamp(-1., 1.),
+            (self.up - self.down + self.vertical + self.parent.y).clamp(-1., 1.),
+        );
+
+        if new_state != self.state {
+            self.state = new_state;
+
+            Some(ActionEventEnum::Axis2d {
+                state: new_state.into(),
+            })
         } else {
             None
         }

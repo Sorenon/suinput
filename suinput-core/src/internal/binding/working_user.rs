@@ -14,7 +14,7 @@ use crate::{
     action::{Action, ActionTypeEnum},
     action_set::ActionSet,
     internal::{
-        compound_action::{CompoundActionState, StickyBoolState},
+        compound_action::{CompoundActionState, CompoundAxis1dState, StickyBoolState, CompoundAxis2dState},
         parallel_arena::ParallelArena,
         types::HashMap,
     },
@@ -30,18 +30,14 @@ use crate::{
     },
 };
 
-use super::{
-    action_hierarchy::{
-        handle_axis1d_event, handle_axis2d_event, ParentActionState,
-    },
-    binding_engine::{processed_binding_layout::ProcessedBindingLayout, WorkingUserInterface},
+use super::binding_engine::{
+    processed_binding_layout::ProcessedBindingLayout, WorkingUserInterface,
 };
 
 pub struct WorkingUser {
     pub binding_layouts: HashMap<SuPath, RefCell<AttachedBindingLayout>>,
 
     pub action_states: HashMap<u64, WorkingActionState>,
-    pub parent_action_states: HashMap<u64, ParentActionState>,
     pub compound_action_states: HashMap<u64, Box<dyn CompoundActionState>>,
 }
 
@@ -90,69 +86,6 @@ impl WorkingUser {
             })
             .collect::<HashMap<_, _>>();
 
-        let parent_action_states = action_sets
-            .iter()
-            .flat_map(|action_set| {
-                action_set
-                    .baked_actions
-                    .get()
-                    .expect("Session created with unbaked action set")
-                    .iter()
-                    .filter_map(|action| match &action.compound {
-                        ActionCompoundType::Parent {
-                            ty:
-                                ParentActionType::StickyBool {
-                                    sticky_press,
-                                    sticky_release,
-                                    sticky_toggle,
-                                },
-                        } => Some((
-                            action.handle,
-                            ParentActionState::StickyBool {
-                                combined_state: false,
-                                stuck: false,
-                                press: sticky_press.handle,
-                                release: sticky_release.handle,
-                                toggle: sticky_toggle.handle,
-                            },
-                        )),
-                        ActionCompoundType::Parent {
-                            ty: ParentActionType::Axis1d { positive, negative },
-                        } => Some((
-                            action.handle,
-                            ParentActionState::Axis1d {
-                                combined_state: 0.,
-                                positive: positive.handle,
-                                negative: negative.handle,
-                            },
-                        )),
-                        ActionCompoundType::Parent {
-                            ty:
-                                ParentActionType::Axis2d {
-                                    up,
-                                    down,
-                                    left,
-                                    right,
-                                    vertical,
-                                    horizontal,
-                                },
-                        } => Some((
-                            action.handle,
-                            ParentActionState::Axis2d {
-                                combined_state: Vector2::new(0., 0.),
-                                up: up.handle,
-                                down: down.handle,
-                                left: left.handle,
-                                right: right.handle,
-                                vertical: vertical.handle,
-                                horizontal: horizontal.handle,
-                            },
-                        )),
-                        _ => None,
-                    })
-            })
-            .collect();
-
         let compound_action_states = action_sets
             .iter()
             .flat_map(|action_set| {
@@ -168,6 +101,20 @@ impl WorkingUser {
                             action.handle,
                             Box::new(StickyBoolState::default()) as Box<dyn CompoundActionState>,
                         )),
+                        ActionCompoundType::Parent {
+                            ty: ParentActionType::Axis1d { .. },
+                        } => Some((
+                            action.handle,
+                            Box::new(CompoundAxis1dState::default())
+                                as Box<dyn CompoundActionState>,
+                        )),
+                        ActionCompoundType::Parent {
+                            ty: ParentActionType::Axis2d { .. },
+                        } => Some((
+                            action.handle,
+                            Box::new(CompoundAxis2dState::default())
+                                as Box<dyn CompoundActionState>,
+                        )),
                         _ => None,
                     })
             })
@@ -176,7 +123,6 @@ impl WorkingUser {
         Self {
             binding_layouts: HashMap::new(),
             action_states,
-            parent_action_states,
             compound_action_states,
         }
     }
@@ -286,10 +232,10 @@ impl WorkingUser {
             //Child action processing
             //TODO rewrite this to be event driven and lower amount of HashMap indirections
             let event = match &action.compound {
-                ActionCompoundType::Parent { ty } => {
+                ActionCompoundType::Parent { .. } => {
                     let compound_state = compound_action_states.get_mut(&action_handle).unwrap();
                     compound_state.on_action_event(&event, ChildActionType::Parent)
-                },
+                }
                 ActionCompoundType::Child { parent, ty } => {
                     let parent_handle = parent.upgrade().unwrap().handle;
                     out_action = parent_handle;
@@ -297,6 +243,7 @@ impl WorkingUser {
                     let compound_state = compound_action_states.get_mut(&parent_handle).unwrap();
                     compound_state.on_action_event(&event, *ty)
                 }
+                ActionCompoundType::None => Some(event),
             };
 
             if let Some(event) = event {

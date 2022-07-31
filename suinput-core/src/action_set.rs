@@ -62,7 +62,7 @@ impl ActionSet {
                         },
                     )
                 }
-                _ => ParentActionType::None,
+                _ => None,
             };
 
             Action {
@@ -70,9 +70,9 @@ impl ActionSet {
                 action_set: Arc::downgrade(self),
                 name: name.into(),
                 data_type: action_type,
-                compound: ActionCompoundType::Parent {
-                    ty: parent_action_type,
-                },
+                compound: parent_action_type.map_or(ActionCompoundType::None, |ty| {
+                    ActionCompoundType::Parent { ty }
+                }),
             }
         });
 

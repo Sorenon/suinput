@@ -7,13 +7,12 @@ use suinput_types::{
 
 use crate::{
     action::Action,
-    internal::{paths::InteractionProfilePath, types::HashMap, interaction_profile_type::InteractionProfileType, compound_action::CompoundActionState},
+    internal::{
+        compound_action::CompoundActionState, paths::InteractionProfilePath, types::HashMap,
+    },
 };
 
-use super::{
-    action_hierarchy::ParentActionState,
-    working_user::{AttachedBindingLayout, WorkingActionState, WorkingUser},
-};
+use super::working_user::{AttachedBindingLayout, WorkingActionState, WorkingUser};
 
 mod processed_binding;
 pub mod processed_binding_layout;

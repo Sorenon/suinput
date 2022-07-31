@@ -22,6 +22,7 @@ pub enum ActionCompoundType {
     Parent {
         ty: ParentActionType,
     },
+    None,
 }
 
 pub enum ParentActionType {
@@ -42,7 +43,6 @@ pub enum ParentActionType {
         vertical: Arc<Action>,
         horizontal: Arc<Action>,
     },
-    None,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

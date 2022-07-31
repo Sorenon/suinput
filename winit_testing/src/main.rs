@@ -125,22 +125,22 @@ fn main() -> Result<(), anyhow::Error> {
                 action: zoom_action.get_child_action(ChildActionType::StickyRelease),
                 path: instance.get_path("/user/desktop/mouse/input/button_right/click")?,
             },
-            // SimpleBinding {
-            //     action: turn_action.handle(),
-            //     path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
-            // },
-            // SimpleBinding {
-            //     action: cursor_action.handle(),
-            //     path: instance.get_path("/user/desktop/cursor/input/cursor/point")?,
-            // },
-            // SimpleBinding {
-            //     action: thrust_action.get_child_action(ChildActionType::Positive),
-            //     path: instance.get_path("/user/desktop/keyboard/input/button_up/click")?,
-            // },
-            // SimpleBinding {
-            //     action: thrust_action.get_child_action(ChildActionType::Negative),
-            //     path: instance.get_path("/user/desktop/keyboard/input/button_down/click")?,
-            // },
+            SimpleBinding {
+                action: turn_action.handle(),
+                path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
+            },
+            SimpleBinding {
+                action: cursor_action.handle(),
+                path: instance.get_path("/user/desktop/cursor/input/cursor/point")?,
+            },
+            SimpleBinding {
+                action: thrust_action.get_child_action(ChildActionType::Positive),
+                path: instance.get_path("/user/desktop/keyboard/input/button_up/click")?,
+            },
+            SimpleBinding {
+                action: thrust_action.get_child_action(ChildActionType::Negative),
+                path: instance.get_path("/user/desktop/keyboard/input/button_down/click")?,
+            },
             SimpleBinding {
                 action: move_action.get_child_action(ChildActionType::Up),
                 path: instance.get_path("/user/desktop/keyboard/input/button_w/click")?,
@@ -243,12 +243,14 @@ fn main() -> Result<(), anyhow::Error> {
 
                 session.poll();
 
-                let delta = session.get_action_state::<Delta2d>(&turn_action).unwrap();
-                if delta.x != 0. || delta.y != 0. {
-                    yaw += delta.x;
-                    pitch += delta.y;
-                    println!("{yaw} {pitch}")
-                }
+                let delta = session.get_action_state::<Delta2d>(&turn_action)
+                //.unwrap()
+                ;
+                // if delta.x != 0. || delta.y != 0. {
+                //     yaw += delta.x;
+                //     pitch += delta.y;
+                //     println!("{yaw} {pitch}")
+                // }
             }
             _ => (),
         }

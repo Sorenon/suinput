@@ -1,12 +1,8 @@
-use std::{sync::Arc, cell::RefCell};
+use std::{cell::RefCell, sync::Arc};
 
 use flume::Receiver;
 use hashbrown::HashMap;
-use suinput_types::{
-    action::{ActionListener, ActionStateEnum},
-    event::InputEvent,
-    SuPath,
-};
+use suinput_types::{action::ActionListener, event::InputEvent};
 use thunderdome::{Arena, Index};
 
 use crate::{
@@ -15,11 +11,8 @@ use crate::{
 };
 
 use super::{
-    binding::{
-        action_hierarchy::ParentActionState,
-        working_user::{AttachedBindingLayout, WorkingUser},
-    },
-    device::{self, DeviceState},
+    binding::working_user::{AttachedBindingLayout, WorkingUser},
+    device::DeviceState,
     device_type::DeviceType,
     interaction_profile::InteractionProfileState,
     parallel_arena::ParallelArena,
@@ -71,40 +64,41 @@ impl InnerSession {
         let working_user = &mut self.user;
 
         for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
-            working_user
-                .binding_layouts
-                .insert(profile, RefCell::new(AttachedBindingLayout::new(binding_layout)));
+            working_user.binding_layouts.insert(
+                profile,
+                RefCell::new(AttachedBindingLayout::new(binding_layout)),
+            );
         }
 
         let mut user_action_states = user.action_states.write();
 
         for (path, working_action_state) in working_user.action_states.iter_mut() {
-            let action_state = &mut working_action_state.state;
-            if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
-                user_action_states.insert(
-                    *path,
-                    match parent_action_state {
-                        ParentActionState::StickyBool { combined_state, .. } => {
-                            ActionStateEnum::Boolean(*combined_state)
-                        }
-                        ParentActionState::Axis1d { combined_state, .. } => {
-                            ActionStateEnum::Axis1d(*combined_state)
-                        }
-                        ParentActionState::Axis2d { combined_state, .. } => {
-                            ActionStateEnum::Axis2d((*combined_state).into())
-                        }
-                    },
-                );
-            } else {
-                user_action_states.insert(*path, *action_state);
-            }
+            // let action_state = &mut working_action_state.state;
+            // if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
+            //     user_action_states.insert(
+            //         *path,
+            //         match parent_action_state {
+            //             ParentActionState::StickyBool { combined_state, .. } => {
+            //                 ActionStateEnum::Boolean(*combined_state)
+            //             }
+            //             ParentActionState::Axis1d { combined_state, .. } => {
+            //                 ActionStateEnum::Axis1d(*combined_state)
+            //             }
+            //             ParentActionState::Axis2d { combined_state, .. } => {
+            //                 ActionStateEnum::Axis2d((*combined_state).into())
+            //             }
+            //         },
+            //     );
+            // } else {
+            //     user_action_states.insert(*path, *action_state);
+            // }
 
-            match action_state {
-                ActionStateEnum::Delta2d(delta) => {
-                    *delta = mint::Vector2 { x: 0., y: 0. };
-                }
-                _ => (),
-            }
+            // match action_state {
+            //     ActionStateEnum::Delta2d(delta) => {
+            //         *delta = mint::Vector2 { x: 0., y: 0. };
+            //     }
+            //     _ => (),
+            // }
         }
 
         while let Ok(event) = events.try_recv() {

@@ -1,5 +1,4 @@
 use std::{
-    ops::Deref,
     sync::{Arc, Weak},
     thread::JoinHandle,
 };
@@ -9,28 +8,16 @@ use flume::Receiver;
 use log::warn;
 use parking_lot::Mutex;
 
-use suinput_types::{
-    action::ActionStateEnum,
-    event::{Cursor, InputComponentEvent, InputEvent},
-    Time,
-};
+use suinput_types::event::InputEvent;
 use thunderdome::{Arena, Index};
 
 use crate::{
-    internal::interaction_profile::InteractionProfileState,
     runtime::{Driver2RuntimeEvent, Driver2RuntimeEventResponse, Runtime},
     session::Session,
 };
-use crate::{internal::types::HashMap, session};
 
 use super::{
-    binding::{
-        action_hierarchy::ParentActionState,
-        working_user::{AttachedBindingLayout, WorkingUser},
-    },
-    device::DeviceState,
-    inner_session::Runtime2SessionEvent,
-    parallel_arena::ParallelArena,
+    device::DeviceState, inner_session::Runtime2SessionEvent, parallel_arena::ParallelArena,
     paths::DevicePath,
 };
 
