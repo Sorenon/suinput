@@ -1,15 +1,15 @@
-use std::{collections::VecDeque, time::Instant};
+use std::time::Instant;
 
-use nalgebra::{Vector2, Vector3};
+use nalgebra::Vector2;
 use suinput_types::event::Cursor;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct InputComponentData {
     pub last_update_time: Instant,
     pub state: InputComponentState,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum InputComponentState {
     Button(bool),
     Cursor(Cursor),

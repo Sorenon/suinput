@@ -58,7 +58,7 @@ impl Runtime {
         let controller_paths = GameControllerPaths::new(|str| paths.get_path(str).unwrap());
         let device_types = DeviceTypes::new(&common_paths, &keyboard_paths, &paths);
         let interaction_profile_types =
-            InteractionProfileTypes::new(|str| paths.get_path(str).unwrap());
+            InteractionProfileTypes::new(&device_types, |str| paths.get_path(str).unwrap());
 
         let ready = Arc::new(Mutex::new(()));
         let lock = ready.lock();

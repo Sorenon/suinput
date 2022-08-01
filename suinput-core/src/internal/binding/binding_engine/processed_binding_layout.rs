@@ -77,8 +77,6 @@ impl ProcessedBindingLayout {
                 }
             };
 
-            let device = runtime.device_types.get(*device).unwrap();
-
             let component_path = instance.get_path(component_str).unwrap();
 
             if !input_bindings.contains_key(&user_path) {

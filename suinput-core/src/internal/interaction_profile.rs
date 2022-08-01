@@ -12,7 +12,8 @@ use super::{
     input_events::{InputEventSources, InputEventType},
     interaction_profile_type::InteractionProfileType,
     motion::GamepadMotion,
-    paths::{InputPath, UserPath}, parallel_arena::ParallelArena,
+    parallel_arena::ParallelArena,
+    paths::{InputPath, UserPath},
 };
 use crate::{
     internal::types::HashMap,
@@ -48,7 +49,12 @@ impl InteractionProfileState {
     }
 
     pub fn update_component<
-        F: FnMut(&InteractionProfileState, UserPath, &InputEvent, &ParallelArena<(DeviceState, Index)>),
+        F: FnMut(
+            &InteractionProfileState,
+            UserPath,
+            &InputEvent,
+            &ParallelArena<(DeviceState, Index)>,
+        ),
     >(
         &mut self,
         event: &InputEvent,
@@ -103,6 +109,10 @@ impl InteractionProfileState {
                 }
             }
         }
+    }
+
+    pub fn get_input_component_state(&self, user_path: UserPath, input_path: InputPath) -> Option<InputComponentData> {
+        self.input_components.get(&(user_path, input_path)).copied()
     }
 
     pub fn get_motion(

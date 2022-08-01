@@ -35,6 +35,8 @@ pub enum SessionActionEvent {
 pub struct InnerSession {
     pub user: WorkingUser,
 
+    pub active_action_sets: HashMap<u64, Arc<ActionSet>>,
+
     pub device_states: ParallelArena<(DeviceState, Index)>,
     pub interaction_profile_states: Arena<InteractionProfileState>,
 
@@ -57,6 +59,7 @@ impl InnerSession {
             device_states: ParallelArena::new(),
             interaction_profile_states,
             desktop_profile_id,
+            active_action_sets: HashMap::new(),
         }
     }
 
