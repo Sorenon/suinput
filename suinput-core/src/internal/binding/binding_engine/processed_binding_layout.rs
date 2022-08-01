@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::vec::IntoIter;
 
 use nalgebra::Vector2;
@@ -7,6 +8,9 @@ use suinput_types::{
 };
 use thunderdome::Index;
 
+use crate::action::Action;
+use crate::action_set::ActionSet;
+use crate::internal::input_component::InternalActionState;
 use crate::internal::input_events::InputEventSources;
 use crate::internal::parallel_arena::ParallelArena;
 use crate::internal::types::{hash_map::Entry, HashMap};
@@ -22,15 +26,16 @@ use crate::{
     },
 };
 
-use super::processed_binding::{Axis, GyroBindingSpace, ProcessedBinding, Sensitivity};
+use super::processed_binding::{
+    Axis, GyroBindingSpace, ProcessedBindingType, ProcessedInputBinding, Sensitivity,
+};
 use super::WorkingUserInterface;
 
 #[derive(Debug, Clone)]
 pub struct ProcessedBindingLayout {
-    pub(crate) bindings_index: Vec<(ProcessedBinding, ActionStateEnum, u64)>,
-    binding_states: Vec<ActionStateEnum>,
+    pub(crate) bindings_index: Vec<ProcessedInputBinding>,
     bindings_for_action: HashMap<u64, Vec<usize>>,
-    input_bindings: HashMap<UserPath, HashMap<InputPath, Vec<usize>>>,
+    bindings_for_input: HashMap<(UserPath, InputPath), (Vec<usize>, u32)>,
 }
 
 impl ProcessedBindingLayout {
@@ -52,8 +57,8 @@ impl ProcessedBindingLayout {
             )
         })?;
 
-        let mut bindings_index = Vec::<(ProcessedBinding, ActionStateEnum, u64)>::new();
-        let mut input_bindings = HashMap::<SuPath, HashMap<SuPath, Vec<usize>>>::new();
+        let mut bindings_index = Vec::<ProcessedInputBinding>::new();
+        let mut input_bindings = HashMap::<(UserPath, InputPath), (Vec<usize>, u32)>::new();
         let mut bindings_for_action = HashMap::<u64, Vec<usize>>::new();
 
         for binding in bindings {
@@ -79,14 +84,8 @@ impl ProcessedBindingLayout {
 
             let component_path = instance.get_path(component_str).unwrap();
 
-            if !input_bindings.contains_key(&user_path) {
-                input_bindings.insert(user_path, HashMap::new());
-            }
-
-            let component_paths = input_bindings.get_mut(&user_path).unwrap();
-
-            if !component_paths.contains_key(&component_path) {
-                component_paths.insert(component_path, Vec::with_capacity(1));
+            if !input_bindings.contains_key(&(user_path, component_path)) {
+                input_bindings.insert((user_path, component_path), (Vec::with_capacity(1), 0));
             }
 
             let action = actions.get((binding.action as usize) - 1).ok_or(
@@ -96,18 +95,18 @@ impl ProcessedBindingLayout {
             let processed_binding = match device.input_components.get(&component_path) {
                 Some(InputComponentType::Button) => {
                     if action.data_type == ActionTypeEnum::Boolean {
-                        ProcessedBinding::Button2Bool
+                        ProcessedBindingType::Button2Bool
                     } else if action.data_type == ActionTypeEnum::Value {
-                        ProcessedBinding::Button2Value
+                        ProcessedBindingType::Button2Value
                     } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
                 }
                 Some(InputComponentType::Trigger) => {
                     if action.data_type == ActionTypeEnum::Boolean {
-                        ProcessedBinding::Trigger2Bool
+                        ProcessedBindingType::Trigger2Bool
                     } else if action.data_type == ActionTypeEnum::Value {
-                        ProcessedBinding::Trigger2Value
+                        ProcessedBindingType::Trigger2Value
                     } else {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
@@ -117,7 +116,7 @@ impl ProcessedBindingLayout {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
-                    ProcessedBinding::Move2d2Delta2d {
+                    ProcessedBindingType::Move2d2Delta2d {
                         sensitivity: (1., 1.),
                     }
                 }
@@ -126,14 +125,14 @@ impl ProcessedBindingLayout {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
-                    ProcessedBinding::Cursor2Cursor
+                    ProcessedBindingType::Cursor2Cursor
                 }
                 Some(InputComponentType::Joystick) => {
                     if action.data_type != ActionTypeEnum::Axis2d {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));
                     }
 
-                    ProcessedBinding::Joystick2Axis2d
+                    ProcessedBindingType::Joystick2Axis2d
                 }
                 Some(InputComponentType::Gyro(_)) => {
                     if action.data_type != ActionTypeEnum::Delta2d {
@@ -143,7 +142,7 @@ impl ProcessedBindingLayout {
                     //TODO default depending on controller type somehow
                     //Handheld -> Local
                     //Controller -> Player
-                    ProcessedBinding::Gyro2Delta2d {
+                    ProcessedBindingType::Gyro2Delta2d {
                         last_time: None,
                         space: GyroBindingSpace::PlayerSpace {
                             relax_factor: GyroBindingSpace::calc_relax_factor(60.),
@@ -168,18 +167,23 @@ impl ProcessedBindingLayout {
             };
 
             let action_state = match action.data_type {
-                ActionTypeEnum::Boolean => ActionStateEnum::Boolean(false),
-                ActionTypeEnum::Delta2d => ActionStateEnum::Delta2d(Vector2::new(0., 0.).into()),
-                ActionTypeEnum::Cursor => ActionStateEnum::Cursor(Vector2::new(0., 0.).into()),
-                ActionTypeEnum::Axis1d => ActionStateEnum::Axis1d(0.),
-                ActionTypeEnum::Value => ActionStateEnum::Value(0.),
-                ActionTypeEnum::Axis2d => ActionStateEnum::Axis2d(Vector2::new(0., 0.).into()),
+                ActionTypeEnum::Boolean => InternalActionState::Boolean(false),
+                ActionTypeEnum::Axis1d => InternalActionState::Axis1d(0.),
+                ActionTypeEnum::Value => InternalActionState::Value(0.),
+                ActionTypeEnum::Axis2d => InternalActionState::Axis2d(Vector2::new(0., 0.).into()),
+                _ => InternalActionState::NonApplicable,
             };
 
-            bindings_index.push((processed_binding, action_state, action.handle));
-            component_paths
-                .get_mut(&component_path)
+            bindings_index.push(ProcessedInputBinding {
+                ty: processed_binding,
+                state: action_state,
+                action: action.handle,
+                input_component: (user_path, component_path),
+            });
+            input_bindings
+                .get_mut(&(user_path, component_path))
                 .unwrap()
+                .0
                 .push(bindings_index.len() - 1);
             match bindings_for_action.entry(action.handle) {
                 Entry::Occupied(mut vec) => vec.get_mut().push(bindings_index.len() - 1),
@@ -190,9 +194,8 @@ impl ProcessedBindingLayout {
         }
 
         Ok(Self {
-            binding_states: bindings_index.iter().map(|(_, b, _)| *b).collect(),
             bindings_index,
-            input_bindings,
+            bindings_for_input: input_bindings,
             bindings_for_action,
         })
     }
@@ -218,81 +221,261 @@ impl ProcessedBindingLayout {
         devices: &ParallelArena<(DeviceState, Index)>,
         interface: &mut WorkingUserInterface,
     ) {
-        if let Some(component_bindings) = self.input_bindings.get(&user_path) {
-            if let Some(bindings) = component_bindings.get(&event.path) {
-                let max_priority = bindings.iter().fold(0, |fold, binding_index| {
-                    let (_, _, action) = &self.bindings_index[*binding_index];
-                    let priority = interface.get_action_priority(*action);
-                    priority.max(fold)
-                });
+        if let Some((bindings, max_priority)) =
+            self.bindings_for_input.get(&(user_path, event.path))
+        {
+            for &binding_index in bindings {
+                let binding = &mut self.bindings_index[binding_index];
 
-                for &binding_index in bindings {
-                    let (binding, _, action_handle) = &mut self.bindings_index[binding_index];
+                if !interface.is_action_active(binding.action) {
+                    continue;
+                }
 
-                    let priority = interface.get_action_priority(*action_handle);
+                let priority = interface.get_action_priority(binding.action);
 
-                    if priority < max_priority {
-                        continue;
+                if priority < *max_priority {
+                    continue;
+                }
+
+                let action = binding.action;
+
+                if let Some(new_binding_state) =
+                    binding
+                        .ty
+                        .on_event(user_path, event, interaction_profile, devices)
+                {
+                    binding.save_state(&new_binding_state);
+                    let new_binding_state = Self::aggregate(
+                        interface,
+                        new_binding_state,
+                        binding.action,
+                        &self.bindings_index,
+                        &self.bindings_for_action,
+                        binding_index,
+                    );
+
+                    if let Some(new_binding_state) = new_binding_state {
+                        interface.fire_action_event(action, new_binding_state)
+                    }
+                }
+            }
+        }
+    }
+
+    fn aggregate(
+        interface: &WorkingUserInterface,
+        new_binding_state: ActionStateEnum,
+        action: u64,
+        bindings_index: &Vec<ProcessedInputBinding>,
+        bindings_for_action: &HashMap<u64, Vec<usize>>,
+        binding_idx: usize,
+    ) -> Option<ActionStateEnum> {
+        match new_binding_state {
+            ActionStateEnum::Boolean(new_state) => Aggregator {
+                bindings: bindings_index,
+                bindings_for_action,
+                interface,
+            }
+            .aggregate::<bool>(action, new_state, binding_idx)
+            .map(|(new_state, _changed)| ActionStateEnum::Boolean(new_state)),
+            ActionStateEnum::Value(new_state) => Aggregator {
+                bindings: bindings_index,
+                bindings_for_action,
+                interface,
+            }
+            .aggregate::<Value>(action, new_state, binding_idx)
+            .map(|new_state| ActionStateEnum::Value(new_state)),
+            ActionStateEnum::Axis1d(new_state) => Aggregator {
+                bindings: bindings_index,
+                bindings_for_action,
+                interface,
+            }
+            .aggregate::<Axis1d>(action, new_state, binding_idx)
+            .map(|new_state| ActionStateEnum::Axis1d(new_state)),
+            ActionStateEnum::Axis2d(new_state) => Aggregator {
+                bindings: bindings_index,
+                bindings_for_action,
+                interface,
+            }
+            .aggregate::<Axis2d>(action, new_state.into(), binding_idx)
+            .map(|new_state| ActionStateEnum::Axis2d(new_state.into())),
+            _ => Some(new_binding_state),
+        }
+    }
+
+    pub(crate) fn change_active_action_sets(
+        &mut self,
+        interaction_profile: &InteractionProfileState,
+        interface: &mut WorkingUserInterface,
+        //Sorted min priority to max
+        disabling: &[&Arc<ActionSet>],
+        //Sorted max priority to min
+        enabling: &[&Arc<ActionSet>],
+    ) {
+        for action_set in enabling {
+            for action in action_set.baked_actions.get().unwrap() {
+                self.handle_action_enable(action_set, action, interface, interaction_profile);
+            }
+        }
+
+        for action_set in disabling {
+            for action in action_set.baked_actions.get().unwrap() {
+                self.handle_action_disable(action_set, action, interface, interaction_profile);
+            }
+        }
+    }
+
+    fn handle_action_enable(
+        &mut self,
+        action_set: &Arc<ActionSet>,
+        action: &Arc<Action>,
+        interface: &mut WorkingUserInterface,
+        interaction_profile: &InteractionProfileState,
+    ) {
+        if let Some(action_bindings) = self.bindings_for_action.get(&action.handle) {
+            //For each binding to the action
+            for action_binding_idx in action_bindings {
+                //Get the input component
+                let input_component = self
+                    .bindings_index
+                    .get(*action_binding_idx)
+                    .unwrap()
+                    .input_component;
+                //Get the bindings to and max priority of said input component
+                let (bindings, old_max_priority) =
+                    self.bindings_for_input.get(&input_component).unwrap();
+
+                //If the old max priority is less than the new action then interrupt the old bindings and trigger the action's bindings
+                if *old_max_priority < action_set.default_priority {
+                    for other_binding_idx in bindings {
+                        let binding = self.bindings_index.get_mut(*other_binding_idx).unwrap();
+
+                        if !interface.is_action_active(binding.action) {
+                            continue;
+                        }
+
+                        if interface.get_action_priority(binding.action) == *old_max_priority {
+                            if let Some(event) = binding.ty.interrupt(&binding.state) {
+                                binding.save_state(&event);
+                                let binding_action = binding.action;
+                                if let Some(event) = Self::aggregate(
+                                    interface,
+                                    event,
+                                    binding_action,
+                                    &self.bindings_index,
+                                    &self.bindings_for_action,
+                                    *other_binding_idx,
+                                ) {
+                                    interface.fire_action_event(binding_action, event);
+                                }
+                            }
+                        }
                     }
 
-                    if let Some(new_binding_state) =
-                        binding.on_event(user_path, event, interaction_profile, devices)
+                    //If we have a cached component state then 'activate' the action binding
+                    if let Some(component_state) = interaction_profile
+                        .get_input_component_state(input_component.0, input_component.1)
                     {
-                        let new_binding_state = match new_binding_state {
-                            ActionStateEnum::Boolean(new_state) => {
-                                *self.binding_states.get_mut(binding_index).unwrap() =
-                                    ActionStateEnum::Boolean(new_state);
-                                Aggregator {
-                                    binding_states: &self.binding_states,
-                                    bindings_for_action: &self.bindings_for_action,
-                                    interface,
-                                }
-                                .aggregate::<bool>(*action_handle, new_state, binding_index)
-                                .map(|(new_state, _changed)| ActionStateEnum::Boolean(new_state))
+                        let binding = self.bindings_index.get_mut(*action_binding_idx).unwrap();
+                        if let Some(event) = binding.ty.activate(component_state) {
+                            binding.save_state(&event);
+                            if let Some(event) = Self::aggregate(
+                                interface,
+                                event,
+                                action.handle,
+                                &self.bindings_index,
+                                &self.bindings_for_action,
+                                *action_binding_idx,
+                            ) {
+                                interface.fire_action_event(action.handle, event);
                             }
-                            ActionStateEnum::Value(new_state) => {
-                                *self.binding_states.get_mut(binding_index).unwrap() =
-                                    ActionStateEnum::Value(new_state);
-                                Aggregator {
-                                    binding_states: &self.binding_states,
-                                    bindings_for_action: &self.bindings_for_action,
-                                    interface,
-                                }
-                                .aggregate::<Value>(*action_handle, new_state, binding_index)
-                                .map(ActionStateEnum::Value)
-                            }
-                            ActionStateEnum::Axis1d(new_state) => {
-                                *self.binding_states.get_mut(binding_index).unwrap() =
-                                    ActionStateEnum::Axis1d(new_state);
-                                Aggregator {
-                                    binding_states: &self.binding_states,
-                                    bindings_for_action: &self.bindings_for_action,
-                                    interface,
-                                }
-                                .aggregate::<Axis1d>(*action_handle, new_state, binding_index)
-                                .map(ActionStateEnum::Axis1d)
-                            }
-                            ActionStateEnum::Axis2d(new_state) => {
-                                *self.binding_states.get_mut(binding_index).unwrap() =
-                                    ActionStateEnum::Axis2d(new_state);
-                                Aggregator {
-                                    binding_states: &self.binding_states,
-                                    bindings_for_action: &self.bindings_for_action,
-                                    interface,
-                                }
-                                .aggregate::<Axis2d>(
-                                    *action_handle,
-                                    new_state.into(),
-                                    binding_index,
-                                )
-                                .map(|new_state| ActionStateEnum::Axis2d(new_state.into()))
-                            }
-                            _ => Some(new_binding_state),
-                        };
-
-                        if let Some(new_binding_state) = new_binding_state {
-                            interface.fire_action_event(*action_handle, new_binding_state)
                         }
+                    }
+
+                    //Update the max priority
+                    self.bindings_for_input.get_mut(&input_component).unwrap().1 =
+                        action_set.default_priority;
+                }
+            }
+        }
+    }
+
+    fn handle_action_disable(
+        &mut self,
+        action_set: &Arc<ActionSet>,
+        action: &Arc<Action>,
+        interface: &mut WorkingUserInterface,
+        interaction_profile: &InteractionProfileState,
+    ) {
+        if let Some(action_bindings) = self.bindings_for_action.get(&action.handle) {
+            //For each binding to the action
+            for action_binding_idx in action_bindings {
+                //Get the input component
+                let action_binding = self.bindings_index.get_mut(*action_binding_idx).unwrap();
+                let input_component = action_binding.input_component;
+                //Get the bindings to and max priority of said input component
+                let (bindings, old_max_priority) =
+                    self.bindings_for_input.get(&input_component).unwrap();
+
+                //If the old max priority is the same as the action's priority
+                if *old_max_priority == action_set.default_priority {
+                    //Interrupt the action's binding
+                    if let Some(event) = action_binding.ty.interrupt(&action_binding.state) {
+                        action_binding.save_state(&event);
+                        if let Some(event) = Self::aggregate(
+                            interface,
+                            event,
+                            action.handle,
+                            &self.bindings_index,
+                            &self.bindings_for_action,
+                            *action_binding_idx,
+                        ) {
+                            interface.fire_action_event(action.handle, event);
+                        }
+                    }
+
+                    let mut new_max_priority = 0;
+
+                    //Find the max priority of the other bindings
+                    for binding_idx in bindings {
+                        let binding = self.bindings_index.get_mut(*binding_idx).unwrap();
+                        if interface.is_action_active(binding.action) {
+                            new_max_priority =
+                                new_max_priority.max(interface.get_action_priority(binding.action))
+                        }
+                    }
+
+                    //If the new max priority is lower then 'activate' the new max priority bindings
+                    if new_max_priority < *old_max_priority {
+                        if let Some(component_state) = interaction_profile
+                            .get_input_component_state(input_component.0, input_component.1)
+                        {
+                            for binding_idx in bindings {
+                                let binding = self.bindings_index.get_mut(*binding_idx).unwrap();
+                                if interface.is_action_active(binding.action)
+                                    && new_max_priority
+                                        == interface.get_action_priority(binding.action)
+                                {
+                                    if let Some(event) = binding.ty.activate(component_state) {
+                                        binding.save_state(&event);
+                                        let binding_action = binding.action;
+                                        if let Some(event) = Self::aggregate(
+                                            interface,
+                                            event,
+                                            binding_action,
+                                            &self.bindings_index,
+                                            &self.bindings_for_action,
+                                            *action_binding_idx,
+                                        ) {
+                                            interface.fire_action_event(binding_action, event);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        self.bindings_for_input.get_mut(&input_component).unwrap().1 =
+                            action_set.default_priority;
                     }
                 }
             }
@@ -301,7 +484,7 @@ impl ProcessedBindingLayout {
 }
 
 struct Aggregator<'a> {
-    binding_states: &'a Vec<ActionStateEnum>,
+    bindings: &'a Vec<ProcessedInputBinding>,
     bindings_for_action: &'a HashMap<u64, Vec<usize>>,
     interface: &'a WorkingUserInterface<'a>,
 }
@@ -325,7 +508,9 @@ impl<'a> InputEventSources for Aggregator<'a> {
         _: Self::Index,
         source_idx: Self::SourceIndex,
     ) -> Option<I::Value> {
-        self.binding_states.get(source_idx).map(I::from_ase)
+        self.bindings
+            .get(source_idx)
+            .map(|binding| I::from_ias(&binding.state))
     }
 
     fn get_sources<I: crate::internal::input_events::InputEventType>(

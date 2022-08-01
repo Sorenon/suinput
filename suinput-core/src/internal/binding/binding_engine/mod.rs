@@ -4,6 +4,7 @@ use suinput_types::{
     action::{ActionListener, ActionStateEnum},
     SuPath,
 };
+use thunderdome::Index;
 
 use crate::{
     action::Action,
@@ -18,10 +19,10 @@ mod processed_binding;
 pub mod processed_binding_layout;
 
 pub struct WorkingUserInterface<'a> {
-    pub(crate) binding_layouts: &'a HashMap<SuPath, RefCell<AttachedBindingLayout>>,
+    pub(crate) binding_layouts: &'a HashMap<Index, RefCell<AttachedBindingLayout>>,
     pub(crate) binding_layout_action_states: &'a mut HashMap<u64, ActionStateEnum>,
 
-    pub(crate) interaction_profile_id: InteractionProfilePath,
+    pub(crate) interaction_profile_index: Index,
 
     pub(crate) action_states: &'a mut HashMap<u64, WorkingActionState>,
     pub(crate) compound_action_states: &'a mut HashMap<u64, Box<dyn CompoundActionState>>,
@@ -41,7 +42,7 @@ impl<'a> WorkingUserInterface<'a> {
             self.callbacks,
             self.actions,
             action,
-            self.interaction_profile_id,
+            self.interaction_profile_index,
             new_binding_state,
         );
     }

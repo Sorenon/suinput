@@ -26,7 +26,7 @@ pub struct Session {
 
     pub(crate) listeners: RwLock<Vec<Box<dyn ActionListener>>>,
 
-    pub(crate) action_sets: Vec<Arc<ActionSet>>,
+    pub(crate) action_sets: HashMap<u64, Arc<ActionSet>>,
     pub(crate) actions: HashMap<u64, Arc<Action>>, //TODO dynamic action sets
 
     pub(crate) action_events: (Sender<SessionActionEvent>, Receiver<SessionActionEvent>),
@@ -44,10 +44,12 @@ impl Session {
         self.runtime.upgrade().unwrap().refresh_windows();
     }
 
-    pub fn poll(&self) {
+    pub fn sync<'a>(&self, action_sets: impl Iterator<Item = &'a Arc<ActionSet>>) {
         let mut inner = self.inner.lock();
         inner.sync(
             self.runtime.upgrade().unwrap(),
+            action_sets,
+            &self.action_sets,
             &self.action_events.1,
             &self.driver_events_rec,
             &self.user,

@@ -10,11 +10,33 @@ use thunderdome::Index;
 
 use crate::internal::{
     device::DeviceState, interaction_profile::InteractionProfileState,
-    parallel_arena::ParallelArena,
+    parallel_arena::ParallelArena, paths::{UserPath, InputPath}, input_component::{InputComponentData, InputComponentState, InternalActionState},
 };
 
 #[derive(Debug, Clone)]
-pub enum ProcessedBinding {
+pub struct ProcessedInputBinding {
+    pub ty: ProcessedBindingType,
+    pub state: InternalActionState,
+    pub action: u64,
+    pub input_component: (UserPath, InputPath),
+}
+
+impl ProcessedInputBinding {
+    pub fn save_state(&mut self, action_state: &ActionStateEnum) {
+        match action_state {
+            ActionStateEnum::Boolean(state) => self.state = InternalActionState::Boolean(*state),
+            ActionStateEnum::Value(state) => self.state = InternalActionState::Value(*state),
+            ActionStateEnum::Axis1d(state) => self.state = InternalActionState::Axis1d(*state),
+            ActionStateEnum::Axis2d(state) => {
+                self.state = InternalActionState::Axis2d((*state).into())
+            }
+            _ => (),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ProcessedBindingType {
     Button2Bool,
     Button2Value,
     Move2d2Delta2d {
@@ -35,7 +57,7 @@ pub enum ProcessedBinding {
     },
 }
 
-impl ProcessedBinding {
+impl ProcessedBindingType {
     /// Returns None if the action state should not be changed / an even should not fire
     pub(crate) fn on_event(
         &mut self,
@@ -45,36 +67,36 @@ impl ProcessedBinding {
         devices: &ParallelArena<(DeviceState, Index)>,
     ) -> Option<ActionStateEnum> {
         match (self, event.data) {
-            (ProcessedBinding::Button2Bool, InputComponentEvent::Button(state)) => {
+            (ProcessedBindingType::Button2Bool, InputComponentEvent::Button(state)) => {
                 Some(ActionStateEnum::Boolean(state))
             }
-            (ProcessedBinding::Button2Value, InputComponentEvent::Button(state)) => {
+            (ProcessedBindingType::Button2Value, InputComponentEvent::Button(state)) => {
                 Some(ActionStateEnum::Value(if state { 1.0 } else { 0.0 }))
             }
-            (ProcessedBinding::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
+            (ProcessedBindingType::Trigger2Bool, InputComponentEvent::Trigger(state)) => {
                 Some(ActionStateEnum::Boolean(state > 0.5))
             }
-            (ProcessedBinding::Trigger2Value, InputComponentEvent::Trigger(state)) => {
+            (ProcessedBindingType::Trigger2Value, InputComponentEvent::Trigger(state)) => {
                 Some(ActionStateEnum::Value(state))
             }
             (
-                ProcessedBinding::Move2d2Delta2d { sensitivity },
+                ProcessedBindingType::Move2d2Delta2d { sensitivity },
                 InputComponentEvent::Move2D(delta),
             ) => Some(ActionStateEnum::Delta2d(mint::Vector2 {
                 x: delta.x * sensitivity.0,
                 y: delta.y * sensitivity.1,
             })),
-            (ProcessedBinding::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
+            (ProcessedBindingType::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
                 Some(ActionStateEnum::Cursor(mint::Vector2 {
                     x: cursor.normalized_screen_coords.0,
                     y: cursor.normalized_screen_coords.1,
                 }))
             }
-            (ProcessedBinding::Joystick2Axis2d, InputComponentEvent::Joystick(state)) => {
+            (ProcessedBindingType::Joystick2Axis2d, InputComponentEvent::Joystick(state)) => {
                 Some(ActionStateEnum::Axis2d(state))
             }
             (
-                ProcessedBinding::Gyro2Delta2d {
+                ProcessedBindingType::Gyro2Delta2d {
                     last_time,
                     space,
                     sensitivity,
@@ -122,6 +144,65 @@ impl ProcessedBinding {
             }
             _ => todo!(),
         }
+    }
+
+    
+    pub(crate) fn activate(&mut self, data: InputComponentData) -> Option<ActionStateEnum> {
+        match (self, data.state) {
+            (ProcessedBindingType::Button2Bool, InputComponentState::Button(state)) => {
+                Some(ActionStateEnum::Boolean(state))
+            }
+            (ProcessedBindingType::Button2Value, InputComponentState::Button(state)) => {
+                Some(ActionStateEnum::Value(if state { 1.0 } else { 0.0 }))
+            }
+            (ProcessedBindingType::Trigger2Bool, InputComponentState::Trigger(state)) => {
+                Some(ActionStateEnum::Boolean(state > 0.5))
+            }
+            (ProcessedBindingType::Trigger2Value, InputComponentState::Trigger(state)) => {
+                Some(ActionStateEnum::Value(state))
+            }
+            (ProcessedBindingType::Joystick2Axis2d, InputComponentState::Joystick(state)) => {
+                Some(ActionStateEnum::Axis2d(state.into()))
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn interrupt(
+        &mut self,
+        binding_state: &InternalActionState,
+    ) -> Option<ActionStateEnum> {
+        Some(match binding_state {
+            InternalActionState::Boolean(state) => {
+                if *state {
+                    ActionStateEnum::Boolean(false)
+                } else {
+                    return None;
+                }
+            }
+            InternalActionState::Value(state) => {
+                if *state != 0. {
+                    ActionStateEnum::Value(0.)
+                } else {
+                    return None;
+                }
+            }
+            InternalActionState::Axis1d(state) => {
+                if *state != 0. {
+                    ActionStateEnum::Axis1d(0.)
+                } else {
+                    return None;
+                }
+            }
+            InternalActionState::Axis2d(state) => {
+                if state.x != 0. || state.y != 0. {
+                    ActionStateEnum::Axis2d(mint::Vector2 { x: 0., y: 0. })
+                } else {
+                    return None;
+                }
+            }
+            InternalActionState::NonApplicable => return None,
+        })
     }
 }
 

@@ -147,10 +147,9 @@ impl Instance {
                             .baked_actions
                             .get_or_init(|| action_set.actions.read().clone());
                     }
-
-                    (*action_set).clone()
+                    (action_set.handle, (*action_set).clone())
                 })
-                .collect::<Vec<_>>();
+                .collect::<HashMap<_, _>>();
 
             let (driver_events_send, driver_events_rec) = flume::unbounded();
 
@@ -161,7 +160,7 @@ impl Instance {
                 listeners: RwLock::default(),
                 window: Mutex::new(None),
                 actions: action_sets
-                    .iter()
+                    .values()
                     .flat_map(|action_set| {
                         action_set
                             .baked_actions
@@ -189,7 +188,7 @@ impl Instance {
             session
         };
 
-        session.poll();
+        session.sync([].into_iter());
 
         session
     }

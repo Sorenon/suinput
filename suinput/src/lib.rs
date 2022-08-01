@@ -179,9 +179,12 @@ impl SuSession {
         })
     }
 
-    pub fn poll(&self) {
+    pub fn sync(&self, action_sets: &[&SuActionSet]) {
         match &self.0 {
-            Inner::Embedded(inner) => inner.poll(),
+            Inner::Embedded(inner) => inner.sync(action_sets.iter().map(|set| match &set.0 {
+                Inner::Embedded(action_set) => action_set,
+                Inner::FFI() => todo!(),
+            })),
             Inner::FFI() => todo!(),
         }
     }

@@ -1,13 +1,12 @@
-use std::{
-    borrow::BorrowMut, cell::RefCell, ops::DerefMut, sync::Arc, time::Instant, vec::IntoIter,
-};
+use std::{cell::RefCell, ops::DerefMut, sync::Arc, time::Instant, vec::IntoIter};
 
+use hashbrown::HashSet;
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionListener, ActionStateEnum, ChildActionType},
     event::InputEvent,
     SuPath,
 };
-use thunderdome::Index;
+use thunderdome::{Arena, Index};
 
 use crate::{
     action::{Action, ActionTypeEnum},
@@ -27,7 +26,6 @@ use crate::{
         device::DeviceState,
         input_events::{InputEventSources, InputEventType},
         interaction_profile::InteractionProfileState,
-        paths::InteractionProfilePath,
     },
 };
 
@@ -36,7 +34,7 @@ use super::binding_engine::{
 };
 
 pub struct WorkingUser {
-    pub binding_layouts: HashMap<SuPath, RefCell<AttachedBindingLayout>>,
+    pub binding_layouts: HashMap<Index, RefCell<AttachedBindingLayout>>,
 
     pub action_states: HashMap<u64, WorkingActionState>,
     pub compound_action_states: HashMap<u64, Box<dyn CompoundActionState>>,
@@ -50,9 +48,9 @@ pub struct WorkingActionState {
 
 impl WorkingUser {
     //TODO improve how child actions are handled
-    pub fn new(action_sets: &Vec<Arc<ActionSet>>) -> Self {
+    pub fn new(action_sets: &HashMap<u64, Arc<ActionSet>>) -> Self {
         let action_states = action_sets
-            .iter()
+            .values()
             .flat_map(|action_set| {
                 action_set
                     .baked_actions
@@ -88,7 +86,7 @@ impl WorkingUser {
             .collect::<HashMap<_, _>>();
 
         let compound_action_states = action_sets
-            .iter()
+            .values()
             .flat_map(|action_set| {
                 action_set
                     .baked_actions
@@ -130,6 +128,7 @@ impl WorkingUser {
 
     pub(crate) fn on_interaction_profile_event(
         &mut self,
+        interaction_profile_index: Index,
         interaction_profile: &InteractionProfileState,
         user_path: SuPath,
         event: &InputEvent,
@@ -137,7 +136,7 @@ impl WorkingUser {
         callbacks: &mut [Box<dyn ActionListener>],
         devices: &ParallelArena<(DeviceState, Index)>,
     ) {
-        if let Some(binding_layout_cell) = self.binding_layouts.get(&interaction_profile.ty.id) {
+        if let Some(binding_layout_cell) = self.binding_layouts.get(&interaction_profile_index) {
             let mut attached_binding_layout_ref = binding_layout_cell.borrow_mut();
             let attached_binding_layout = attached_binding_layout_ref.deref_mut();
 
@@ -148,7 +147,7 @@ impl WorkingUser {
                 compound_action_states: &mut self.compound_action_states,
                 callbacks,
                 actions,
-                interaction_profile_id: interaction_profile.ty.id,
+                interaction_profile_index,
             };
 
             attached_binding_layout
@@ -159,12 +158,12 @@ impl WorkingUser {
 
     pub fn handle_binding_event(
         action_states: &mut HashMap<u64, WorkingActionState>,
-        binding_layouts: &HashMap<SuPath, RefCell<AttachedBindingLayout>>,
+        binding_layouts: &HashMap<Index, RefCell<AttachedBindingLayout>>,
         compound_action_states: &mut HashMap<u64, Box<dyn CompoundActionState>>,
         callbacks: &mut [Box<dyn ActionListener>],
         actions: &HashMap<u64, Arc<Action>>,
         action_handle: u64,
-        interaction_profile_id: InteractionProfilePath,
+        interaction_profile_id: Index,
         binding_event: ActionStateEnum,
     ) {
         //Store updated binding endpoint action state and decide if an event should be thrown after aggregating against other bindings and then other binding layouts
@@ -259,6 +258,42 @@ impl WorkingUser {
             }
         }
     }
+
+    pub(crate) fn change_enabled_action_sets(
+        &mut self,
+        callbacks: &mut [Box<dyn ActionListener>],
+        actions: &HashMap<u64, Arc<Action>>,
+        interaction_profile_states: &Arena<InteractionProfileState>,
+        disabling: &[&Arc<ActionSet>],
+        enabling: &[&Arc<ActionSet>],
+        enabled: &HashSet<u64>
+    ) {
+        //Empty Vec does not allocate
+        for (&interaction_profile_index, attached_binding_layout_cell) in
+            self.binding_layouts.iter()
+        {
+            let interaction_profile = interaction_profile_states
+                .get(interaction_profile_index)
+                .unwrap();
+
+            let mut attached_binding_layout_ref = attached_binding_layout_cell.borrow_mut();
+            let attached_binding_layout = attached_binding_layout_ref.deref_mut();
+
+            let mut wui = WorkingUserInterface {
+                binding_layout_action_states: &mut attached_binding_layout.action_states,
+                binding_layouts: &self.binding_layouts,
+                action_states: &mut self.action_states,
+                compound_action_states: &mut self.compound_action_states,
+                callbacks,
+                actions,
+                interaction_profile_index,
+            };
+
+            attached_binding_layout
+                .binding_layout
+                .change_active_action_sets(interaction_profile, &mut wui, disabling, enabling);
+        }
+    }
 }
 
 //TODO investigate moving aggregation into the binding layout so we don't need to keep track of bindings from outside of it
@@ -277,16 +312,16 @@ impl AttachedBindingLayout {
 }
 
 struct UserActions<'a> {
-    attached_binding_layouts: &'a HashMap<InteractionProfilePath, RefCell<AttachedBindingLayout>>,
+    attached_binding_layouts: &'a HashMap<Index, RefCell<AttachedBindingLayout>>,
     action_states: &'a HashMap<u64, WorkingActionState>,
 }
 
 impl<'a> InputEventSources for UserActions<'a> {
     type Index = u64;
 
-    type SourceIndex = InteractionProfilePath;
+    type SourceIndex = Index;
 
-    type Sources = IntoIter<InteractionProfilePath>;
+    type Sources = IntoIter<Index>;
 
     fn get_state<I: InputEventType>(&self, idx: Self::Index) -> Option<I::Value> {
         self.action_states

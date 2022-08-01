@@ -1,7 +1,7 @@
 use std::{cell::RefCell, sync::Arc, time::Instant};
 
 use flume::Receiver;
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use suinput_types::{
     action::{ActionEvent, ActionListener, ActionStateEnum},
     event::InputEvent,
@@ -18,7 +18,7 @@ use super::{
     device::DeviceState,
     device_type::DeviceType,
     interaction_profile::InteractionProfileState,
-    parallel_arena::ParallelArena,
+    parallel_arena::ParallelArena, paths::InteractionProfilePath,
 };
 
 pub enum Runtime2SessionEvent {
@@ -35,7 +35,8 @@ pub enum SessionActionEvent {
 pub struct InnerSession {
     pub user: WorkingUser,
 
-    pub active_action_sets: HashMap<u64, Arc<ActionSet>>,
+    pub active_action_sets: HashSet<u64>,
+    pub old_active_action_sets: HashSet<u64>,
 
     pub device_states: ParallelArena<(DeviceState, Index)>,
     pub interaction_profile_states: Arena<InteractionProfileState>,
@@ -44,7 +45,7 @@ pub struct InnerSession {
 }
 
 impl InnerSession {
-    pub fn new(runtime: &Arc<Runtime>, action_sets: &Vec<Arc<ActionSet>>) -> Self {
+    pub fn new(runtime: &Arc<Runtime>, action_sets: &HashMap<u64, Arc<ActionSet>>) -> Self {
         let mut interaction_profile_states = Arena::new();
         let desktop_profile_id = interaction_profile_states.insert(InteractionProfileState::new(
             runtime
@@ -59,21 +60,54 @@ impl InnerSession {
             device_states: ParallelArena::new(),
             interaction_profile_states,
             desktop_profile_id,
-            active_action_sets: HashMap::new(),
+            active_action_sets: HashSet::new(),
+            old_active_action_sets: HashSet::new(),
         }
     }
 
-    pub fn sync(
+    pub fn sync<'a>(
         &mut self,
         runtime: Arc<Runtime>,
+        new_active_action_sets: impl Iterator<Item = &'a Arc<ActionSet>>,
+        action_sets: &HashMap<u64, Arc<ActionSet>>,
         action_events: &Receiver<SessionActionEvent>,
         events: &Receiver<Runtime2SessionEvent>,
         user: &Arc<User>,
         actions: &HashMap<u64, Arc<Action>>,
         callbacks: &mut Vec<Box<dyn ActionListener>>,
     ) {
+        std::mem::swap(&mut self.active_action_sets, &mut self.old_active_action_sets);
+
+        self.active_action_sets.clear();
+        self.active_action_sets.extend(new_active_action_sets.map(|set| (set.handle)));
+
         let working_user = &mut self.user;
 
+        if self.active_action_sets != self.old_active_action_sets {
+            let mut disabling = self
+                .active_action_sets
+                .difference(&self.active_action_sets)
+                .map(|handle| action_sets.get(handle).unwrap())
+                .collect::<Vec<_>>();
+
+            let mut enabling = self.active_action_sets
+                .difference(&self.old_active_action_sets)
+                .map(|handle| action_sets.get(handle).unwrap())
+                .collect::<Vec<_>>();
+
+            disabling.sort_by(|left, right| left.handle.cmp(&right.handle));
+            enabling.sort_by(|left, right| left.handle.cmp(&right.handle).reverse());
+
+            working_user.change_enabled_action_sets(
+                callbacks,
+                actions,
+                &self.interaction_profile_states,
+                &disabling,
+                &enabling,
+                &self.active_action_sets,
+            );
+        }
+        
         while let Ok(event) = action_events.try_recv() {
             match event {
                 SessionActionEvent::Unstick { action } => {
@@ -172,6 +206,28 @@ impl InnerSession {
             .device_added(device_idx, ty);
     }
 
+    
+    fn get_profile_index(&self, runtime: &Arc<Runtime>, interaction_profile_path: InteractionProfilePath) -> Index {
+        if interaction_profile_path == runtime.common_paths.desktop {
+            self.desktop_profile_id
+        } else if interaction_profile_path
+            == runtime.controller_paths.interaction_profile_dualsense
+        {
+            let interaction_profile_type = runtime
+                .interaction_profile_types
+                .get(runtime.controller_paths.interaction_profile_dualsense)
+                .unwrap();
+            // self.interaction_profile_states
+            //     .insert(InteractionProfileState::new(
+            //         interaction_profile_type.clone(),
+            //     ))
+
+            todo!()
+        } else {
+            todo!()
+        }
+    }
+
     fn input_event(
         &mut self,
         actions: &HashMap<u64, Arc<Action>>,
@@ -208,6 +264,7 @@ impl InnerSession {
                         // println!("{event:?}");
 
                         self.user.on_interaction_profile_event(
+                            *interaction_profile_id,
                             profile_state,
                             user_path,
                             event,
