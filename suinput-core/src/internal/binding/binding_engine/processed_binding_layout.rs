@@ -215,7 +215,7 @@ impl ProcessedBindingLayout {
         user_path: SuPath,
         event: &InputEvent,
         interaction_profile: &InteractionProfileState,
-        devices: &ParallelArena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, InteractionProfilePath)>,
         interface: &mut WorkingUserInterface,
     ) {
         if let Some(component_bindings) = self.input_bindings.get(&user_path) {

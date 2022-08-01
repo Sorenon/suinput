@@ -135,7 +135,7 @@ impl WorkingUser {
         event: &InputEvent,
         actions: &HashMap<u64, Arc<Action>>,
         callbacks: &mut [Box<dyn ActionListener>],
-        devices: &ParallelArena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, InteractionProfilePath)>,
     ) {
         if let Some(binding_layout_cell) = self.binding_layouts.get(&interaction_profile.ty.id) {
             let mut attached_binding_layout_ref = binding_layout_cell.borrow_mut();

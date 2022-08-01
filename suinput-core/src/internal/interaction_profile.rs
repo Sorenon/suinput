@@ -13,7 +13,7 @@ use super::{
     interaction_profile_type::InteractionProfileType,
     motion::GamepadMotion,
     parallel_arena::ParallelArena,
-    paths::{InputPath, UserPath},
+    paths::{InputPath, UserPath, InteractionProfilePath},
 };
 use crate::{
     internal::types::HashMap,
@@ -53,12 +53,12 @@ impl InteractionProfileState {
             &InteractionProfileState,
             UserPath,
             &InputEvent,
-            &ParallelArena<(DeviceState, Index)>,
+            &ParallelArena<(DeviceState, InteractionProfilePath)>,
         ),
     >(
         &mut self,
         event: &InputEvent,
-        devices: &ParallelArena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, InteractionProfilePath)>,
         mut process_bindings: F,
     ) {
         let event_device_id = Index::from_bits(event.device).unwrap();
@@ -122,7 +122,7 @@ impl InteractionProfileState {
     pub fn get_motion(
         &self,
         user_path: UserPath,
-        devices: &ParallelArena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, InteractionProfilePath)>,
     ) -> Result<GamepadMotion, ()> {
         //TODO store this state in Self
         //TODO have better method of selected active motion device
@@ -142,7 +142,7 @@ impl InteractionProfileState {
 
 struct IESHelper<'a> {
     profile: &'a InteractionProfileState,
-    devices: &'a ParallelArena<(DeviceState, Index)>,
+    devices: &'a ParallelArena<(DeviceState, InteractionProfilePath)>,
 }
 
 impl<'a> InputEventSources for IESHelper<'a> {
