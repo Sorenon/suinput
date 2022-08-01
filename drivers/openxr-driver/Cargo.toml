@@ -1,0 +1,12 @@
+[package]
+name = "openxr-driver"
+version = "0.0.1-alpha"
+edition = "2021"
+
+[dependencies]
+suinput-types = { path = "../../suinput-types" }
+thiserror = "1.0"
+once_cell = "1.13"
+parking_lot = "0.12"
+suinput = { path = "../../suinput" }
+openxr = "0.16"
