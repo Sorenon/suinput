@@ -1,5 +1,6 @@
 use std::{cell::RefCell, sync::Arc};
 
+use hashbrown::HashSet;
 use suinput_types::{
     action::{ActionListener, ActionStateEnum},
     SuPath,
@@ -19,11 +20,12 @@ mod processed_binding;
 pub mod processed_binding_layout;
 
 pub struct WorkingUserInterface<'a> {
-    pub(crate) binding_layouts: &'a HashMap<Index, RefCell<AttachedBindingLayout>>,
+    pub(crate) binding_layouts: &'a HashMap<InteractionProfilePath, RefCell<AttachedBindingLayout>>,
     pub(crate) binding_layout_action_states: &'a mut HashMap<u64, ActionStateEnum>,
 
-    pub(crate) interaction_profile_index: Index,
+    pub(crate) interaction_profile_id: InteractionProfilePath,
 
+    pub(crate) active_action_sets: &'a HashSet<u64>,
     pub(crate) action_states: &'a mut HashMap<u64, WorkingActionState>,
     pub(crate) compound_action_states: &'a mut HashMap<u64, Box<dyn CompoundActionState>>,
     pub(crate) callbacks: &'a mut [Box<dyn ActionListener>],
@@ -42,13 +44,14 @@ impl<'a> WorkingUserInterface<'a> {
             self.callbacks,
             self.actions,
             action,
-            self.interaction_profile_index,
+            self.interaction_profile_id,
             new_binding_state,
         );
     }
 
-    pub fn is_action_active(&self, _action_handle: u64) -> bool {
-        todo!()
+    pub fn is_action_active(&self, action_handle: u64) -> bool {
+        self.active_action_sets
+            .contains(&self.action_states.get(&action_handle).unwrap().action_set)
     }
 
     pub fn get_action_priority(&self, action_handle: u64) -> u32 {

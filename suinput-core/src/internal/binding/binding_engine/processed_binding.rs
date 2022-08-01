@@ -10,7 +10,7 @@ use thunderdome::Index;
 
 use crate::internal::{
     device::DeviceState, interaction_profile::InteractionProfileState,
-    parallel_arena::ParallelArena, paths::{UserPath, InputPath}, input_component::{InputComponentData, InputComponentState, InternalActionState},
+    parallel_arena::ParallelArena, paths::{UserPath, InputPath}, input_component::{InputComponentData, InputComponentState, InternalActionState}, paths::InteractionProfilePath
 };
 
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ impl ProcessedBindingType {
         user_path: SuPath,
         event: &InputEvent,
         interaction_profile: &InteractionProfileState,
-        devices: &ParallelArena<(DeviceState, Index)>,
+        devices: &ParallelArena<(DeviceState, InteractionProfilePath)>,
     ) -> Option<ActionStateEnum> {
         match (self, event.data) {
             (ProcessedBindingType::Button2Bool, InputComponentEvent::Button(state)) => {

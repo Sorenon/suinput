@@ -241,7 +241,7 @@ fn main() -> Result<(), anyhow::Error> {
             Event::MainEventsCleared => {
                 std::thread::sleep(std::time::Duration::from_millis(16));
 
-                session.poll();
+                session.sync(&[&action_set, &priority_action_set]);
 
                 let delta = session.get_action_state::<Delta2d>(&turn_action).unwrap();
                 if delta.x != 0. || delta.y != 0. {

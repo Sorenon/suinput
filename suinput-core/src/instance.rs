@@ -25,9 +25,8 @@ pub struct Instance {
 
     name: String,
 
-    // action_sets: RwLock<Vec<Arc<ActionSet>>>,
-
-    //TODO should this be a generational arena or is that overkill?
+    //TODO replace these with generational arenas
+    pub(crate) action_sets: RwLock<Vec<Arc<ActionSet>>>,
     pub(crate) actions: RwLock<Vec<Arc<Action>>>,
 
     pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
@@ -49,7 +48,7 @@ impl Instance {
             actions: RwLock::default(),
             sessions: RwLock::default(),
             default_binding_layouts: RwLock::default(),
-            // action_sets: Default::default(),
+            action_sets: RwLock::default(),
         }
     }
 
@@ -68,15 +67,20 @@ impl Instance {
         name: String,
         default_priority: u32,
     ) -> Arc<ActionSet> {
-        // self.action_sets.write().push(action_set.clone());
-        Arc::new(ActionSet {
-            handle: 0,
+        let mut action_sets = self.action_sets.write();
+
+        let arc = Arc::new(ActionSet {
+            handle: action_sets.len() as u64,
             instance: Arc::downgrade(self),
             name,
             default_priority,
             actions: Default::default(),
             baked_actions: OnceCell::new(),
-        })
+        });
+
+        action_sets.push(arc.clone());
+
+        arc
     }
 
     pub fn create_localization(&self, _identifier: String) {
@@ -142,11 +146,9 @@ impl Instance {
             let action_sets = action_sets
                 .iter()
                 .map(|action_set| {
-                    if action_set.baked_actions.get().is_none() {
-                        action_set
-                            .baked_actions
-                            .get_or_init(|| action_set.actions.read().clone());
-                    }
+                    action_set
+                        .baked_actions
+                        .get_or_init(|| action_set.actions.read().clone());
                     (action_set.handle, (*action_set).clone())
                 })
                 .collect::<HashMap<_, _>>();

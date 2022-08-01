@@ -18,7 +18,8 @@ use super::{
     device::DeviceState,
     device_type::DeviceType,
     interaction_profile::InteractionProfileState,
-    parallel_arena::ParallelArena, paths::InteractionProfilePath,
+    parallel_arena::ParallelArena,
+    paths::InteractionProfilePath,
 };
 
 pub enum Runtime2SessionEvent {
@@ -35,31 +36,42 @@ pub enum SessionActionEvent {
 pub struct InnerSession {
     pub user: WorkingUser,
 
+    //TODO move to working user
     pub active_action_sets: HashSet<u64>,
     pub old_active_action_sets: HashSet<u64>,
 
-    pub device_states: ParallelArena<(DeviceState, Index)>,
-    pub interaction_profile_states: Arena<InteractionProfileState>,
-
-    pub desktop_profile_id: Index,
+    pub default_interaction_profiles: HashMap<InteractionProfilePath, InteractionProfileState>,
+    pub device_states: ParallelArena<(DeviceState, InteractionProfilePath)>,
 }
 
 impl InnerSession {
     pub fn new(runtime: &Arc<Runtime>, action_sets: &HashMap<u64, Arc<ActionSet>>) -> Self {
-        let mut interaction_profile_states = Arena::new();
-        let desktop_profile_id = interaction_profile_states.insert(InteractionProfileState::new(
-            runtime
-                .interaction_profile_types
-                .get(runtime.common_paths.desktop)
-                .unwrap()
-                .clone(),
-        ));
+        let mut default_interaction_profiles = HashMap::new();
+        default_interaction_profiles.insert(
+            runtime.common_paths.desktop,
+            InteractionProfileState::new(
+                runtime
+                    .interaction_profile_types
+                    .get(runtime.common_paths.desktop)
+                    .unwrap()
+                    .clone(),
+            ),
+        );
+        default_interaction_profiles.insert(
+            runtime.controller_paths.interaction_profile_dualsense,
+            InteractionProfileState::new(
+                runtime
+                    .interaction_profile_types
+                    .get(runtime.controller_paths.interaction_profile_dualsense)
+                    .unwrap()
+                    .clone(),
+            ),
+        );
 
         Self {
             user: WorkingUser::new(action_sets),
             device_states: ParallelArena::new(),
-            interaction_profile_states,
-            desktop_profile_id,
+            default_interaction_profiles,
             active_action_sets: HashSet::new(),
             old_active_action_sets: HashSet::new(),
         }
@@ -101,7 +113,7 @@ impl InnerSession {
             working_user.change_enabled_action_sets(
                 callbacks,
                 actions,
-                &self.interaction_profile_states,
+                &self.default_interaction_profiles,
                 &disabling,
                 &enabling,
                 &self.active_action_sets,
@@ -181,16 +193,9 @@ impl InnerSession {
             || ty == runtime.common_paths.keyboard
             || ty == runtime.common_paths.mouse
         {
-            self.desktop_profile_id
+            runtime.common_paths.desktop
         } else if ty == runtime.controller_paths.device_dual_sense {
-            let interaction_profile_type = runtime
-                .interaction_profile_types
-                .get(runtime.controller_paths.interaction_profile_dualsense)
-                .unwrap();
-            self.interaction_profile_states
-                .insert(InteractionProfileState::new(
-                    interaction_profile_type.clone(),
-                ))
+            runtime.controller_paths.interaction_profile_dualsense
         } else {
             todo!()
         };
@@ -200,32 +205,10 @@ impl InnerSession {
             (DeviceState::new(device_type), interaction_profile_id),
         );
 
-        self.interaction_profile_states
-            .get_mut(interaction_profile_id)
+        self.default_interaction_profiles
+            .get_mut(&interaction_profile_id)
             .unwrap()
             .device_added(device_idx, ty);
-    }
-
-    
-    fn get_profile_index(&self, runtime: &Arc<Runtime>, interaction_profile_path: InteractionProfilePath) -> Index {
-        if interaction_profile_path == runtime.common_paths.desktop {
-            self.desktop_profile_id
-        } else if interaction_profile_path
-            == runtime.controller_paths.interaction_profile_dualsense
-        {
-            let interaction_profile_type = runtime
-                .interaction_profile_types
-                .get(runtime.controller_paths.interaction_profile_dualsense)
-                .unwrap();
-            // self.interaction_profile_states
-            //     .insert(InteractionProfileState::new(
-            //         interaction_profile_type.clone(),
-            //     ))
-
-            todo!()
-        } else {
-            todo!()
-        }
     }
 
     fn input_event(
@@ -254,8 +237,8 @@ impl InnerSession {
 
             */
 
-            self.interaction_profile_states
-                .get_mut(*interaction_profile_id)
+            self.default_interaction_profiles
+                .get_mut(interaction_profile_id)
                 .unwrap()
                 .update_component(
                     &event,
@@ -266,6 +249,7 @@ impl InnerSession {
                         self.user.on_interaction_profile_event(
                             *interaction_profile_id,
                             profile_state,
+                            &self.active_action_sets,
                             user_path,
                             event,
                             actions,
