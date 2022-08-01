@@ -97,7 +97,7 @@ impl InnerSession {
 
         if self.active_action_sets != self.old_active_action_sets {
             let mut disabling = self
-                .active_action_sets
+                .old_active_action_sets
                 .difference(&self.active_action_sets)
                 .map(|handle| action_sets.get(handle).unwrap())
                 .collect::<Vec<_>>();

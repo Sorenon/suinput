@@ -150,19 +150,39 @@ impl ProcessedBindingType {
     pub(crate) fn activate(&mut self, data: InputComponentData) -> Option<ActionStateEnum> {
         match (self, data.state) {
             (ProcessedBindingType::Button2Bool, InputComponentState::Button(state)) => {
-                Some(ActionStateEnum::Boolean(state))
+                if state {
+                    Some(ActionStateEnum::Boolean(true))
+                } else {
+                    None
+                }
             }
             (ProcessedBindingType::Button2Value, InputComponentState::Button(state)) => {
-                Some(ActionStateEnum::Value(if state { 1.0 } else { 0.0 }))
+                if state {
+                    Some(ActionStateEnum::Value(1.0))
+                } else {
+                    None
+                }
             }
             (ProcessedBindingType::Trigger2Bool, InputComponentState::Trigger(state)) => {
-                Some(ActionStateEnum::Boolean(state > 0.5))
+                if state > 0.5 {
+                    Some(ActionStateEnum::Boolean(true))
+                } else {
+                    None
+                }
             }
             (ProcessedBindingType::Trigger2Value, InputComponentState::Trigger(state)) => {
-                Some(ActionStateEnum::Value(state))
+                if state != 0. {
+                    Some(ActionStateEnum::Value(state))
+                } else {
+                    None
+                }
             }
             (ProcessedBindingType::Joystick2Axis2d, InputComponentState::Joystick(state)) => {
-                Some(ActionStateEnum::Axis2d(state.into()))
+                if state.magnitude_squared() != 0. {
+                    Some(ActionStateEnum::Axis2d(state.into()))
+                } else {
+                    None
+                }
             }
             _ => None,
         }

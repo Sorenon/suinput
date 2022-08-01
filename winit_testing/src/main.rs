@@ -1,3 +1,5 @@
+use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
     action_type::{
@@ -23,6 +25,8 @@ struct Listener {
     r#move: SuAction<Axis2d>,
     overridden: SuAction<bool>,
     priority_action: SuAction<bool>,
+    toggle_priority_action_set: SuAction<bool>,
+    enable_priority_action_set: Arc<AtomicBool>,
 }
 
 impl ActionListener for Listener {
@@ -48,9 +52,16 @@ impl ActionListener for Listener {
                 println!("move {state:?}");
             }
         } else if event.action_handle == self.overridden.handle() {
-            println!("This should not fire")
+            println!("This should not fire unless priority action set is disabled {:?}", event.data)
         } else if event.action_handle == self.priority_action.handle() {
-            println!("Overridden")
+            println!("Overridden {:?}", event.data)
+        } else if event.action_handle == self.toggle_priority_action_set.handle() {
+            if let ActionEventEnum::Boolean { state, changed } = event.data {
+                if state && changed {
+                    println!("toggled priority action set");
+                    self.enable_priority_action_set.store(false, Ordering::Relaxed);
+                }
+            }
         }
     }
 }
@@ -95,6 +106,11 @@ fn main() -> Result<(), anyhow::Error> {
     let overridden = action_set.create_action("overriden", BooleanActionCreateInfo::default());
     let priority_action =
         priority_action_set.create_action("priority_action", BooleanActionCreateInfo::default());
+
+    let toggle_priority_action_set = action_set.create_action(
+        "toggle_priority_action_set",
+        BooleanActionCreateInfo::default(),
+    );
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
@@ -165,6 +181,10 @@ fn main() -> Result<(), anyhow::Error> {
                 action: priority_action.handle(),
                 path: instance.get_path("/user/desktop/keyboard/input/button_t/click")?,
             },
+            SimpleBinding {
+                action: toggle_priority_action_set.handle(),
+                path: instance.get_path("/user/desktop/keyboard/input/button_y/click")?,
+            },
         ],
     )?;
 
@@ -203,7 +223,7 @@ fn main() -> Result<(), anyhow::Error> {
         ],
     )?;
 
-    instance.set_default_binding_layout(dualsense_profile, &binding_layout);
+    // instance.set_default_binding_layout(dualsense_profile, &binding_layout);
 
     let session = instance.create_session(&[&action_set, &priority_action_set]);
 
@@ -211,6 +231,8 @@ fn main() -> Result<(), anyhow::Error> {
     let window = WindowBuilder::new().build(&event_loop)?;
 
     session.set_window_rwh(window.raw_window_handle());
+
+    let enable_priority_action_set = Arc::new(AtomicBool::new(true));
 
     session.register_event_listener(Box::new(Listener {
         jump: jump_action,
@@ -222,6 +244,8 @@ fn main() -> Result<(), anyhow::Error> {
         r#move: move_action,
         overridden,
         priority_action,
+        toggle_priority_action_set,
+        enable_priority_action_set: enable_priority_action_set.clone(),
     }));
 
     let mut yaw = 0.;
@@ -241,7 +265,11 @@ fn main() -> Result<(), anyhow::Error> {
             Event::MainEventsCleared => {
                 std::thread::sleep(std::time::Duration::from_millis(16));
 
-                session.sync(&[&action_set, &priority_action_set]);
+                if enable_priority_action_set.load(Ordering::Relaxed) {
+                    session.sync(&[&action_set, &priority_action_set]);
+                } else {
+                    session.sync(&[&action_set]);
+                }
 
                 let delta = session.get_action_state::<Delta2d>(&turn_action).unwrap();
                 if delta.x != 0. || delta.y != 0. {

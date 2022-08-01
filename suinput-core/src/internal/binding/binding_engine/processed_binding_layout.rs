@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::vec::IntoIter;
 
 use nalgebra::Vector2;
+use suinput_types::event::InputComponentEvent;
 use suinput_types::{
     action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
     SuPath,
@@ -224,6 +225,10 @@ impl ProcessedBindingLayout {
         if let Some((bindings, max_priority)) =
             self.bindings_for_input.get(&(user_path, event.path))
         {
+            if matches!(event.data, InputComponentEvent::Button(..)) {
+                println!("match {max_priority}")
+            }
+
             for &binding_index in bindings {
                 let binding = &mut self.bindings_index[binding_index];
 
@@ -474,8 +479,7 @@ impl ProcessedBindingLayout {
                             }
                         }
 
-                        self.bindings_for_input.get_mut(&input_component).unwrap().1 =
-                            action_set.default_priority;
+                        self.bindings_for_input.get_mut(&input_component).unwrap().1 = new_max_priority;
                     }
                 }
             }
