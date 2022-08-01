@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use suinput_types::action::ChildActionType;
 
 use crate::{
-    action::{Action, ActionCompoundType, ActionTypeEnum, ParentActionType},
+    action::{Action, ActionCompoundType, ActionTypeEnum},
     types::action_type::ActionType,
 };
 
@@ -94,7 +94,7 @@ impl ActionSet {
         let action = Arc::new(Action {
             handle: (instance_actions.len() as u64) + 1,
             action_set: Arc::downgrade(self),
-            name: name,
+            name,
             data_type: action_type,
             compound: ActionCompoundType::Child {
                 parent,
@@ -107,7 +107,7 @@ impl ActionSet {
         action
     }
 
-    pub fn create_action_layer(&self, name: String, default_priority: u32) {
+    pub fn create_action_layer(&self, _name: String, _default_priority: u32) {
         todo!()
     }
 }

@@ -37,10 +37,7 @@ impl PathManager {
     }
 
     pub fn get_path_string(&self, path: SuPath) -> Option<String> {
-        self.1
-            .read()
-            .get(path.0 as usize)
-            .map(|inner| inner.clone())
+        self.1.read().get(path.0 as usize).cloned()
     }
 }
 

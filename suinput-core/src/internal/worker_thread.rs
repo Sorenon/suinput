@@ -52,7 +52,7 @@ pub fn spawn_thread(
                     Driver2RuntimeEvent::Input(event) => {
                         worker_thread.on_input_event(event);
                     }
-                    Driver2RuntimeEvent::BatchInput(batch_update) => {
+                    Driver2RuntimeEvent::BatchInput(_batch_update) => {
                         todo!()
                     }
                     Driver2RuntimeEvent::DisconnectDevice(id) => {

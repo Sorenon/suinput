@@ -46,7 +46,7 @@ impl<'a> WorkingUserInterface<'a> {
         );
     }
 
-    pub fn is_action_active(&self, action_handle: u64) -> bool {
+    pub fn is_action_active(&self, _action_handle: u64) -> bool {
         todo!()
     }
 
@@ -57,6 +57,6 @@ impl<'a> WorkingUserInterface<'a> {
     pub fn get_action_state(&self, action_handle: u64) -> Option<ActionStateEnum> {
         self.binding_layout_action_states
             .get(&action_handle)
-            .map(|s| s.clone())
+            .copied()
     }
 }

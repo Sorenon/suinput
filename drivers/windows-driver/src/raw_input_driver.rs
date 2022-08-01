@@ -66,7 +66,7 @@ pub fn create_background_window() -> Result<HWND> {
         }
 
         ShowWindow(hwnd, 1);
-        return Ok(hwnd);
+        Ok(hwnd)
     }
 }
 

@@ -91,7 +91,7 @@ impl SuInputDriver for Win32HookingWindowDriver {
         todo!()
     }
 
-    fn get_component_state(&self, device: usize, path: SuPath) -> () {
+    fn get_component_state(&self, _device: usize, _path: SuPath) {
         todo!()
     }
 
@@ -126,7 +126,7 @@ impl SuInputDriver for Win32RawInputGenericDriver {
 
     fn poll(&self) {}
 
-    fn get_component_state(&self, device: usize, path: SuPath) -> () {
+    fn get_component_state(&self, _device: usize, _path: SuPath) {
         todo!()
     }
 

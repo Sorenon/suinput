@@ -3,7 +3,7 @@ use std::{cell::RefCell, sync::Arc, time::Instant};
 use flume::Receiver;
 use hashbrown::HashMap;
 use suinput_types::{
-    action::{ActionListener, ActionStateEnum, ActionEvent},
+    action::{ActionEvent, ActionListener, ActionStateEnum},
     event::InputEvent,
 };
 use thunderdome::{Arena, Index};
@@ -126,7 +126,7 @@ impl InnerSession {
                 Runtime2SessionEvent::RegisterDevice { idx, ty } => {
                     self.register_device(&runtime, idx, ty);
                 }
-                Runtime2SessionEvent::DisconnectDevice { idx } => todo!(),
+                Runtime2SessionEvent::DisconnectDevice { idx: _ } => todo!(),
                 Runtime2SessionEvent::Input(input) => {
                     self.input_event(actions, input, callbacks);
                 }
@@ -208,7 +208,7 @@ impl InnerSession {
                         // println!("{event:?}");
 
                         self.user.on_interaction_profile_event(
-                            &profile_state,
+                            profile_state,
                             user_path,
                             event,
                             actions,

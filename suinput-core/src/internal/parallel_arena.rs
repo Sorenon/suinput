@@ -1,4 +1,3 @@
-use itertools::Iterate;
 use thunderdome::Index;
 
 #[derive(Debug, Clone)]
@@ -64,7 +63,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(entry) = self.inner.next()? {
-                return Some(entry)
+                return Some(entry);
             }
         }
     }
@@ -80,7 +79,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some(entry) = self.inner.next()? {
-                return Some(entry)
+                return Some(entry);
             }
         }
     }

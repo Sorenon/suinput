@@ -108,11 +108,9 @@ impl SuInstance {
         bindings: &[SimpleBinding],
     ) -> Result<SuBindingLayout, CreateBindingLayoutError> {
         Ok(SuBindingLayout(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_binding_layout(
-                name.into(),
-                interaction_profile,
-                bindings,
-            )?),
+            Inner::Embedded(inner) => {
+                Inner::Embedded(inner.create_binding_layout(name, interaction_profile, bindings)?)
+            }
             Inner::FFI() => todo!(),
         }))
     }
@@ -235,7 +233,7 @@ impl SuActionSet {
         )
     }
 
-    pub fn create_action_layer(&self, name: &str, default_priority: u32) {
+    pub fn create_action_layer(&self, _name: &str, _default_priority: u32) {
         todo!()
     }
 }

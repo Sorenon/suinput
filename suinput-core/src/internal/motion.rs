@@ -171,12 +171,10 @@ impl Motion {
                     )
                     .clamp(0., 1.),
                 )
+            } else if self.shakiness < settings.gravity_correction_gyro_max_threshold {
+                settings.gravity_correction_still_speed
             } else {
-                if self.shakiness < settings.gravity_correction_gyro_max_threshold {
-                    settings.gravity_correction_still_speed
-                } else {
-                    settings.gravity_correction_shaky_speed
-                }
+                settings.gravity_correction_shaky_speed
             };
             // we also limit it to be no faster than a given proportion of the gyro rate, or the minimum gravity correction speed
             let gyro_grav_correction_limit = (angle_speed
@@ -194,12 +192,11 @@ impl Motion {
                         grav_to_accel.magnitude(),
                     )
                     .clamp(0., 1.)
+                } else if grav_to_accel.magnitude() < settings.gravity_correction_gyro_max_threshold
+                {
+                    0.
                 } else {
-                    if grav_to_accel.magnitude() < settings.gravity_correction_gyro_max_threshold {
-                        0.
-                    } else {
-                        1.
-                    }
+                    1.
                 };
                 grav_correction_speed = lerp(
                     gyro_grav_correction_limit,
@@ -420,7 +417,7 @@ impl AutoCalibration {
         }
 
         self.min_max_window.reset(0.);
-        return false;
+        false
     }
 
     //TODO AddSampleSensorFusion
@@ -509,8 +506,8 @@ impl GamepadMotion {
                 }
                 CalibrationMode::Stillness { sensor_fusion } => {
                     self.auto_calibration.add_sample_stillness(
-                        &gyro,
-                        &accel,
+                        gyro,
+                        accel,
                         delta_time,
                         sensor_fusion,
                         &self.settings,
@@ -558,23 +555,23 @@ impl GamepadMotion {
     }
 
     pub fn get_calibrated_gyro(&self) -> Vector3<f32> {
-        return self.gyro;
+        self.gyro
     }
 
     pub fn get_gravity(&self) -> Vector3<f32> {
-        return self.motion.grav;
+        self.motion.grav
     }
 
     pub fn get_linear_acceleration(&self) -> Vector3<f32> {
-        return self.motion.accel;
+        self.motion.accel
     }
 
     pub fn get_raw_acceleration(&self) -> Vector3<f32> {
-        return self.raw_accel;
+        self.raw_accel
     }
 
     pub fn get_orientation(&self) -> UnitQuaternion<f32> {
-        return self.motion.orientation;
+        self.motion.orientation
     }
 
     pub fn start_continuous_calibration(&mut self) {

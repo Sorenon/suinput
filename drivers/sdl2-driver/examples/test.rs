@@ -1,4 +1,3 @@
-use sdl2::{event::Event, keyboard::Keycode};
 // use suinput_types::driver_interface::SuInputDriver;
 
 fn main() {

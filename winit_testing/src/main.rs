@@ -213,13 +213,13 @@ fn main() -> Result<(), anyhow::Error> {
     session.set_window_rwh(window.raw_window_handle());
 
     session.register_event_listener(Box::new(Listener {
-        jump: jump_action.clone(),
-        zoom: zoom_action.clone(),
+        jump: jump_action,
+        zoom: zoom_action,
         // turn: turn_action.clone(),
-        cursor: cursor_action.clone(),
-        thrust: thrust_action.clone(),
+        cursor: cursor_action,
+        thrust: thrust_action,
         session: session.clone(),
-        r#move: move_action.clone(),
+        r#move: move_action,
         overridden,
         priority_action,
     }));

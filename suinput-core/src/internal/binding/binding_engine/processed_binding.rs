@@ -6,9 +6,12 @@ use suinput_types::{
     event::{InputComponentEvent, InputEvent},
     SuPath,
 };
-use thunderdome::{Arena, Index};
+use thunderdome::Index;
 
-use crate::internal::{device::DeviceState, interaction_profile::InteractionProfileState, parallel_arena::ParallelArena};
+use crate::internal::{
+    device::DeviceState, interaction_profile::InteractionProfileState,
+    parallel_arena::ParallelArena,
+};
 
 #[derive(Debug, Clone)]
 pub enum ProcessedBinding {
@@ -232,7 +235,7 @@ impl GyroBindingSpace {
                 };
                 Vector2::new(-x, angular_velocity.x)
             }
-            GyroBindingSpace::WorldSpace { x_axis } => todo!(),
+            GyroBindingSpace::WorldSpace { x_axis: _ } => todo!(),
         }
     }
 }

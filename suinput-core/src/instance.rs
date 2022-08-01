@@ -40,11 +40,11 @@ impl Instance {
         runtime: &Arc<Runtime>,
         handle: u64,
         name: String,
-        persistent_unique_id: (),
+        _persistent_unique_id: (),
     ) -> Self {
         Instance {
             handle,
-            runtime: Arc::downgrade(&runtime),
+            runtime: Arc::downgrade(runtime),
             name,
             actions: RwLock::default(),
             sessions: RwLock::default(),
@@ -68,19 +68,18 @@ impl Instance {
         name: String,
         default_priority: u32,
     ) -> Arc<ActionSet> {
-        let action_set = Arc::new(ActionSet {
+        // self.action_sets.write().push(action_set.clone());
+        Arc::new(ActionSet {
             handle: 0,
             instance: Arc::downgrade(self),
             name,
             default_priority,
             actions: Default::default(),
             baked_actions: OnceCell::new(),
-        });
-        // self.action_sets.write().push(action_set.clone());
-        action_set
+        })
     }
 
-    pub fn create_localization(&self, identifier: String) {
+    pub fn create_localization(&self, _identifier: String) {
         todo!()
     }
 
@@ -207,9 +206,9 @@ impl Instance {
      */
     pub fn bind_openxr(
         &self,
-        xr_instance: (),
-        xr_session: (),
-        extra_xr_action_sets: Option<()>,
+        _xr_instance: (),
+        _xr_session: (),
+        _extra_xr_action_sets: Option<()>,
     ) -> bool {
         todo!()
     }

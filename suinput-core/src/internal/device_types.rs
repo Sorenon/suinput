@@ -20,7 +20,7 @@ impl DeviceTypes {
         paths: &PathManager,
     ) -> Self {
         Self {
-            cache: [DeviceType::create_keyboard(&common_paths, &keyboard_paths)]
+            cache: [DeviceType::create_keyboard(common_paths, keyboard_paths)]
                 .into_iter()
                 .chain(serial_device_type::deserialize(paths))
                 .map(|device_type| (device_type.id, Arc::new(device_type)))

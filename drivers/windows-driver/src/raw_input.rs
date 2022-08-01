@@ -146,7 +146,7 @@ pub fn register_raw_input_classes(hwnd: HWND) -> Result<()> {
         {
             return Err(Error::win32());
         }
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -165,7 +165,7 @@ pub fn get_raw_input_data(raw_input_handle: HRAWINPUT) -> Result<RAWINPUT> {
         {
             return Err(Error::win32());
         }
-        return Ok(raw_input);
+        Ok(raw_input)
     }
 }
 
@@ -413,5 +413,5 @@ pub fn raw_input_to_hid_scancode(
         return Ok(None);
     }
 
-    return Ok(Some(scancode));
+    Ok(Some(scancode))
 }

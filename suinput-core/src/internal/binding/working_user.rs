@@ -2,7 +2,6 @@ use std::{
     borrow::BorrowMut, cell::RefCell, ops::DerefMut, sync::Arc, time::Instant, vec::IntoIter,
 };
 
-use nalgebra::Vector2;
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionListener, ActionStateEnum, ChildActionType},
     event::InputEvent,
@@ -14,7 +13,9 @@ use crate::{
     action::{Action, ActionTypeEnum},
     action_set::ActionSet,
     internal::{
-        compound_action::{CompoundActionState, CompoundAxis1dState, StickyBoolState, CompoundAxis2dState},
+        compound_action::{
+            CompoundActionState, CompoundAxis1dState, CompoundAxis2dState, StickyBoolState,
+        },
         parallel_arena::ParallelArena,
         types::HashMap,
     },
@@ -169,8 +170,8 @@ impl WorkingUser {
         //Store updated binding endpoint action state and decide if an event should be thrown after aggregating against other bindings and then other binding layouts
         let event = match binding_event {
             ActionStateEnum::Boolean(new_binding_state) => UserActions {
-                attached_binding_layouts: &binding_layouts,
-                action_states: &action_states,
+                attached_binding_layouts: binding_layouts,
+                action_states,
             }
             .aggregate::<bool>(action_handle, new_binding_state, interaction_profile_id)
             .map(|(state, changed)| {
@@ -199,8 +200,8 @@ impl WorkingUser {
                 })
             }
             ActionStateEnum::Value(value) => UserActions {
-                attached_binding_layouts: &binding_layouts,
-                action_states: &action_states,
+                attached_binding_layouts: binding_layouts,
+                action_states,
             }
             .aggregate::<Value>(action_handle, value, interaction_profile_id)
             .map(|value| {
@@ -211,8 +212,8 @@ impl WorkingUser {
             //TODO support Axis1d binding endpoints
             ActionStateEnum::Axis1d(_) => todo!(),
             ActionStateEnum::Axis2d(state) => UserActions {
-                attached_binding_layouts: &binding_layouts,
-                action_states: &action_states,
+                attached_binding_layouts: binding_layouts,
+                action_states,
             }
             .aggregate::<Axis2d>(action_handle, state.into(), interaction_profile_id)
             .map(|state| {
@@ -310,7 +311,7 @@ impl<'a> InputEventSources for UserActions<'a> {
     fn get_sources<I: InputEventType>(&self, _: Self::Index) -> Self::Sources {
         self.attached_binding_layouts
             .keys()
-            .map(|p| *p)
+            .copied()
             .collect::<Vec<_>>()
             .into_iter()
     }

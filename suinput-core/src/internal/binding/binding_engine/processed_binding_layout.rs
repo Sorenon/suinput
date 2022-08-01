@@ -5,7 +5,7 @@ use suinput_types::{
     action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
     SuPath,
 };
-use thunderdome::{Arena, Index};
+use thunderdome::Index;
 
 use crate::internal::input_events::InputEventSources;
 use crate::internal::parallel_arena::ParallelArena;
@@ -48,7 +48,7 @@ impl ProcessedBindingLayout {
             .ok_or_else(|| {
             instance.get_path_string(interaction_profile).map_or(
                 CreateBindingLayoutError::InvalidPathHandle(interaction_profile),
-                |path| CreateBindingLayoutError::BadInteractionProfilePath(path),
+                CreateBindingLayoutError::BadInteractionProfilePath,
             )
         })?;
 
@@ -72,7 +72,7 @@ impl ProcessedBindingLayout {
                 None => {
                     return Err(instance.get_path_string(user_path).map_or(
                         CreateBindingLayoutError::InvalidPathHandle(interaction_profile),
-                        |path| CreateBindingLayoutError::BadUserPath(path),
+                        CreateBindingLayoutError::BadUserPath,
                     ))
                 }
             };
@@ -162,7 +162,7 @@ impl ProcessedBindingLayout {
                 None => {
                     return Err(instance.get_path_string(component_path).map_or(
                         CreateBindingLayoutError::InvalidPathHandle(interaction_profile),
-                        |path| CreateBindingLayoutError::BadComponentPath(path),
+                        CreateBindingLayoutError::BadComponentPath,
                     ))
                 }
             };
@@ -259,7 +259,7 @@ impl ProcessedBindingLayout {
                                     interface,
                                 }
                                 .aggregate::<Value>(*action_handle, new_state, binding_index)
-                                .map(|new_state| ActionStateEnum::Value(new_state))
+                                .map(ActionStateEnum::Value)
                             }
                             ActionStateEnum::Axis1d(new_state) => {
                                 *self.binding_states.get_mut(binding_index).unwrap() =
@@ -270,7 +270,7 @@ impl ProcessedBindingLayout {
                                     interface,
                                 }
                                 .aggregate::<Axis1d>(*action_handle, new_state, binding_index)
-                                .map(|new_state| ActionStateEnum::Axis1d(new_state))
+                                .map(ActionStateEnum::Axis1d)
                             }
                             ActionStateEnum::Axis2d(new_state) => {
                                 *self.binding_states.get_mut(binding_index).unwrap() =

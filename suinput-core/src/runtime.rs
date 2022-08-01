@@ -182,7 +182,7 @@ impl RuntimeInterfaceTrait for EmbeddedDriverRuntimeInterface {
             .recv_deadline(Instant::now() + Duration::from_secs(5))
             .unwrap()
         {
-            Driver2RuntimeEventResponse::DeviceId(id) => return Ok(id),
+            Driver2RuntimeEventResponse::DeviceId(id) => Ok(id),
         }
     }
 

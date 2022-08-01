@@ -16,11 +16,7 @@ use concurrent_sdl::*;
 use game_controller::*;
 use joystick::*;
 use suinput::driver_interface::*;
-use suinput_types::{
-    controller_paths::GameControllerPaths,
-    event::{InputComponentEvent, InputEvent},
-    SuPath, Time,
-};
+use suinput_types::{controller_paths::GameControllerPaths, event::InputComponentEvent, SuPath};
 
 /*
     TODO sort out the controller dupe bug when using winit
@@ -126,7 +122,7 @@ impl SuInputDriver for SDLGameControllerGenericDriver {
         todo!()
     }
 
-    fn get_component_state(&self, device: usize, path: suinput_types::SuPath) -> () {
+    fn get_component_state(&self, _device: usize, _path: suinput_types::SuPath) {
         todo!()
     }
 
@@ -160,7 +156,7 @@ impl ThreadState {
         for (controller, state) in self.game_controllers.values_mut() {
             if controller.sdl.get_type() == SDL_GameControllerType::SDL_CONTROLLER_TYPE_PS5 {
                 controller.update_idx += 1;
-                state.update(&controller, &self.interface, &self.paths);
+                state.update(controller, &self.interface, &self.paths);
             }
         }
     }
@@ -180,8 +176,7 @@ impl ThreadState {
             || self
                 .old_joysticks
                 .iter()
-                .find(|instance_id| !new_joysticks.contains(&instance_id))
-                .is_some()
+                .any(|instance_id| !new_joysticks.contains(instance_id))
         {
             self.game_controllers
                 .retain(|joystick_id, _| new_joysticks.contains(joystick_id));

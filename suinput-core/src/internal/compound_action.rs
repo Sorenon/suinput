@@ -115,8 +115,11 @@ impl CompoundActionState for StickyBoolState {
     fn handle_event(&mut self) -> Option<ActionEventEnum> {
         if self.stuck {
             self.stuck = self.sticky_press_state;
-            if self.combined_state&& !self.parent_state && !self.stuck {
-                Some(ActionEventEnum::Boolean { state: false, changed: true })
+            if self.combined_state && !self.parent_state && !self.stuck {
+                Some(ActionEventEnum::Boolean {
+                    state: false,
+                    changed: true,
+                })
             } else {
                 None
             }

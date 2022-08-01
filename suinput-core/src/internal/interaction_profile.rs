@@ -66,7 +66,7 @@ impl InteractionProfileState {
         for (user_path, device_ids) in &self.devices {
             if device_ids.contains(&event_device_id) {
                 let helper = IESHelper {
-                    profile: &self,
+                    profile: self,
                     devices,
                 };
 
@@ -80,14 +80,14 @@ impl InteractionProfileState {
                     }
                     InputComponentEvent::Trigger(state) => helper
                         .aggregate::<Value>((*user_path, event.path), state, event_device_id)
-                        .map(|state| InputComponentState::Trigger(state)),
+                        .map(InputComponentState::Trigger),
                     InputComponentEvent::Joystick(state) => helper
                         .aggregate::<Axis2d>(
                             (*user_path, event.path),
                             state.into(),
                             event_device_id,
                         )
-                        .map(|state| InputComponentState::Joystick(state)),
+                        .map(InputComponentState::Joystick),
                     InputComponentEvent::Gyro(_) =>
                     //TODO only have one active gyro for component per interaction profile
                     {
@@ -97,7 +97,7 @@ impl InteractionProfileState {
                 };
 
                 if let Some(new_state) = new_state {
-                    process_bindings(&self, *user_path, event, devices);
+                    process_bindings(self, *user_path, event, devices);
 
                     self.input_components.insert(
                         (*user_path, event.path),
@@ -111,7 +111,11 @@ impl InteractionProfileState {
         }
     }
 
-    pub fn get_input_component_state(&self, user_path: UserPath, input_path: InputPath) -> Option<InputComponentData> {
+    pub fn get_input_component_state(
+        &self,
+        user_path: UserPath,
+        input_path: InputPath,
+    ) -> Option<InputComponentData> {
         self.input_components.get(&(user_path, input_path)).copied()
     }
 
@@ -131,7 +135,7 @@ impl InteractionProfileState {
         })
     }
 
-    pub fn device_removed(&mut self, id: Index, devices: &Arena<(DeviceState, Index)>) {
+    pub fn device_removed(&mut self, _id: Index, _devices: &Arena<(DeviceState, Index)>) {
         todo!()
     }
 }
@@ -172,7 +176,7 @@ impl<'a> InputEventSources for IESHelper<'a> {
             .get(&user_path)
             .unwrap()
             .iter()
-            .map(|idx| *idx)
+            .copied()
             .collect::<Vec<_>>()
             .into_iter()
     }

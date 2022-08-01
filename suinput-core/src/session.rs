@@ -75,8 +75,7 @@ impl Session {
         let action_states = self.user.action_states.read();
         action_states
             .get(&action.handle)
-            .map(|state| T::from_ase(state))
-            .flatten()
+            .and_then(|state| T::from_ase(state))
             .ok_or(())
     }
 }

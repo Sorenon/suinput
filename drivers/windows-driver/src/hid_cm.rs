@@ -10,8 +10,7 @@ use windows_sys::{
     Win32::Devices::{
         DeviceAndDriverInstallation::{
             CM_Get_Device_Interface_ListW, CM_Get_Device_Interface_List_SizeW,
-            CM_Get_Device_Interface_PropertyW, CM_GET_DEVICE_INTERFACE_LIST_PRESENT, CONFIGRET,
-            CR_BUFFER_SMALL, CR_SUCCESS,
+            CM_Get_Device_Interface_PropertyW, CONFIGRET, CR_BUFFER_SMALL, CR_SUCCESS,
         },
         Properties::DEVPKEY_Device_ContainerId,
     },
