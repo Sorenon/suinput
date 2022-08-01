@@ -1,6 +1,8 @@
 use std::sync::{Arc, Weak};
 
-use crate::internal::{inner_session::InnerSession, types::HashMap, worker_thread::WorkerThreadEvent};
+use crate::internal::{
+    inner_session::InnerSession, types::HashMap, worker_thread::WorkerThreadEvent,
+};
 
 use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RwLock};
@@ -142,9 +144,9 @@ impl Instance {
                 .iter()
                 .map(|action_set| {
                     if action_set.baked_actions.get().is_none() {
-                        let actions = action_set.actions.read();
-                        //We don't care if this failed somehow
-                        std::mem::forget(action_set.baked_actions.set(actions.clone()));
+                        action_set
+                            .baked_actions
+                            .get_or_init(|| action_set.actions.read().clone());
                     }
 
                     (*action_set).clone()
@@ -177,11 +179,13 @@ impl Instance {
                 action_events: flume::unbounded(),
             });
 
-
             let handle = runtime_sessions.insert(session.clone());
             instance_sessions.push(session.clone());
 
-            runtime.worker_thread_sender.send(WorkerThreadEvent::CreateSession { handle }).unwrap();
+            runtime
+                .worker_thread_sender
+                .send(WorkerThreadEvent::CreateSession { handle })
+                .unwrap();
 
             session
         };
