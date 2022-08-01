@@ -243,14 +243,12 @@ fn main() -> Result<(), anyhow::Error> {
 
                 session.poll();
 
-                let delta = session.get_action_state::<Delta2d>(&turn_action)
-                //.unwrap()
-                ;
-                // if delta.x != 0. || delta.y != 0. {
-                //     yaw += delta.x;
-                //     pitch += delta.y;
-                //     println!("{yaw} {pitch}")
-                // }
+                let delta = session.get_action_state::<Delta2d>(&turn_action).unwrap();
+                if delta.x != 0. || delta.y != 0. {
+                    yaw += delta.x;
+                    pitch += delta.y;
+                    println!("{yaw} {pitch}")
+                }
             }
             _ => (),
         }

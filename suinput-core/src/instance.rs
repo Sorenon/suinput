@@ -174,6 +174,7 @@ impl Instance {
                 action_sets,
                 driver_events_send,
                 driver_events_rec,
+                action_events: flume::unbounded(),
             });
 
 

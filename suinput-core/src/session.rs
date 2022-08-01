@@ -11,7 +11,7 @@ use crate::{
     action::Action,
     action_set::ActionSet,
     instance::Instance,
-    internal::inner_session::{InnerSession, Runtime2SessionEvent},
+    internal::inner_session::{InnerSession, Runtime2SessionEvent, SessionActionEvent},
     runtime::Runtime,
     user::User,
 };
@@ -29,6 +29,7 @@ pub struct Session {
     pub(crate) action_sets: Vec<Arc<ActionSet>>,
     pub(crate) actions: HashMap<u64, Arc<Action>>, //TODO dynamic action sets
 
+    pub(crate) action_events: (Sender<SessionActionEvent>, Receiver<SessionActionEvent>),
     pub(crate) driver_events_send: Sender<Runtime2SessionEvent>,
     pub(crate) driver_events_rec: Receiver<Runtime2SessionEvent>,
     pub(crate) inner: Mutex<InnerSession>,
@@ -47,6 +48,7 @@ impl Session {
         let mut inner = self.inner.lock();
         inner.sync(
             self.runtime.upgrade().unwrap(),
+            &self.action_events.1,
             &self.driver_events_rec,
             &self.user,
             &self.actions,
@@ -61,17 +63,12 @@ impl Session {
     }
 
     pub fn unstick_bool_action(&self, action: &Action) {
-        let runtime = self.runtime.upgrade().unwrap();
-
-        // runtime
-        //     .worker_thread_sender
-        //     .send(WorkerThreadEvent::Output(OutputEvent::ReleaseStickyBool {
-        //         session: self.runtime_handle,
-        //         action: action.handle,
-        //     }))
-        //     .unwrap();
-
-        todo!()
+        self.action_events
+            .0
+            .send(SessionActionEvent::Unstick {
+                action: action.handle,
+            })
+            .unwrap();
     }
 
     pub fn get_action_state<T: ActionType>(&self, action: &Action) -> Result<T::Value, ()> {

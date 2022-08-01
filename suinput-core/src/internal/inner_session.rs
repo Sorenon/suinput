@@ -1,8 +1,11 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{cell::RefCell, sync::Arc, time::Instant};
 
 use flume::Receiver;
 use hashbrown::HashMap;
-use suinput_types::{action::ActionListener, event::InputEvent};
+use suinput_types::{
+    action::{ActionListener, ActionStateEnum, ActionEvent},
+    event::InputEvent,
+};
 use thunderdome::{Arena, Index};
 
 use crate::{
@@ -23,6 +26,10 @@ pub enum Runtime2SessionEvent {
     DisconnectDevice { idx: Index },
     Input(InputEvent),
     BatchInput(BatchInputUpdate),
+}
+
+pub enum SessionActionEvent {
+    Unstick { action: u64 },
 }
 
 pub struct InnerSession {
@@ -56,12 +63,35 @@ impl InnerSession {
     pub fn sync(
         &mut self,
         runtime: Arc<Runtime>,
+        action_events: &Receiver<SessionActionEvent>,
         events: &Receiver<Runtime2SessionEvent>,
         user: &Arc<User>,
         actions: &HashMap<u64, Arc<Action>>,
         callbacks: &mut Vec<Box<dyn ActionListener>>,
     ) {
         let working_user = &mut self.user;
+
+        while let Ok(event) = action_events.try_recv() {
+            match event {
+                SessionActionEvent::Unstick { action } => {
+                    if let Some(event) = working_user
+                        .compound_action_states
+                        .get_mut(&action)
+                        .unwrap()
+                        .handle_event()
+                    {
+                        let event = ActionEvent {
+                            action_handle: action,
+                            time: Instant::now(),
+                            data: event,
+                        };
+                        for listener in callbacks.iter_mut() {
+                            listener.handle_event(event, 0);
+                        }
+                    }
+                }
+            }
+        }
 
         for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
             working_user.binding_layouts.insert(
@@ -73,32 +103,19 @@ impl InnerSession {
         let mut user_action_states = user.action_states.write();
 
         for (path, working_action_state) in working_user.action_states.iter_mut() {
-            // let action_state = &mut working_action_state.state;
-            // if let Some(parent_action_state) = working_user.parent_action_states.get(path) {
-            //     user_action_states.insert(
-            //         *path,
-            //         match parent_action_state {
-            //             ParentActionState::StickyBool { combined_state, .. } => {
-            //                 ActionStateEnum::Boolean(*combined_state)
-            //             }
-            //             ParentActionState::Axis1d { combined_state, .. } => {
-            //                 ActionStateEnum::Axis1d(*combined_state)
-            //             }
-            //             ParentActionState::Axis2d { combined_state, .. } => {
-            //                 ActionStateEnum::Axis2d((*combined_state).into())
-            //             }
-            //         },
-            //     );
-            // } else {
-            //     user_action_states.insert(*path, *action_state);
-            // }
+            let action_state = &mut working_action_state.state;
+            if let Some(compound_state) = working_user.compound_action_states.get(path) {
+                user_action_states.insert(*path, compound_state.get_state());
+            } else {
+                user_action_states.insert(*path, *action_state);
+            }
 
-            // match action_state {
-            //     ActionStateEnum::Delta2d(delta) => {
-            //         *delta = mint::Vector2 { x: 0., y: 0. };
-            //     }
-            //     _ => (),
-            // }
+            match action_state {
+                ActionStateEnum::Delta2d(delta) => {
+                    *delta = mint::Vector2 { x: 0., y: 0. };
+                }
+                _ => (),
+            }
         }
 
         while let Ok(event) = events.try_recv() {

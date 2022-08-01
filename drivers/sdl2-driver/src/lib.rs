@@ -106,7 +106,6 @@ impl SuInputDriver for SDLGameControllerGenericDriver {
     fn initialize(&mut self) {
         let interface = self.interface.clone();
         std::thread::spawn(|| {
-            println!("start");
             let mut thread_state = ThreadState {
                 paths: GameControllerPaths::new(|str| interface.get_path(str).unwrap()),
                 interface,

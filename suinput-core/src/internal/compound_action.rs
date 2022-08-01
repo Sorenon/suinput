@@ -1,5 +1,5 @@
 use nalgebra::Vector2;
-use suinput_types::action::{ActionEventEnum, ChildActionType};
+use suinput_types::action::{ActionEventEnum, ActionStateEnum, ChildActionType};
 
 pub trait CompoundActionState: Send {
     fn on_action_event(
@@ -7,6 +7,12 @@ pub trait CompoundActionState: Send {
         event: &ActionEventEnum,
         child_type: ChildActionType,
     ) -> Option<ActionEventEnum>;
+
+    fn get_state(&self) -> ActionStateEnum;
+
+    fn handle_event(&mut self) -> Option<ActionEventEnum> {
+        None
+    }
 
     //TODO method for updating by polling state instead of event
 }
@@ -101,6 +107,23 @@ impl CompoundActionState for StickyBoolState {
             None
         }
     }
+
+    fn get_state(&self) -> ActionStateEnum {
+        ActionStateEnum::Boolean(self.combined_state)
+    }
+
+    fn handle_event(&mut self) -> Option<ActionEventEnum> {
+        if self.stuck {
+            self.stuck = self.sticky_press_state;
+            if self.combined_state&& !self.parent_state && !self.stuck {
+                Some(ActionEventEnum::Boolean { state: false, changed: true })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Default)]
@@ -147,6 +170,10 @@ impl CompoundActionState for CompoundAxis1dState {
         } else {
             None
         }
+    }
+
+    fn get_state(&self) -> ActionStateEnum {
+        ActionStateEnum::Axis1d(self.state)
     }
 }
 
@@ -229,5 +256,9 @@ impl CompoundActionState for CompoundAxis2dState {
         } else {
             None
         }
+    }
+
+    fn get_state(&self) -> ActionStateEnum {
+        ActionStateEnum::Axis2d(self.state.into())
     }
 }

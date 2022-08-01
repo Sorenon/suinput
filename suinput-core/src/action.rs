@@ -90,7 +90,6 @@ impl Action {
                     ChildActionType::Horizontal => horizontal.handle,
                     _ => todo!(),
                 },
-                _ => todo!(),
             }
         } else {
             todo!()
