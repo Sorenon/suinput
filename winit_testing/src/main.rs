@@ -59,7 +59,7 @@ impl ActionListener for Listener {
             if let ActionEventEnum::Boolean { state, changed } = event.data {
                 if state && changed {
                     println!("toggled priority action set");
-                    self.enable_priority_action_set.store(false, Ordering::Relaxed);
+                    self.enable_priority_action_set.store(!self.enable_priority_action_set.load(Ordering::Relaxed), Ordering::Relaxed);
                 }
             }
         }
