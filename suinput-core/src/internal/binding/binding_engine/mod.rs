@@ -1,11 +1,7 @@
 use std::{cell::RefCell, sync::Arc};
 
 use hashbrown::HashSet;
-use suinput_types::{
-    action::{ActionListener, ActionStateEnum},
-    SuPath,
-};
-use thunderdome::Index;
+use suinput_types::action::{ActionListener, ActionStateEnum};
 
 use crate::{
     action::Action,

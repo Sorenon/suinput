@@ -2,12 +2,11 @@ use std::sync::Arc;
 use std::vec::IntoIter;
 
 use nalgebra::Vector2;
-use suinput_types::event::InputComponentEvent;
+
 use suinput_types::{
     action::ActionStateEnum, binding::SimpleBinding, event::InputEvent, CreateBindingLayoutError,
     SuPath,
 };
-use thunderdome::Index;
 
 use crate::action::Action;
 use crate::action_set::ActionSet;
@@ -171,7 +170,7 @@ impl ProcessedBindingLayout {
                 ActionTypeEnum::Boolean => InternalActionState::Boolean(false),
                 ActionTypeEnum::Axis1d => InternalActionState::Axis1d(0.),
                 ActionTypeEnum::Value => InternalActionState::Value(0.),
-                ActionTypeEnum::Axis2d => InternalActionState::Axis2d(Vector2::new(0., 0.).into()),
+                ActionTypeEnum::Axis2d => InternalActionState::Axis2d(Vector2::new(0., 0.)),
                 _ => InternalActionState::NonApplicable,
             };
 
@@ -285,14 +284,14 @@ impl ProcessedBindingLayout {
                 interface,
             }
             .aggregate::<Value>(action, new_state, binding_idx)
-            .map(|new_state| ActionStateEnum::Value(new_state)),
+            .map(ActionStateEnum::Value),
             ActionStateEnum::Axis1d(new_state) => Aggregator {
                 bindings: bindings_index,
                 bindings_for_action,
                 interface,
             }
             .aggregate::<Axis1d>(action, new_state, binding_idx)
-            .map(|new_state| ActionStateEnum::Axis1d(new_state)),
+            .map(ActionStateEnum::Axis1d),
             ActionStateEnum::Axis2d(new_state) => Aggregator {
                 bindings: bindings_index,
                 bindings_for_action,
@@ -475,7 +474,8 @@ impl ProcessedBindingLayout {
                             }
                         }
 
-                        self.bindings_for_input.get_mut(&input_component).unwrap().1 = new_max_priority;
+                        self.bindings_for_input.get_mut(&input_component).unwrap().1 =
+                            new_max_priority;
                     }
                 }
             }

@@ -6,7 +6,7 @@ use suinput_types::{
     action::{ActionEvent, ActionListener, ActionStateEnum},
     event::InputEvent,
 };
-use thunderdome::{Arena, Index};
+use thunderdome::Index;
 
 use crate::{
     action::Action, action_set::ActionSet, driver_interface::BatchInputUpdate, runtime::Runtime,
@@ -88,10 +88,14 @@ impl InnerSession {
         actions: &HashMap<u64, Arc<Action>>,
         callbacks: &mut Vec<Box<dyn ActionListener>>,
     ) {
-        std::mem::swap(&mut self.active_action_sets, &mut self.old_active_action_sets);
+        std::mem::swap(
+            &mut self.active_action_sets,
+            &mut self.old_active_action_sets,
+        );
 
         self.active_action_sets.clear();
-        self.active_action_sets.extend(new_active_action_sets.map(|set| (set.handle)));
+        self.active_action_sets
+            .extend(new_active_action_sets.map(|set| (set.handle)));
 
         let working_user = &mut self.user;
 
@@ -102,7 +106,8 @@ impl InnerSession {
                 .map(|handle| action_sets.get(handle).unwrap())
                 .collect::<Vec<_>>();
 
-            let mut enabling = self.active_action_sets
+            let mut enabling = self
+                .active_action_sets
                 .difference(&self.old_active_action_sets)
                 .map(|handle| action_sets.get(handle).unwrap())
                 .collect::<Vec<_>>();
@@ -119,7 +124,7 @@ impl InnerSession {
                 &self.active_action_sets,
             );
         }
-        
+
         while let Ok(event) = action_events.try_recv() {
             match event {
                 SessionActionEvent::Unstick { action } => {

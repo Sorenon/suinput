@@ -76,12 +76,10 @@ impl InputEventType for bool {
     ) -> Option<Self::EventOut> {
         if event_state {
             Some((true, !prev_state))
+        } else if others.any(|state| state) {
+            None
         } else {
-            if others.find(|state| *state).is_some() {
-                None
-            } else {
-                Some((false, prev_state))
-            }
+            Some((false, prev_state))
         }
     }
 
@@ -118,15 +116,10 @@ impl InputEventType for crate::types::action_type::Value {
     ) -> Option<Self::EventOut> {
         if event_state > prev_state {
             Some(event_state)
+        } else if iter.any(|other_state| other_state >= event_state) {
+            None
         } else {
-            if iter
-                .find(|other_state| *other_state >= event_state)
-                .is_some()
-            {
-                None
-            } else {
-                Some(event_state)
-            }
+            Some(event_state)
         }
     }
 
@@ -164,12 +157,10 @@ impl InputEventType for crate::types::action_type::Axis1d {
         let abs = event_state.abs();
         if abs > prev_state.abs() {
             Some(event_state)
+        } else if iter.any(|other_state| other_state.abs() >= abs) {
+            None
         } else {
-            if iter.find(|other_state| other_state.abs() >= abs).is_some() {
-                None
-            } else {
-                Some(event_state)
-            }
+            Some(event_state)
         }
     }
 
@@ -212,21 +203,16 @@ impl InputEventType for crate::types::action_type::Axis2d {
         let lensq = event_state.magnitude_squared();
         if lensq > prev_state.magnitude_squared() {
             Some(event_state)
+        } else if iter.any(|other_state| other_state.magnitude_squared() >= lensq) {
+            None
         } else {
-            if iter
-                .find(|other_state| other_state.magnitude_squared() >= lensq)
-                .is_some()
-            {
-                None
-            } else {
-                Some(event_state)
-            }
+            Some(event_state)
         }
     }
 
     fn from_ias(ias: &InternalActionState) -> Self::Value {
         match ias {
-            InternalActionState::Axis2d(state) => (*state).into(),
+            InternalActionState::Axis2d(state) => (*state),
             _ => panic!(),
         }
     }

@@ -13,7 +13,7 @@ use super::{
     interaction_profile_type::InteractionProfileType,
     motion::GamepadMotion,
     parallel_arena::ParallelArena,
-    paths::{InputPath, UserPath, InteractionProfilePath},
+    paths::{InputPath, InteractionProfilePath, UserPath},
 };
 use crate::{
     internal::types::HashMap,

@@ -6,7 +6,6 @@ use suinput_types::{
     event::InputEvent,
     SuPath,
 };
-use thunderdome::{Arena, Index};
 
 use crate::{
     action::{Action, ActionTypeEnum},
@@ -16,7 +15,8 @@ use crate::{
             CompoundActionState, CompoundAxis1dState, CompoundAxis2dState, StickyBoolState,
         },
         parallel_arena::ParallelArena,
-        types::HashMap, paths::InteractionProfilePath,
+        paths::InteractionProfilePath,
+        types::HashMap,
     },
     types::action_type::{Axis2d, Value},
 };
@@ -149,7 +149,7 @@ impl WorkingUser {
                 callbacks,
                 actions,
                 interaction_profile_id,
-                active_action_sets: &active_action_sets,
+                active_action_sets,
             };
 
             attached_binding_layout
@@ -268,11 +268,10 @@ impl WorkingUser {
         interaction_profile_states: &HashMap<InteractionProfilePath, InteractionProfileState>,
         disabling: &[&Arc<ActionSet>],
         enabling: &[&Arc<ActionSet>],
-        enabled: &HashSet<u64>
+        enabled: &HashSet<u64>,
     ) {
         //Empty Vec does not allocate
-        for (interaction_profile_index, attached_binding_layout_cell) in
-            self.binding_layouts.iter()
+        for (interaction_profile_index, attached_binding_layout_cell) in self.binding_layouts.iter()
         {
             let interaction_profile = interaction_profile_states
                 .get(interaction_profile_index)

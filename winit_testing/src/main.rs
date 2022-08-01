@@ -1,4 +1,7 @@
-use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
@@ -52,14 +55,20 @@ impl ActionListener for Listener {
                 println!("move {state:?}");
             }
         } else if event.action_handle == self.overridden.handle() {
-            println!("This should not fire unless priority action set is disabled {:?}", event.data)
+            println!(
+                "This should not fire unless priority action set is disabled {:?}",
+                event.data
+            )
         } else if event.action_handle == self.priority_action.handle() {
             println!("Overridden {:?}", event.data)
         } else if event.action_handle == self.toggle_priority_action_set.handle() {
             if let ActionEventEnum::Boolean { state, changed } = event.data {
                 if state && changed {
                     println!("toggled priority action set");
-                    self.enable_priority_action_set.store(!self.enable_priority_action_set.load(Ordering::Relaxed), Ordering::Relaxed);
+                    self.enable_priority_action_set.store(
+                        !self.enable_priority_action_set.load(Ordering::Relaxed),
+                        Ordering::Relaxed,
+                    );
                 }
             }
         }
@@ -192,7 +201,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let dualsense_profile = instance.get_path("/interaction_profiles/sony/dualsense")?;
 
-    let binding_layout = instance.create_binding_layout(
+    let _binding_layout = instance.create_binding_layout(
         "default_dualsense",
         dualsense_profile,
         &[

@@ -6,11 +6,14 @@ use suinput_types::{
     event::{InputComponentEvent, InputEvent},
     SuPath,
 };
-use thunderdome::Index;
 
 use crate::internal::{
-    device::DeviceState, interaction_profile::InteractionProfileState,
-    parallel_arena::ParallelArena, paths::{UserPath, InputPath}, input_component::{InputComponentData, InputComponentState, InternalActionState}, paths::InteractionProfilePath
+    device::DeviceState,
+    input_component::{InputComponentData, InputComponentState, InternalActionState},
+    interaction_profile::InteractionProfileState,
+    parallel_arena::ParallelArena,
+    paths::InteractionProfilePath,
+    paths::{InputPath, UserPath},
 };
 
 #[derive(Debug, Clone)]
@@ -146,7 +149,6 @@ impl ProcessedBindingType {
         }
     }
 
-    
     pub(crate) fn activate(&mut self, data: InputComponentData) -> Option<ActionStateEnum> {
         match (self, data.state) {
             (ProcessedBindingType::Button2Bool, InputComponentState::Button(state)) => {
