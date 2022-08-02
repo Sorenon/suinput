@@ -7,15 +7,9 @@ use std::{
 use heck::ToSnakeCase;
 use kdl::KdlDocument;
 
-mod openxr;
-
 #[rustfmt::skip]
 fn main() -> anyhow::Result<()> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    openxr::generate(manifest_dir, manifest_dir.parent().unwrap()).unwrap();
-
-    return Ok(());
     
     let data_file = File::open(manifest_dir.join("keyboard_codes.kdl")).unwrap();
     let out_file = File::create(manifest_dir.parent().unwrap().join("suinput-types/src/keyboard.rs")).unwrap();

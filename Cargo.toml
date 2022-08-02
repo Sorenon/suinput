@@ -4,7 +4,7 @@ members = [
     "drivers/windows-driver",
     "drivers/sdl2-driver",
     "drivers/openxr-driver",
-    "generator",
+    # "generator",
     # "bevy_testing",
     "winit_testing",
     "suinput-core",

@@ -1,0 +1,1198 @@
+{
+  "profiles": {
+    "/interaction_profiles/oculus/go_controller": {
+      "localized_name": "Oculus Go Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/back": {
+          "localized_name": "Back",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/oculus/touch_controller": {
+      "localized_name": "Oculus Touch Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/b": {
+          "localized_name": "B",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "touch",
+            "value"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/thumbrest": {
+          "localized_name": "Thumb Rest",
+          "type": "button",
+          "components": [
+            "touch"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/x": {
+          "localized_name": "X",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/y": {
+          "localized_name": "Y",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click",
+            "touch"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/valve/index_controller": {
+      "localized_name": "Valve Index Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/b": {
+          "localized_name": "B",
+          "type": "button",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "touch",
+            "force",
+            "position"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "force",
+            "value"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "components": [
+            "click",
+            "touch"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "click",
+            "touch",
+            "value"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/microsoft/xbox_controller": {
+      "localized_name": "Microsoft Xbox Controller",
+      "user_paths": [
+        "/user/gamepad"
+      ],
+      "sub_paths": {
+        "/output/haptic_left_trigger": {
+          "localized_name": "Left Trigger Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/dpad_up": {
+          "localized_name": "DPAD up",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/shoulder_right": {
+          "localized_name": "Shoulder right",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/y": {
+          "localized_name": "Y",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/thumbstick_right": {
+          "localized_name": "Right Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "position"
+          ]
+        },
+        "/input/trigger_left": {
+          "localized_name": "Left Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/output/haptic_left": {
+          "localized_name": "Left Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/shoulder_left": {
+          "localized_name": "Shoulder left",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/trigger_right": {
+          "localized_name": "Right Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/x": {
+          "localized_name": "X",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/thumbstick_left": {
+          "localized_name": "Left Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "position"
+          ]
+        },
+        "/input/dpad_down": {
+          "localized_name": "DPAD down",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/view": {
+          "localized_name": "View",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/output/haptic_right_trigger": {
+          "localized_name": "Right Trigger Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/dpad_right": {
+          "localized_name": "DPAD right",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/b": {
+          "localized_name": "B",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/output/haptic_right": {
+          "localized_name": "Right Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/dpad_left": {
+          "localized_name": "DPAD left",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/htc/vive_controller": {
+      "localized_name": "HTC Vive Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "click",
+            "value"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/htc/vive_pro": {
+      "localized_name": "HTC Vive Pro",
+      "user_paths": [
+        "/user/head"
+      ],
+      "sub_paths": {
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/mute_mic": {
+          "localized_name": "Mute Microphone",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/volume_up": {
+          "localized_name": "Volume Up",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/volume_down": {
+          "localized_name": "Volume Down",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/khr/simple_controller": {
+      "localized_name": "Khronos Simple Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/select": {
+          "localized_name": "Select",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/google/daydream_controller": {
+      "localized_name": "Google Daydream Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "touch",
+            "click",
+            "position"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/select": {
+          "localized_name": "Select",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/microsoft/motion_controller": {
+      "localized_name": "Microsoft Mixed Reality Motion Controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "position"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/microsoft/hand_interaction": {
+      "localized_name": "Microsoft hand interaction",
+      "extension": "XR_MSFT_hand_interaction",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/select": {
+          "localized_name": "Select",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/ext/eye_gaze_interaction": {
+      "localized_name": "Eye gaze",
+      "extension": "XR_EXT_eye_gaze_interaction",
+      "user_paths": [
+        "/user/eyes_ext"
+      ],
+      "sub_paths": {
+        "/input/gaze_ext": {
+          "localized_name": "Gaze Pose",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/hp/mixed_reality_controller": {
+      "localized_name": "HP Mixed Reality Controllers",
+      "extension": "XR_EXT_hp_mixed_reality_controller",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/x": {
+          "localized_name": "X",
+          "user_path": "/user/hand/left",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/y": {
+          "localized_name": "Y",
+          "user_path": "/user/hand/left",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "user_path": "/user/hand/right",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/b": {
+          "localized_name": "B",
+          "user_path": "/user/hand/right",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "position",
+            "click"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/samsung/odyssey_controller": {
+      "localized_name": "Samsung Odyssey Controller",
+      "extension": "XR_EXT_samsung_odyssey_controller",
+      "parent": "/interaction_profiles/microsoft/motion_controller"
+    },
+    "/interaction_profiles/htc/hand_interaction": {
+      "localized_name": "HTC hand interaction",
+      "extension": "XR_HTC_hand_interaction",
+      "user_paths": [
+        "/user/hand_htc/left",
+        "/user/hand_htc/right"
+      ],
+      "sub_paths": {
+        "/input/select": {
+          "localized_name": "Select",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/htc/vive_cosmos_controller": {
+      "localized_name": "HTC Vive Cosmos Controller",
+      "extension": "XR_HTC_vive_cosmos_controller_interaction",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/b": {
+          "localized_name": "B",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/x": {
+          "localized_name": "X",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/y": {
+          "localized_name": "Y",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/htc/vive_focus3_controller": {
+      "localized_name": "HTC Vive Focus 3 Controller",
+      "extension": "XR_HTC_vive_focus3_controller_interaction",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/b": {
+          "localized_name": "B",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "value",
+            "touch"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/squeeze": {
+          "localized_name": "Squeeze",
+          "type": "trigger",
+          "components": [
+            "value",
+            "touch"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        },
+        "/input/thumbstick": {
+          "localized_name": "Thumbstick",
+          "type": "joystick",
+          "components": [
+            "click",
+            "touch",
+            "position"
+          ]
+        },
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "user_path": "/user/hand/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/x": {
+          "localized_name": "X",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/y": {
+          "localized_name": "Y",
+          "type": "button",
+          "user_path": "/user/hand/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/thumbrest": {
+          "localized_name": "Thumb Rest",
+          "type": "button",
+          "components": [
+            "touch"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/htc/vive_wrist_tracker": {
+      "localized_name": "HTC Vive Wrist Tracker",
+      "extension": "XR_HTC_vive_wrist_tracker_interaction",
+      "user_paths": [
+        "/user/wrist_htc/left",
+        "/user/wrist_htc/right"
+      ],
+      "sub_paths": {
+        "/input/menu": {
+          "localized_name": "Menu",
+          "type": "button",
+          "user_path": "/user/wrist_htc/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/x": {
+          "localized_name": "X",
+          "type": "button",
+          "user_path": "/user/wrist_htc/left",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/system": {
+          "localized_name": "System",
+          "optional": true,
+          "type": "button",
+          "user_path": "/user/wrist_htc/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/a": {
+          "localized_name": "A",
+          "type": "button",
+          "user_path": "/user/wrist_htc/right",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/entity_htc": {
+          "localized_name": "Pose",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        }
+      }
+    },
+    "/interaction_profiles/huawei/controller": {
+      "localized_name": "Huawei Controller",
+      "extension": "XR_HUAWEI_controller_interaction",
+      "user_paths": [
+        "/user/hand/left",
+        "/user/hand/right"
+      ],
+      "sub_paths": {
+        "/input/home": {
+          "localized_name": "Home",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/back": {
+          "localized_name": "Back",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/volume_up": {
+          "localized_name": "Volume Up",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/volume_down": {
+          "localized_name": "Volume Down",
+          "type": "button",
+          "components": [
+            "click"
+          ]
+        },
+        "/input/trigger": {
+          "localized_name": "Trigger",
+          "type": "trigger",
+          "components": [
+            "value"
+          ]
+        },
+        "/input/trackpad": {
+          "localized_name": "Trackpad",
+          "type": "trackpad",
+          "components": [
+            "position",
+            "click",
+            "touch"
+          ]
+        },
+        "/input/aim": {
+          "localized_name": "Aim",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/input/grip": {
+          "localized_name": "Grip",
+          "type": "pose",
+          "components": [
+            "pose"
+          ]
+        },
+        "/output/haptic": {
+          "localized_name": "Haptic",
+          "type": "vibration",
+          "components": [
+            "haptic"
+          ]
+        }
+      }
+    }
+  }
+}
