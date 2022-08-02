@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use openxr::ActionType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,6 +51,34 @@ pub enum Component {
     Haptic,
 }
 
+impl Component {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Component::Click => "click",
+            Component::Touch => "touch",
+            Component::Force => "force",
+            Component::Value => "value",
+            Component::Position => "position",
+            Component::Twist => "twist",
+            Component::Pose => "pose",
+            Component::Haptic => "haptic",
+        }
+    }
+
+    pub fn ty(self) -> openxr::ActionType {
+        match self {
+            Component::Click => ActionType::BOOLEAN_INPUT,
+            Component::Touch => ActionType::BOOLEAN_INPUT,
+            Component::Force => ActionType::FLOAT_INPUT,
+            Component::Value => ActionType::FLOAT_INPUT,
+            Component::Position => ActionType::VECTOR2F_INPUT,
+            Component::Twist => ActionType::FLOAT_INPUT,
+            Component::Pose => ActionType::POSE_INPUT,
+            Component::Haptic => ActionType::VIBRATION_OUTPUT,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum SubpathType {
@@ -70,7 +99,7 @@ pub enum InteractionProfileContent {
     },
     Parent {
         parent: String,
-    }
+    },
 }
 
 static PROFILES: &str = include_str!("openxr_interaction_profiles.json");
