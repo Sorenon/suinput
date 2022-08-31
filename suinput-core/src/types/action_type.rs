@@ -212,7 +212,7 @@ impl InternalActionType for Cursor {
 #[derive(Debug, Clone, Copy)]
 pub struct Axis1d;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Axis1dActionCreateInfo {
     pub positive: Option<String>,
     pub negative: Option<String>,
@@ -271,7 +271,7 @@ impl InternalActionType for Axis1d {
 #[derive(Debug, Clone, Copy)]
 pub struct Axis2d;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Axis2dActionCreateInfo {
     pub up: Option<String>,
     pub down: Option<String>,

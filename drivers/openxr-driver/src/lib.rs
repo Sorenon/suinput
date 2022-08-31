@@ -1,42 +1,82 @@
-use std::{collections::HashMap, ffi::CStr, os::raw::c_char};
+use std::{
+    collections::{HashMap, HashSet},
+    os::raw::c_char,
+};
 
 use openxr::{
     sys::{
         Action, ActionCreateInfo, ActionSet, ActionSetCreateInfo, ActionSuggestedBinding,
-        InteractionProfileSuggestedBinding, SessionCreateInfo, MAX_ACTION_NAME_SIZE,
-        MAX_ACTION_SET_NAME_SIZE, MAX_LOCALIZED_ACTION_NAME_SIZE,
+        InteractionProfileSuggestedBinding, Session, SessionActionSetsAttachInfo,
+        MAX_ACTION_NAME_SIZE, MAX_ACTION_SET_NAME_SIZE, MAX_LOCALIZED_ACTION_NAME_SIZE,
         MAX_LOCALIZED_ACTION_SET_NAME_SIZE,
     },
-    ActionType, ApplicationInfo, Binding, Entry, ExtensionSet, FormFactor, Instance, Path,
-    SessionCreateFlags, Version,
+    ActionType, ApplicationInfo, Entry, ExtensionSet, Instance, Path,
 };
-use profiles::{InteractionProfileContent, OpenXRInteractionProfile, Subpath};
+use parking_lot::RwLock;
+use profiles::{OpenXRInteractionProfile, Subpath};
 
 mod profiles;
 
 //TODO XR_EXT_palm_pose
-struct OpenXRDriver {
-    entry: Entry,
-
+pub struct OpenXRDriver {
     instance: openxr::Instance,
-    session: openxr::sys::Session,
+
+    profile_action_sets: HashMap<String, ProfileActionSet>,
+
+    sessions: RwLock<Vec<Session>>,
 }
 
 impl OpenXRDriver {
-    pub fn new(entry: Entry, instance: Instance, session: openxr::sys::Session) {
-        let profiles = profiles::get_profiles();
-
-        for (profile_id, profile) in profiles.profiles {
-            let action_set = create_action_set(&instance, &profile_id, &profile.localized_name);
+    pub fn new(instance: Instance) -> Self {
+        Self {
+            profile_action_sets: profiles::get_profiles()
+                .profiles
+                .iter()
+                .filter_map(|(profile_name, profile)| {
+                    ProfileActionSet::new(&instance, profile_name, profile)
+                        .map(|set| (profile_name.clone(), set))
+                })
+                .collect(),
+            instance,
+            sessions: RwLock::new(Vec::new()),
         }
     }
 
-    fn create_actions(instance: Instance, session: openxr::sys::Session) {}
+    pub fn add_session(&self, session: Session) {
+        let mut sessions = self.sessions.write();
+        if sessions.contains(&session) {
+            return;
+        }
+        sessions.push(session);
+        std::mem::drop(sessions);
+
+        let action_sets = self
+            .profile_action_sets
+            .values()
+            .map(|set| set.action_set)
+            .collect::<Vec<_>>();
+
+        cvt(unsafe {
+            (self.instance.fp().attach_session_action_sets)(
+                session,
+                &SessionActionSetsAttachInfo {
+                    ty: SessionActionSetsAttachInfo::TYPE,
+                    next: std::ptr::null(),
+                    count_action_sets: action_sets.len() as u32,
+                    action_sets: action_sets.as_ptr(),
+                },
+            )
+        })
+        .unwrap();
+    }
 }
 
 #[test]
-fn do_the_thing() {
-    let entry = Entry::load().unwrap();
+#[allow(dead_code)]
+fn test() {
+    let entry = unsafe {
+        Entry::load()
+    }.unwrap();
 
     let exts = ExtensionSet::default();
 
@@ -53,11 +93,7 @@ fn do_the_thing() {
         )
         .unwrap();
 
-    let profiles = profiles::get_profiles();
-
-    for (profile_id, profile) in profiles.profiles {
-        ProfileActionSet::new(&instance, &profile_id, &profile);
-    }
+    let _driver = OpenXRDriver::new(instance);
 }
 
 struct ProfileActionSet {
@@ -72,13 +108,13 @@ impl ProfileActionSet {
         profile_id: &String,
         profile: &OpenXRInteractionProfile,
     ) -> Option<Self> {
-        // if profile.extension.is_some() {
-        //     return None;
-        // }
+        if profile.extension.is_some() {
+            return None;
+        }
 
         let mut profile_action_set = Self {
             action_set: create_action_set(
-                &instance,
+                instance,
                 &profile_id[22..].replace('/', "-"),
                 &profile.localized_name,
             ),
@@ -93,7 +129,7 @@ impl ProfileActionSet {
             } => {
                 profile_action_set.create_profile_actions(user_paths, sub_paths);
             }
-            profiles::InteractionProfileContent::Parent { parent } => {
+            profiles::InteractionProfileContent::Parent { parent: _ } => {
                 return None;
             }
         }
