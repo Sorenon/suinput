@@ -210,7 +210,7 @@ impl ProcessedBindingLayout {
         }
 
         // Self::new(instance, interaction_profile, &binding_layout.bindings)
-        binding_layout.processed.clone()
+        binding_layout.processed_cache.clone()
     }
 
     pub(crate) fn handle_component_event(

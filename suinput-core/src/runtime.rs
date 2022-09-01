@@ -5,7 +5,7 @@ use std::{
         Arc,
     },
     thread::JoinHandle,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, path::Path,
 };
 
 use flume::Sender;
@@ -138,9 +138,9 @@ impl Runtime {
         }
     }
 
-    pub fn create_instance(self: &Arc<Self>, name: String) -> Arc<Instance> {
+    pub fn create_instance(self: &Arc<Self>, storage_path: Option<&Path>) -> Arc<Instance> {
         let mut instances = self.instances.write();
-        let instance = Arc::new(Instance::new(self, instances.len() as u64 + 1, name, ()));
+        let instance = Arc::new(Instance::new(self, instances.len() as u64 + 1, storage_path));
         instances.push(instance.clone());
         instance
     }

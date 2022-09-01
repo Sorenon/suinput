@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use raw_window_handle::HasRawWindowHandle;
@@ -9,8 +12,10 @@ use suinput::{
         Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo,
         Cursor, Delta2d,
     },
-    ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SimpleBinding, SuAction,
-    SuSession,
+    instance::{
+        ApplicationInfo, ApplicationInstanceCreateInfo, SimpleBinding,
+    },
+    ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SuAction, SuSession,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -85,7 +90,12 @@ fn main() -> Result<(), anyhow::Error> {
         .unwrap();
     runtime.add_generic_driver(windows_driver::Win32RawInputGenericDriver::new)?;
 
-    let instance = runtime.create_instance("Test Application");
+    let instance = runtime.create_instance(Some(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join(Path::new("target/winit_testing.kdl")),
+    ));
 
     let action_set = instance.create_action_set("gameplay", 0);
     let priority_action_set = instance.create_action_set("higher_priority", 1);
@@ -123,7 +133,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     let desktop_profile = instance.get_path("/interaction_profiles/standard/desktop")?;
 
-    let binding_layout = instance.create_binding_layout(
+    let default_mouse_and_keyboard = instance.create_binding_layout(
         "default_mouse_and_keyboard",
         desktop_profile,
         &[
@@ -197,11 +207,9 @@ fn main() -> Result<(), anyhow::Error> {
         ],
     )?;
 
-    instance.set_default_binding_layout(desktop_profile, &binding_layout);
-
     let dualsense_profile = instance.get_path("/interaction_profiles/sony/dualsense")?;
 
-    let _binding_layout = instance.create_binding_layout(
+    let default_dualsense = instance.create_binding_layout(
         "default_dualsense",
         dualsense_profile,
         &[
@@ -232,9 +240,17 @@ fn main() -> Result<(), anyhow::Error> {
         ],
     )?;
 
-    // instance.set_default_binding_layout(dualsense_profile, &binding_layout);
+    let application_instance =
+        instance.create_application_instance(&ApplicationInstanceCreateInfo {
+            application_info: &ApplicationInfo {
+                name: "Winit Testing",
+            },
+            sub_name: None,
+            action_sets: &[&action_set, &priority_action_set],
+            binding_layouts: &[&default_mouse_and_keyboard, &default_dualsense],
+        });
 
-    let session = instance.create_session(&[&action_set, &priority_action_set]);
+    let session = application_instance.try_begin_session();
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;

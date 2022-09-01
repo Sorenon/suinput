@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::path::Path;
 use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
@@ -11,6 +12,9 @@ pub use suinput_types::event::PathFormatError;
 use suinput_core::*;
 
 pub use suinput_core::driver_interface;
+
+pub mod instance;
+pub mod application_instance;
 
 pub fn load_runtime() -> SuInputRuntime {
     SuInputRuntime(Inner::Embedded(runtime::Runtime::new()))
@@ -25,6 +29,15 @@ pub(crate) enum Inner<E> {
     FFI(/*TODO*/),
 }
 
+impl<E> Inner<E> {
+    pub fn get(&self) -> Option<&Arc<E>> {
+        match self {
+            Inner::Embedded(e) => Some(e),
+            Inner::FFI() => None,
+        }
+    }
+}
+
 impl<E> Clone for Inner<E> {
     fn clone(&self) -> Self {
         match self {
@@ -37,6 +50,7 @@ impl<E> Clone for Inner<E> {
 pub use suinput_types::SuPath;
 
 impl SuInputRuntime {
+    //TODO Move these to Instance and rename
     pub fn set_window_driver<F, T, E>(&self, f: F) -> Result<usize, E>
     where
         F: FnOnce(RuntimeInterface) -> Result<T, E>,
@@ -66,9 +80,9 @@ impl SuInputRuntime {
         }
     }
 
-    pub fn create_instance(&self, name: &str) -> SuInstance {
-        SuInstance(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_instance(name.into())),
+    pub fn create_instance(&self, storage_path: Option<&Path>) -> instance::SuInstance {
+        instance::SuInstance(match &self.0 {
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_instance(storage_path)),
             Inner::FFI() => todo!(),
         })
     }
@@ -77,75 +91,6 @@ impl SuInputRuntime {
 pub use suinput_types::action::ActionEvent;
 pub use suinput_types::action::ActionEventEnum;
 pub use suinput_types::action::ActionListener;
-
-#[derive(Clone)]
-pub struct SuInstance(Inner<instance::Instance>);
-
-pub use suinput_types::binding::SimpleBinding;
-pub use suinput_types::CreateBindingLayoutError;
-
-impl SuInstance {
-    pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.get_path(path_string),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    pub fn create_action_set(&self, name: &str, default_priority: u32) -> SuActionSet {
-        SuActionSet(match &self.0 {
-            Inner::Embedded(inner) => {
-                Inner::Embedded(inner.create_action_set(name.into(), default_priority))
-            }
-            Inner::FFI() => todo!(),
-        })
-    }
-
-    pub fn create_binding_layout(
-        &self,
-        name: &str,
-        interaction_profile: SuPath,
-        bindings: &[SimpleBinding],
-    ) -> Result<SuBindingLayout, CreateBindingLayoutError> {
-        Ok(SuBindingLayout(match &self.0 {
-            Inner::Embedded(inner) => {
-                Inner::Embedded(inner.create_binding_layout(name, interaction_profile, bindings)?)
-            }
-            Inner::FFI() => todo!(),
-        }))
-    }
-
-    pub fn set_default_binding_layout(
-        &self,
-        interaction_profile: SuPath,
-        binding_layout: &SuBindingLayout,
-    ) {
-        match (&self.0, &binding_layout.0) {
-            (Inner::Embedded(inner), Inner::Embedded(binding_layout)) => {
-                inner.set_default_binding_layout(interaction_profile, binding_layout)
-            }
-            (Inner::FFI(), Inner::FFI()) => todo!(),
-            _ => panic!(),
-        }
-    }
-
-    pub fn create_session(&self, action_sets: &[&SuActionSet]) -> SuSession {
-        SuSession(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(
-                inner.create_session(
-                    &action_sets
-                        .iter()
-                        .map(|action_set| match &action_set.0 {
-                            Inner::Embedded(thing) => thing,
-                            _ => panic!(),
-                        })
-                        .collect::<Vec<_>>(),
-                ),
-            ),
-            Inner::FFI() => todo!(),
-        })
-    }
-}
 
 #[derive(Clone)]
 pub struct SuSession(Inner<session::Session>);
@@ -158,6 +103,7 @@ impl SuSession {
         }
     }
 
+    //TODO move to driver
     pub fn set_window_rwh(&self, window: RawWindowHandle) {
         self.set_window(match window {
             RawWindowHandle::Win32(f) => f.hwnd as usize,
@@ -212,7 +158,7 @@ impl SuSession {
 pub struct SuUser(Inner<user::User>);
 
 #[derive(Clone)]
-pub struct SuBindingLayout(Inner<instance::BindingLayout>);
+pub struct SuBindingLayout(Inner<suinput_core::instance::BindingLayout>);
 
 #[derive(Clone)]
 pub struct SuActionSet(Inner<action_set::ActionSet>);

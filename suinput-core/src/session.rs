@@ -7,27 +7,25 @@ use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
 
+use crate::types::action_type::ActionType;
 use crate::{
     action::Action,
     action_set::ActionSet,
-    instance::Instance,
+    application_instance::ApplicationInstance,
     internal::inner_session::{InnerSession, Runtime2SessionEvent, SessionActionEvent},
     runtime::Runtime,
     user::User,
 };
-use crate::{internal::types::HashMap, types::action_type::ActionType};
 
 pub struct Session {
     pub(crate) runtime: Weak<Runtime>,
-    pub(crate) instance: Weak<Instance>,
     pub(crate) window: Mutex<Option<NonZeroUsize>>,
+
+    pub(crate) app_instance: Arc<ApplicationInstance>,
 
     pub user: Arc<User>,
 
     pub(crate) listeners: RwLock<Vec<Box<dyn ActionListener>>>,
-
-    pub(crate) action_sets: HashMap<u64, Arc<ActionSet>>,
-    pub(crate) actions: HashMap<u64, Arc<Action>>, //TODO dynamic action sets
 
     pub(crate) action_events: (Sender<SessionActionEvent>, Receiver<SessionActionEvent>),
     pub(crate) driver_events_send: Sender<Runtime2SessionEvent>,
@@ -49,11 +47,11 @@ impl Session {
         inner.sync(
             self.runtime.upgrade().unwrap(),
             action_sets,
-            &self.action_sets,
+            &self.app_instance.action_sets,
             &self.action_events.1,
             &self.driver_events_rec,
             &self.user,
-            &self.actions,
+            &self.app_instance.actions,
             &mut self.listeners.write(),
         );
     }
