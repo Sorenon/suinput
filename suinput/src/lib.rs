@@ -13,8 +13,8 @@ use suinput_core::*;
 
 pub use suinput_core::driver_interface;
 
-pub mod instance;
 pub mod application_instance;
+pub mod instance;
 
 pub fn load_runtime() -> SuInputRuntime {
     SuInputRuntime(Inner::Embedded(runtime::Runtime::new()))

@@ -1,11 +1,12 @@
 use std::{
     ops::Deref,
+    path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
     thread::JoinHandle,
-    time::{Duration, Instant}, path::Path,
+    time::{Duration, Instant},
 };
 
 use flume::Sender;
@@ -140,7 +141,11 @@ impl Runtime {
 
     pub fn create_instance(self: &Arc<Self>, storage_path: Option<&Path>) -> Arc<Instance> {
         let mut instances = self.instances.write();
-        let instance = Arc::new(Instance::new(self, instances.len() as u64 + 1, storage_path));
+        let instance = Arc::new(Instance::new(
+            self,
+            instances.len() as u64 + 1,
+            storage_path,
+        ));
         instances.push(instance.clone());
         instance
     }

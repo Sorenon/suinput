@@ -59,8 +59,11 @@ impl SuInstance {
                 let action_sets: Option<Vec<&Arc<ActionSet>>> =
                     create_info.action_sets.iter().map(|i| i.0.get()).collect();
 
-                let binding_layouts: Option<Vec<Arc<BindingLayout>>> =
-                    create_info.binding_layouts.iter().map(|i| i.0.get().cloned()).collect();
+                let binding_layouts: Option<Vec<Arc<BindingLayout>>> = create_info
+                    .binding_layouts
+                    .iter()
+                    .map(|i| i.0.get().cloned())
+                    .collect();
 
                 let internal_create_info = InternalApplicationInstanceCreateInfo {
                     application: create_info.application_info,

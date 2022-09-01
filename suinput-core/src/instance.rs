@@ -5,7 +5,10 @@ use std::{
 
 use crate::{
     application_instance::ApplicationInstance,
-    internal::{inner_session::InnerSession, types::HashMap, worker_thread::WorkerThreadEvent},
+    internal::{
+        inner_session::InnerSession, paths::InteractionProfilePath, types::HashMap,
+        worker_thread::WorkerThreadEvent,
+    },
     types::app::InternalApplicationInstanceCreateInfo,
 };
 
@@ -145,40 +148,11 @@ impl Instance {
             session: RwLock::new(None),
         })
     }
-
-    // pub fn set_default_binding_layout(
-    //     &self,
-    //     interaction_profile: SuPath,
-    //     binding_layout: &Arc<BindingLayout>,
-    // ) {
-    //     self.default_binding_layouts
-    //         .write()
-    //         .insert(interaction_profile, binding_layout.clone());
-    // }
-
-    // /**
-    //  * Creates all the needed actions on the xr_instance and attaches them to the xr_session
-    //  * If SuInput does not provide a needed action type users can pass action sets containing that type to be attached
-    //  *
-    //  * Returns true if call was successful
-    //  *
-    //  * Returns false if xrAttachSessionActionSets had already been called for the specified session and the OpenXR layer
-    //  * is not installed. In this case the Instance will have to rely on the developer provided OpenXR fallback driver.
-    //  * This will occur on most pre-existing game engines and will may require altering the engine's OpenXR plugin.
-    //  */
-    // pub fn bind_openxr(
-    //     &self,
-    //     _xr_instance: (),
-    //     _xr_session: (),
-    //     _extra_xr_action_sets: Option<()>,
-    // ) -> bool {
-    //     todo!()
-    // }
 }
 
 pub struct BindingLayout {
     pub name: String,
-    pub interaction_profile: SuPath,
+    pub interaction_profile: InteractionProfilePath,
     pub bindings: Vec<SimpleBinding>,
 
     pub processed_cache: ProcessedBindingLayout,

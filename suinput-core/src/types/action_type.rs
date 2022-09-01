@@ -356,3 +356,6 @@ impl InternalActionType for Axis2d {
         })
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct Pose;

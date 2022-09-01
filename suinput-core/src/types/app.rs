@@ -11,7 +11,7 @@ pub struct InternalApplicationInstanceCreateInfo<'a> {
     pub sub_name: Option<&'a str>,
     pub action_sets: &'a [&'a Arc<ActionSet>],
     pub binding_layouts: Vec<Arc<BindingLayout>>,
-        // pub rules: &'a [(&'a ApplicationInstanceRules<'a>, AppInstanceRuleResponse)]
+    // pub rules: &'a [(&'a ApplicationInstanceRules<'a>, AppInstanceRuleResponse)]
 }
 
 pub enum AppInstanceRuleResponse {

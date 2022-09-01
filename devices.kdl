@@ -70,7 +70,7 @@ device vendor="sony" name="dualsense" {
     }
     generic "touchpad" {
         button "click"
-        touchpad "points" max_points=2 pressure=false
+        touchpad "points" max_points=2 pressure=false diameter=false
     }
     generic "joystick_left" { 
         joystick "position"

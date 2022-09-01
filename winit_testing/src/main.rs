@@ -12,9 +12,7 @@ use suinput::{
         Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo,
         Cursor, Delta2d,
     },
-    instance::{
-        ApplicationInfo, ApplicationInstanceCreateInfo, SimpleBinding,
-    },
+    instance::{ApplicationInfo, ApplicationInstanceCreateInfo, SimpleBinding},
     ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SuAction, SuSession,
 };
 use winit::{

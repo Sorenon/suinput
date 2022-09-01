@@ -12,9 +12,7 @@ impl SuApplicationInstance {
 
     pub fn try_begin_session(&self) -> SuSession {
         SuSession(match &self.0 {
-            Inner::Embedded(inner) => {
-                Inner::Embedded(inner.create_session())
-            }
+            Inner::Embedded(inner) => Inner::Embedded(inner.create_session()),
             Inner::FFI() => todo!(),
         })
     }
