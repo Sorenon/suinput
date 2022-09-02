@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 
 use mint::Vector2;
 
-use suinput_types::action::{ActionStateEnum, ChildActionType};
+use suinput_types::{action::{ActionStateEnum, ChildActionType}, Time};
 
 use crate::action::{Action, ActionTypeEnum, ParentActionType};
 
@@ -60,6 +60,14 @@ pub(crate) mod private {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BooleanActionCreateInfo {
     pub sticky: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BooleanActionState {
+    pub current_state: bool,
+    pub changed_since_last_sync: bool,
+    pub last_changed_time: Time,
+    pub is_active: bool,
 }
 
 impl ActionType for bool {
@@ -125,6 +133,14 @@ impl InternalActionType for bool {
 #[derive(Debug, Clone, Copy)]
 pub struct Value;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ValueActionState {
+    pub current_state: f32,
+    pub changed_since_last_sync: bool,
+    pub last_changed_time: Time,
+    pub is_active: bool,
+}
+
 impl ActionType for Value {
     type Value = f32;
     type CreateInfo = ();
@@ -154,6 +170,13 @@ impl InternalActionType for Value {
 #[derive(Debug, Clone, Copy)]
 pub struct Delta2d;
 
+#[derive(Debug, Clone, Copy)]
+pub struct Delta2dActionState {
+    pub accumulated_delta: Vector2<f64>,
+    pub last_changed_time: Time,
+    pub is_active: bool,
+}
+
 impl ActionType for Delta2d {
     type Value = Vector2<f64>;
     type CreateInfo = ();
@@ -182,6 +205,14 @@ impl InternalActionType for Delta2d {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Cursor;
+
+#[derive(Debug, Clone, Copy)]
+pub struct CursorActionState {
+    pub current_state: Vector2<f64>,
+    pub changed_since_last_sync: bool,
+    pub last_changed_time: Time,
+    pub is_active: bool,
+}
 
 impl ActionType for Cursor {
     type Value = Vector2<f64>;
@@ -216,6 +247,14 @@ pub struct Axis1d;
 pub struct Axis1dActionCreateInfo {
     pub positive: Option<String>,
     pub negative: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Axis1dActionState {
+    pub current_state: f32,
+    pub changed_since_last_sync: bool,
+    pub last_changed_time: Time,
+    pub is_active: bool,
 }
 
 impl ActionType for Axis1d {
@@ -279,6 +318,14 @@ pub struct Axis2dActionCreateInfo {
     pub right: Option<String>,
     pub vertical: Option<String>,
     pub horizontal: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Axis2dActionState {
+    pub current_state: Vector2<f32>,
+    pub changed_since_last_sync: bool,
+    pub last_changed_time: Time,
+    pub is_active: bool,
 }
 
 impl ActionType for Axis2d {
@@ -359,3 +406,8 @@ impl InternalActionType for Axis2d {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pose;
+
+#[derive(Debug, Clone, Copy)]
+pub struct PoseActionState {
+    pub is_active: bool,
+}

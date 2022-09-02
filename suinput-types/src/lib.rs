@@ -26,7 +26,7 @@ pub mod keyboard;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SuPath(pub u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Time(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

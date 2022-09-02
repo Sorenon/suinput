@@ -120,7 +120,7 @@ fn main() -> Result<(), anyhow::Error> {
         },
     );
 
-    let overridden = action_set.create_action("overriden", BooleanActionCreateInfo::default());
+    let overridden = action_set.create_action("overridden", BooleanActionCreateInfo::default());
     let priority_action =
         priority_action_set.create_action("priority_action", BooleanActionCreateInfo::default());
 

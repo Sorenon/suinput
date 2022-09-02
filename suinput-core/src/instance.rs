@@ -5,15 +5,12 @@ use std::{
 
 use crate::{
     application_instance::ApplicationInstance,
-    internal::{
-        inner_session::InnerSession, paths::InteractionProfilePath, types::HashMap,
-        worker_thread::WorkerThreadEvent,
-    },
+    internal::{paths::InteractionProfilePath, types::HashMap},
     types::app::InternalApplicationInstanceCreateInfo,
 };
 
 use once_cell::sync::OnceCell;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use suinput_types::{
     binding::SimpleBinding, event::PathFormatError, CreateBindingLayoutError, SuPath,
 };

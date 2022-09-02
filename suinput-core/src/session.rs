@@ -6,6 +6,7 @@ use std::{
 use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
+use thunderdome::Index;
 
 use crate::types::action_type::ActionType;
 use crate::{
@@ -19,6 +20,7 @@ use crate::{
 
 pub struct Session {
     pub(crate) runtime: Weak<Runtime>,
+
     pub(crate) window: Mutex<Option<NonZeroUsize>>,
 
     pub(crate) app_instance: Arc<ApplicationInstance>,
