@@ -143,7 +143,7 @@ impl SuSession {
         }
     }
 
-    pub fn get_action_state<T: ActionType>(&self, action: &SuAction<T>) -> Result<T::Value, ()> {
+    pub fn get_action_state<T: ActionType>(&self, action: &SuAction<T>) -> Result<T::State, ()> {
         match (&self.0, &action.0) {
             (Inner::Embedded(inner), Inner::Embedded(action)) => {
                 inner.get_action_state::<T>(action)

@@ -1,8 +1,10 @@
+use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
 use parking_lot::{Mutex, RwLock};
 
 use crate::internal::types::HashMap;
+use crate::user::OutActionStateEnum;
 use crate::{
     action::Action,
     action_set::ActionSet,
@@ -36,7 +38,17 @@ impl ApplicationInstance {
             .collect();
 
         let user = User {
-            action_states: RwLock::default(),
+            action_states: RwLock::new(
+                self.actions
+                    .values()
+                    .map(|action| {
+                        (
+                            action.handle,
+                            OutActionStateEnum::from_type(action.data_type),
+                        )
+                    })
+                    .collect(),
+            ),
             new_binding_layouts: Mutex::new(binding_layouts),
         };
 

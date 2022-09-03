@@ -6,7 +6,6 @@ use std::{
 use flume::{Receiver, Sender};
 use parking_lot::{Mutex, RwLock};
 use suinput_types::action::ActionListener;
-use thunderdome::Index;
 
 use crate::types::action_type::ActionType;
 use crate::{
@@ -73,11 +72,12 @@ impl Session {
             .unwrap();
     }
 
-    pub fn get_action_state<T: ActionType>(&self, action: &Action) -> Result<T::Value, ()> {
+    pub fn get_action_state<T: ActionType>(&self, action: &Action) -> Result<T::State, ()> {
         let action_states = self.user.action_states.read();
+
         action_states
             .get(&action.handle)
-            .and_then(|state| T::from_ase(state))
+            .and_then(|state| T::pick_state(state).copied())
             .ok_or(())
     }
 }

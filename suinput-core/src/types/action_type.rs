@@ -2,17 +2,27 @@ use std::sync::{Arc, Weak};
 
 use mint::Vector2;
 
-use suinput_types::{action::{ActionStateEnum, ChildActionType}, Time};
+use suinput_types::{
+    action::{ActionStateEnum, ChildActionType},
+    Time,
+};
 
-use crate::action::{Action, ActionTypeEnum, ParentActionType};
+use crate::{
+    action::{Action, ActionTypeEnum, ParentActionType},
+    user::OutActionStateEnum,
+};
 
 use self::private::InternalActionType;
 
 pub trait ActionType: Copy + private::Sealed {
     type Value;
+    type State: Copy;
     type CreateInfo;
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value>;
+
+    #[doc(hidden)]
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State>;
 
     #[doc(hidden)]
     type Internal: private::InternalActionType;
@@ -72,6 +82,7 @@ pub struct BooleanActionState {
 
 impl ActionType for bool {
     type Value = Self;
+    type State = BooleanActionState;
     type CreateInfo = BooleanActionCreateInfo;
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -87,6 +98,13 @@ impl ActionType for bool {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Boolean(state) => Some(state),
+            _ => None,
+        }
     }
 }
 
@@ -143,6 +161,7 @@ pub struct ValueActionState {
 
 impl ActionType for Value {
     type Value = f32;
+    type State = ValueActionState;
     type CreateInfo = ();
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -158,6 +177,13 @@ impl ActionType for Value {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Value(state) => Some(state),
+            _ => None,
+        }
     }
 }
 
@@ -177,8 +203,19 @@ pub struct Delta2dActionState {
     pub is_active: bool,
 }
 
+impl Default for Delta2dActionState {
+    fn default() -> Self {
+        Self {
+            accumulated_delta: Vector2 { x: 0., y: 0. },
+            last_changed_time: Default::default(),
+            is_active: Default::default(),
+        }
+    }
+}
+
 impl ActionType for Delta2d {
     type Value = Vector2<f64>;
+    type State = Delta2dActionState;
     type CreateInfo = ();
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -194,6 +231,13 @@ impl ActionType for Delta2d {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Delta2d(state) => Some(state),
+            _ => None,
+        }
     }
 }
 
@@ -214,8 +258,20 @@ pub struct CursorActionState {
     pub is_active: bool,
 }
 
+impl Default for CursorActionState {
+    fn default() -> Self {
+        Self {
+            current_state: Vector2 { x: 0., y: 0. },
+            changed_since_last_sync: Default::default(),
+            last_changed_time: Default::default(),
+            is_active: Default::default(),
+        }
+    }
+}
+
 impl ActionType for Cursor {
     type Value = Vector2<f64>;
+    type State = CursorActionState;
     type CreateInfo = ();
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -231,6 +287,13 @@ impl ActionType for Cursor {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Cursor(state) => Some(state),
+            _ => None,
+        }
     }
 }
 
@@ -249,7 +312,7 @@ pub struct Axis1dActionCreateInfo {
     pub negative: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Axis1dActionState {
     pub current_state: f32,
     pub changed_since_last_sync: bool,
@@ -259,6 +322,7 @@ pub struct Axis1dActionState {
 
 impl ActionType for Axis1d {
     type Value = f32;
+    type State = Axis1dActionState;
     type CreateInfo = Axis1dActionCreateInfo;
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -274,6 +338,13 @@ impl ActionType for Axis1d {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Axis1d(state) => Some(state),
+            _ => None,
+        }
     }
 }
 
@@ -328,8 +399,20 @@ pub struct Axis2dActionState {
     pub is_active: bool,
 }
 
+impl Default for Axis2dActionState {
+    fn default() -> Self {
+        Self {
+            current_state: Vector2 { x: 0., y: 0. },
+            changed_since_last_sync: Default::default(),
+            last_changed_time: Default::default(),
+            is_active: Default::default(),
+        }
+    }
+}
+
 impl ActionType for Axis2d {
     type Value = Vector2<f32>;
+    type State = Axis2dActionState;
     type CreateInfo = Axis2dActionCreateInfo;
 
     fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
@@ -345,6 +428,13 @@ impl ActionType for Axis2d {
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
+    }
+
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Axis2d(state) => Some(state),
+            _ => None,
+        }
     }
 }
 

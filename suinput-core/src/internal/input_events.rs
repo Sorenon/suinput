@@ -212,7 +212,7 @@ impl InputEventType for crate::types::action_type::Axis2d {
 
     fn from_ias(ias: &InternalActionState) -> Self::Value {
         match ias {
-            InternalActionState::Axis2d(state) => (*state),
+            InternalActionState::Axis2d(state) => *state,
             _ => panic!(),
         }
     }

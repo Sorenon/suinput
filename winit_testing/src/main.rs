@@ -295,9 +295,9 @@ fn main() -> Result<(), anyhow::Error> {
                 }
 
                 let delta = session.get_action_state::<Delta2d>(&turn_action).unwrap();
-                if delta.x != 0. || delta.y != 0. {
-                    yaw += delta.x;
-                    pitch += delta.y;
+                if delta.accumulated_delta.x != 0. || delta.accumulated_delta.y != 0. {
+                    yaw += delta.accumulated_delta.x;
+                    pitch += delta.accumulated_delta.y;
                     println!("{yaw} {pitch}")
                 }
             }

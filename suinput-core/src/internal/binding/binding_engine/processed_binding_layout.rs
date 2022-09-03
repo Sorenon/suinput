@@ -325,7 +325,7 @@ impl ProcessedBindingLayout {
         }
     }
 
-    fn handle_action_enable(
+    pub(crate) fn handle_action_enable(
         &mut self,
         action_set: &Arc<ActionSet>,
         action: &Arc<Action>,

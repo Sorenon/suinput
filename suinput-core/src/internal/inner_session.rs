@@ -148,20 +148,46 @@ impl InnerSession {
         }
 
         for (profile, binding_layout) in user.new_binding_layouts.lock().drain() {
-            working_user.binding_layouts.insert(
+            let mut attached_binding_layout = AttachedBindingLayout::new(binding_layout);
+
+            working_user.enable_binding_layout(
                 profile,
-                RefCell::new(AttachedBindingLayout::new(binding_layout)),
+                &mut attached_binding_layout,
+                callbacks,
+                actions,
+                &self.default_interaction_profiles,
+                &self.active_action_sets,
+                action_sets,
             );
+
+            if let Some(_) = working_user
+                .binding_layouts
+                .insert(profile, RefCell::new(attached_binding_layout))
+            {
+                todo!("Disable binding layout")
+            }
         }
 
         let mut user_action_states = user.action_states.write();
 
         for (path, working_action_state) in working_user.action_states.iter_mut() {
+            let is_active = self
+                .active_action_sets
+                .contains(&working_action_state.action_set);
+
             let action_state = &mut working_action_state.state;
-            if let Some(compound_state) = working_user.compound_action_states.get(path) {
-                user_action_states.insert(*path, compound_state.get_state());
+            let out_action_state = user_action_states.get_mut(path).unwrap();
+
+            if is_active {
+                let action_state =
+                    if let Some(compound_state) = working_user.compound_action_states.get(path) {
+                        compound_state.get_state()
+                    } else {
+                        *action_state
+                    };
+                out_action_state.update(&action_state, working_action_state.last_change_time);
             } else {
-                user_action_states.insert(*path, *action_state);
+                out_action_state.mark_inactive();
             }
 
             match action_state {

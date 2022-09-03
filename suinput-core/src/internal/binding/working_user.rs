@@ -4,7 +4,7 @@ use hashbrown::HashSet;
 use suinput_types::{
     action::{ActionEvent, ActionEventEnum, ActionListener, ActionStateEnum, ChildActionType},
     event::InputEvent,
-    SuPath,
+    SuPath, Time,
 };
 
 use crate::{
@@ -42,6 +42,7 @@ pub struct WorkingUser {
 
 pub struct WorkingActionState {
     pub state: ActionStateEnum,
+    pub last_change_time: Time,
     pub action_set: u64,
     pub priority: u32,
 }
@@ -79,6 +80,7 @@ impl WorkingUser {
                                 state: default_state,
                                 action_set: action_set.handle,
                                 priority: action_set.default_priority,
+                                last_change_time: Time(0),
                             },
                         )
                     })
@@ -270,7 +272,6 @@ impl WorkingUser {
         enabling: &[&Arc<ActionSet>],
         enabled: &HashSet<u64>,
     ) {
-        //Empty Vec does not allocate
         for (interaction_profile_index, attached_binding_layout_cell) in self.binding_layouts.iter()
         {
             let interaction_profile = interaction_profile_states
@@ -294,6 +295,50 @@ impl WorkingUser {
             attached_binding_layout
                 .binding_layout
                 .change_active_action_sets(interaction_profile, &mut wui, disabling, enabling);
+        }
+    }
+
+    pub(crate) fn enable_binding_layout(
+        &mut self,
+        interaction_profile_index: InteractionProfilePath,
+        attached_binding_layout: &mut AttachedBindingLayout,
+        callbacks: &mut [Box<dyn ActionListener>],
+        actions: &HashMap<u64, Arc<Action>>,
+        interaction_profile_states: &HashMap<InteractionProfilePath, InteractionProfileState>,
+        active_action_sets: &HashSet<u64>,
+        action_sets: &HashMap<u64, Arc<ActionSet>>,
+    ) {
+        let interaction_profile = interaction_profile_states
+            .get(&interaction_profile_index)
+            .unwrap();
+
+        let mut wui = WorkingUserInterface {
+            binding_layout_action_states: &mut attached_binding_layout.action_states,
+            binding_layouts: &self.binding_layouts,
+            action_states: &mut self.action_states,
+            compound_action_states: &mut self.compound_action_states,
+            callbacks,
+            actions,
+            interaction_profile_id: interaction_profile.ty.id,
+            active_action_sets,
+        };
+
+        let mut sorted_action_sets = active_action_sets
+            .iter()
+            .map(|handle| action_sets.get(handle).unwrap())
+            .collect::<Vec<_>>();
+
+        sorted_action_sets.sort_by(|left, right| left.handle.cmp(&right.handle).reverse());
+
+        for action_set in sorted_action_sets {
+            for action in action_set.baked_actions.get().unwrap() {
+                attached_binding_layout.binding_layout.handle_action_enable(
+                    action_set,
+                    action,
+                    &mut wui,
+                    interaction_profile,
+                );
+            }
         }
     }
 }

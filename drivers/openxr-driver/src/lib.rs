@@ -6,7 +6,7 @@ use openxr::{
 };
 use parking_lot::RwLock;
 use profile_action_set::ProfileActionSet;
-use suinput::{SuSession, SuInputRuntime};
+use suinput::SuSession;
 
 mod profile_action_set;
 mod profile_serial;
