@@ -8,9 +8,9 @@ device vendor="standard" name="generic_mouse" {
     identifier "scroll" { move2d "move2d"; } 
 }
 
-device vendor="standard" name="system_cursor" {
-    identifier "cursor" { cursor "point"; } 
-}
+// device vendor="standard" name="system_cursor" {
+//    identifier "cursor" { cursor "point"; }
+// }
 
 device vendor="sony" name="dualsense" {
     identifier "diamond_up" { button "click"; }
@@ -146,7 +146,7 @@ device vendor="nintendo" name="wiimote" {
     identifier "button_plus" { button "click"; }
     identifier "button_1" { button "click"; }
     identifier "button_2" { button "click"; }
-    identifier "pointer" { cursor "point"; }
+    //TODO identifier "pointer" { cursor "point"; }
     identifier "motion" { 
         //TODO some wiimotes don't have built-in gyros
         gyro "gyro" calibrated=false

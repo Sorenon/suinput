@@ -49,7 +49,6 @@ pub enum ParentActionType {
 pub enum ActionTypeEnum {
     Boolean,
     Delta2d,
-    Cursor,
     Value,
     Axis1d,
     Axis2d,

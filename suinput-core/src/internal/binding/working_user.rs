@@ -64,9 +64,6 @@ impl WorkingUser {
                             ActionTypeEnum::Delta2d => {
                                 ActionStateEnum::Delta2d(mint::Vector2 { x: 0., y: 0. })
                             }
-                            ActionTypeEnum::Cursor => {
-                                ActionStateEnum::Cursor(mint::Vector2 { x: 0., y: 0. })
-                            }
                             ActionTypeEnum::Value => ActionStateEnum::Value(0.),
                             ActionTypeEnum::Axis1d => ActionStateEnum::Axis1d(0.),
                             ActionTypeEnum::Axis2d => {

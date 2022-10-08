@@ -11,6 +11,7 @@ use crate::{
     action::{Action, ActionTypeEnum, ParentActionType},
     user::OutActionStateEnum,
 };
+use crate::types::action_type::private::Sealed;
 
 use self::private::InternalActionType;
 
@@ -46,7 +47,6 @@ pub(crate) mod private {
     impl Sealed for bool {}
     impl Sealed for Value {}
     impl Sealed for Delta2d {}
-    impl Sealed for Cursor {}
     impl Sealed for Axis1d {}
     impl Sealed for Axis2d {}
 
@@ -248,62 +248,6 @@ impl InternalActionType for Delta2d {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Cursor;
-
-#[derive(Debug, Clone, Copy)]
-pub struct CursorActionState {
-    pub current_state: Vector2<f64>,
-    pub changed_since_last_sync: bool,
-    pub last_changed_time: Time,
-    pub is_active: bool,
-}
-
-impl Default for CursorActionState {
-    fn default() -> Self {
-        Self {
-            current_state: Vector2 { x: 0., y: 0. },
-            changed_since_last_sync: Default::default(),
-            last_changed_time: Default::default(),
-            is_active: Default::default(),
-        }
-    }
-}
-
-impl ActionType for Cursor {
-    type Value = Vector2<f64>;
-    type State = CursorActionState;
-    type CreateInfo = ();
-
-    fn from_ase(ase: &ActionStateEnum) -> Option<Self::Value> {
-        match ase {
-            ActionStateEnum::Cursor(state) => Some(*state),
-            _ => None,
-        }
-    }
-
-    type Internal = Self;
-
-    fn appease_the_type_checker(
-        create_info: Self::CreateInfo,
-    ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
-        create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Cursor(state) => Some(state),
-            _ => None,
-        }
-    }
-}
-
-impl InternalActionType for Cursor {
-    fn action_type() -> ActionTypeEnum {
-        ActionTypeEnum::Cursor
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct Axis1d;
 
 #[derive(Debug, Default, Clone)]
@@ -495,7 +439,10 @@ impl InternalActionType for Axis2d {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Pose;
+pub struct Pose {
+    transform: mint::Vector3<f32>,
+    oritentation: mint::Quaternion<f32>,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PoseActionState {

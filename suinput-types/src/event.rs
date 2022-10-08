@@ -22,15 +22,8 @@ pub enum InputComponentEvent {
     Joystick(Vector2<f32>),
     Move2D(Vector2<f64>),
 
-    Cursor(Cursor),
     Gyro(Vector3<f32>),
     Accel(Vector3<f32>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Cursor {
-    pub normalized_screen_coords: (f64, f64),
-    pub window: Option<WindowHandle>,
 }
 
 impl InputComponentEvent {

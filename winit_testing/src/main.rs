@@ -9,8 +9,7 @@ use std::{
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
     action_type::{
-        Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo,
-        Cursor, Delta2d,
+        Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo, Delta2d,
     },
     instance::{ApplicationInfo, ApplicationInstanceCreateInfo, SimpleBinding},
     ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SuAction, SuSession,
@@ -25,8 +24,6 @@ struct Listener {
     session: SuSession,
     jump: SuAction<bool>,
     zoom: SuAction<bool>,
-    // turn: SuAction,
-    cursor: SuAction<Cursor>,
     thrust: SuAction<Axis1d>,
     r#move: SuAction<Axis2d>,
     overridden: SuAction<bool>,
@@ -79,14 +76,14 @@ impl ActionListener for Listener {
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    let runtime = suinput::load_runtime();
-    runtime.set_window_driver(windows_driver::Win32HookingWindowDriver::new)?;
+    let runtime = suinput::load_runtime(None);
+    runtime.add_instance_driver(windows_driver::Win32HookingWindowDriver::new)?;
     runtime
-        .add_generic_driver(|interface| {
+        .add_runtime_driver(|interface| {
             sdl2_driver::SDLGameControllerGenericDriver::new(false, interface)
         })
         .unwrap();
-    runtime.add_generic_driver(windows_driver::Win32RawInputGenericDriver::new)?;
+    runtime.add_runtime_driver(windows_driver::Win32RawInputGenericDriver::new)?;
 
     let instance = runtime.create_instance(Some(
         &Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -100,7 +97,6 @@ fn main() -> Result<(), anyhow::Error> {
     let jump_action = action_set.create_action("jump", BooleanActionCreateInfo::default());
     let zoom_action = action_set.create_action("zoom", BooleanActionCreateInfo { sticky: true });
     let turn_action = action_set.create_action("turn", ());
-    let cursor_action = action_set.create_action("cursor", ());
     let thrust_action = action_set.create_action(
         "thrust",
         Axis1dActionCreateInfo {
@@ -161,10 +157,6 @@ fn main() -> Result<(), anyhow::Error> {
             SimpleBinding {
                 action: turn_action.handle(),
                 path: instance.get_path("/user/desktop/mouse/input/move/move2d")?,
-            },
-            SimpleBinding {
-                action: cursor_action.handle(),
-                path: instance.get_path("/user/desktop/cursor/input/cursor/point")?,
             },
             SimpleBinding {
                 action: thrust_action.get_child_action(ChildActionType::Positive),
@@ -253,15 +245,11 @@ fn main() -> Result<(), anyhow::Error> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop)?;
 
-    session.set_window_rwh(window.raw_window_handle());
-
     let enable_priority_action_set = Arc::new(AtomicBool::new(true));
 
     session.register_event_listener(Box::new(Listener {
         jump: jump_action,
         zoom: zoom_action,
-        // turn: turn_action.clone(),
-        cursor: cursor_action,
         thrust: thrust_action,
         session: session.clone(),
         r#move: move_action,

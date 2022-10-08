@@ -32,10 +32,6 @@ impl InteractionProfileType {
                 get_path("/user/desktop/mouse"),
                 get_path("/devices/standard/generic_mouse"),
             ),
-            (
-                get_path("/user/desktop/cursor"),
-                get_path("/devices/standard/system_cursor"),
-            ),
         ]
         .into_iter()
         .map(|(user_path, device_path)| (user_path, device_types.get(device_path).unwrap().clone()))

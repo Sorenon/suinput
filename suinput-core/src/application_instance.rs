@@ -1,4 +1,3 @@
-use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
 use parking_lot::{Mutex, RwLock};
@@ -58,7 +57,6 @@ impl ApplicationInstance {
 
         let session = Arc::new(Session {
             runtime: self.runtime.clone(),
-            window: Mutex::new(None),
             app_instance: self.clone(),
             user: Arc::new(user),
             listeners: RwLock::default(),

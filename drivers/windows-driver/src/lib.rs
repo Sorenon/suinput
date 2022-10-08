@@ -1,6 +1,5 @@
 use std::{ops::Deref, thread::JoinHandle};
 
-use hooks::Hooks;
 use suinput::driver_interface::{RuntimeInterface, SuInputDriver};
 use suinput_types::SuPath;
 use windows_sys::Win32::Foundation::GetLastError;
@@ -52,7 +51,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct Win32HookingWindowDriver {
     runtime_interface: RuntimeInterface,
-    hooks: Option<Hooks>,
     running: bool,
 }
 
@@ -60,7 +58,6 @@ impl Win32HookingWindowDriver {
     pub fn new(runtime_interface: RuntimeInterface) -> Result<Self> {
         Ok(Self {
             runtime_interface,
-            hooks: None,
             running: true,
         })
     }
@@ -84,7 +81,7 @@ impl Win32RawInputGenericDriver {
 
 impl SuInputDriver for Win32HookingWindowDriver {
     fn initialize(&mut self) {
-        self.hooks = Some(Hooks::new(&self.runtime_interface));
+        // self.hooks = Some(Hooks::new(&self.runtime_interface));
     }
 
     fn poll(&self) {
@@ -95,14 +92,14 @@ impl SuInputDriver for Win32HookingWindowDriver {
         todo!()
     }
 
-    fn set_windows(&mut self, windows: &[usize]) {
-        if let Some(hooks) = &mut self.hooks {
-            hooks.set_windows(windows).unwrap();
-        }
-    }
+    // fn set_windows(&mut self, windows: &[usize]) {
+    //     if let Some(hooks) = &mut self.hooks {
+    //         hooks.set_windows(windows).unwrap();
+    //     }
+    // }
 
     fn destroy(&mut self) {
-        std::mem::drop(self.hooks.take());
+        // std::mem::drop(self.hooks.take());
         self.running = false;
     }
 }

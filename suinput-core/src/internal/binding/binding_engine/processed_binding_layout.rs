@@ -120,13 +120,6 @@ impl ProcessedBindingLayout {
                         sensitivity: (1., 1.),
                     }
                 }
-                Some(InputComponentType::Cursor) => {
-                    if action.data_type != ActionTypeEnum::Cursor {
-                        return Err(CreateBindingLayoutError::BadBinding(*binding));
-                    }
-
-                    ProcessedBindingType::Cursor2Cursor
-                }
                 Some(InputComponentType::Joystick) => {
                     if action.data_type != ActionTypeEnum::Axis2d {
                         return Err(CreateBindingLayoutError::BadBinding(*binding));

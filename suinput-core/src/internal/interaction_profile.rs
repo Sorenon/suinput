@@ -75,9 +75,6 @@ impl InteractionProfileState {
                         .aggregate::<bool>((*user_path, event.path), event_pressed, event_device_id)
                         .map(|(state, _)| InputComponentState::Button(state)),
                     InputComponentEvent::Move2D(_) => Some(InputComponentState::NonApplicable),
-                    InputComponentEvent::Cursor(cursor) => {
-                        Some(InputComponentState::Cursor(cursor))
-                    }
                     InputComponentEvent::Trigger(state) => helper
                         .aggregate::<Value>((*user_path, event.path), state, event_device_id)
                         .map(InputComponentState::Trigger),

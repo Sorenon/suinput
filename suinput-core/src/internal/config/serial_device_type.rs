@@ -29,7 +29,6 @@ pub enum Component {
     Button(#[knuffel(argument)] String),
     Trigger(#[knuffel(argument)] String),
     Joystick(#[knuffel(argument)] String),
-    Cursor(#[knuffel(argument)] String),
     Move2d(#[knuffel(argument)] String),
     Gyro(
         #[knuffel(argument)] String,
@@ -67,7 +66,6 @@ pub fn deserialize(paths: &PathManager) -> Vec<DeviceType> {
                     Component::Button(name) => (InputComponentType::Button, name),
                     Component::Trigger(name) => (InputComponentType::Trigger, name),
                     Component::Joystick(name) => (InputComponentType::Joystick, name),
-                    Component::Cursor(name) => (InputComponentType::Cursor, name),
                     Component::Move2d(name) => (InputComponentType::Move2D, name),
                     Component::Gyro(name, cal) => (InputComponentType::Gyro(*cal), name),
                     Component::Accel(name) => (InputComponentType::Accel, name),

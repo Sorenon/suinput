@@ -20,8 +20,6 @@ use crate::{
 pub struct Session {
     pub(crate) runtime: Weak<Runtime>,
 
-    pub(crate) window: Mutex<Option<NonZeroUsize>>,
-
     pub(crate) app_instance: Arc<ApplicationInstance>,
 
     pub user: Arc<User>,
@@ -35,14 +33,6 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn set_window(&self, window: usize) {
-        {
-            *self.window.lock() = Some(window.try_into().unwrap());
-        }
-
-        self.runtime.upgrade().unwrap().refresh_windows();
-    }
-
     pub fn sync<'a>(&self, action_sets: impl Iterator<Item = &'a Arc<ActionSet>>) {
         let mut inner = self.inner.lock();
         inner.sync(

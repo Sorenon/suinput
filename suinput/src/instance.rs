@@ -8,6 +8,7 @@ pub use suinput_core::types::app::ApplicationInfo;
 use suinput_core::types::app::InternalApplicationInstanceCreateInfo;
 pub use suinput_types::binding::SimpleBinding;
 pub use suinput_types::CreateBindingLayoutError;
+use suinput_types::SuPath;
 
 pub struct ApplicationInstanceCreateInfo<'a> {
     pub application_info: &'a ApplicationInfo<'a>,

@@ -45,7 +45,6 @@ pub enum ProcessedBindingType {
     Move2d2Delta2d {
         sensitivity: (f64, f64),
     },
-    Cursor2Cursor,
     Trigger2Bool,
     Trigger2Value,
     Joystick2Axis2d,
@@ -89,12 +88,6 @@ impl ProcessedBindingType {
                 x: delta.x * sensitivity.0,
                 y: delta.y * sensitivity.1,
             })),
-            (ProcessedBindingType::Cursor2Cursor, InputComponentEvent::Cursor(cursor)) => {
-                Some(ActionStateEnum::Cursor(mint::Vector2 {
-                    x: cursor.normalized_screen_coords.0,
-                    y: cursor.normalized_screen_coords.1,
-                }))
-            }
             (ProcessedBindingType::Joystick2Axis2d, InputComponentEvent::Joystick(state)) => {
                 Some(ActionStateEnum::Axis2d(state))
             }

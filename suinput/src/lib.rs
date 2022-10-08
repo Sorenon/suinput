@@ -5,23 +5,16 @@ use std::sync::Arc;
 use raw_window_handle::RawWindowHandle;
 pub use suinput_core::driver_interface::RuntimeInterface;
 pub use suinput_core::driver_interface::SuInputDriver;
-use suinput_core::types::action_type::ActionType;
+use suinput_core::types::action_type::{ActionType, Pose};
 pub use suinput_core::types::*;
 pub use suinput_types::event::PathFormatError;
 
-use suinput_core::*;
-
 pub use suinput_core::driver_interface;
+use suinput_core::{action, action_set, session, user};
 
+pub mod runtime;
 pub mod application_instance;
 pub mod instance;
-
-pub fn load_runtime() -> SuInputRuntime {
-    SuInputRuntime(Inner::Embedded(runtime::Runtime::new()))
-}
-
-#[derive(Clone)]
-pub struct SuInputRuntime(Inner<runtime::Runtime>);
 
 #[allow(dead_code)]
 pub(crate) enum Inner<E> {
@@ -47,45 +40,12 @@ impl<E> Clone for Inner<E> {
     }
 }
 
-pub use suinput_types::SuPath;
-
-impl SuInputRuntime {
-    //TODO Move these to Instance and rename
-    pub fn set_window_driver<F, T, E>(&self, f: F) -> Result<usize, E>
-    where
-        F: FnOnce(RuntimeInterface) -> Result<T, E>,
-        T: SuInputDriver + 'static,
-    {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.add_driver(f),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    pub fn add_generic_driver<F, T, E>(&self, f: F) -> Result<usize, E>
-    where
-        F: FnOnce(RuntimeInterface) -> Result<T, E>,
-        T: SuInputDriver + 'static,
-    {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.add_driver(f),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    pub fn destroy(&self) {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.destroy(),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    pub fn create_instance(&self, storage_path: Option<&Path>) -> instance::SuInstance {
-        instance::SuInstance(match &self.0 {
-            Inner::Embedded(inner) => Inner::Embedded(inner.create_instance(storage_path)),
-            Inner::FFI() => todo!(),
-        })
-    }
+/// Attempts to load the external runtime, falling back on the embedded runtime if it is not available
+/// This should only be called once per process
+///
+/// fallback_path specifies a file to allow the embedded runtime to store persistent state
+pub fn load_runtime(fallback_path: Option<&Path>) -> runtime::SuInputRuntime {
+    runtime::SuInputRuntime(Inner::Embedded(suinput_core::runtime::Runtime::new(fallback_path)))
 }
 
 pub use suinput_types::action::ActionEvent;
@@ -96,21 +56,6 @@ pub use suinput_types::action::ActionListener;
 pub struct SuSession(Inner<session::Session>);
 
 impl SuSession {
-    pub fn set_window(&self, window: usize) {
-        match &self.0 {
-            Inner::Embedded(inner) => inner.set_window(window),
-            Inner::FFI() => todo!(),
-        }
-    }
-
-    //TODO move to driver
-    pub fn set_window_rwh(&self, window: RawWindowHandle) {
-        self.set_window(match window {
-            RawWindowHandle::Win32(f) => f.hwnd as usize,
-            _ => todo!(),
-        })
-    }
-
     pub fn register_event_listener(&self, listener: Box<dyn ActionListener>) -> u64 {
         match &self.0 {
             Inner::Embedded(inner) => inner.register_event_listener(listener),
@@ -135,14 +80,6 @@ impl SuSession {
         }
     }
 
-    pub fn unstick_bool_action<T: ActionType>(&self, action: &SuAction<T>) {
-        match (&self.0, &action.0) {
-            (Inner::Embedded(inner), Inner::Embedded(action)) => inner.unstick_bool_action(action),
-            (Inner::FFI(), Inner::FFI()) => todo!(),
-            _ => panic!(),
-        }
-    }
-
     pub fn get_action_state<T: ActionType>(&self, action: &SuAction<T>) -> Result<T::State, ()> {
         match (&self.0, &action.0) {
             (Inner::Embedded(inner), Inner::Embedded(action)) => {
@@ -152,6 +89,18 @@ impl SuSession {
             _ => panic!(),
         }
     }
+
+    pub fn unstick_bool_action(&self, action: &SuAction<bool>) {
+        match (&self.0, &action.0) {
+            (Inner::Embedded(inner), Inner::Embedded(action)) => inner.unstick_bool_action(action),
+            (Inner::FFI(), Inner::FFI()) => todo!(),
+            _ => panic!(),
+        }
+    }
+
+    // pub fn create_action_space(&self, action: &SuAction<Pose>, pose_in_space: Pose) {
+    //     todo!()
+    // }
 }
 
 #[derive(Clone)]
