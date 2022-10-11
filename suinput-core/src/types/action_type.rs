@@ -7,11 +7,11 @@ use suinput_types::{
     Time,
 };
 
+use crate::types::action_type::private::Sealed;
 use crate::{
     action::{Action, ActionTypeEnum, ParentActionType},
     user::OutActionStateEnum,
 };
-use crate::types::action_type::private::Sealed;
 
 use self::private::InternalActionType;
 
@@ -92,19 +92,19 @@ impl ActionType for bool {
         }
     }
 
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Boolean(state) => Some(state),
+            _ => None,
+        }
+    }
+
     type Internal = Self;
 
     fn appease_the_type_checker(
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Boolean(state) => Some(state),
-            _ => None,
-        }
     }
 }
 
@@ -171,19 +171,19 @@ impl ActionType for Value {
         }
     }
 
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Value(state) => Some(state),
+            _ => None,
+        }
+    }
+
     type Internal = Self;
 
     fn appease_the_type_checker(
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Value(state) => Some(state),
-            _ => None,
-        }
     }
 }
 
@@ -225,19 +225,19 @@ impl ActionType for Delta2d {
         }
     }
 
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Delta2d(state) => Some(state),
+            _ => None,
+        }
+    }
+
     type Internal = Self;
 
     fn appease_the_type_checker(
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Delta2d(state) => Some(state),
-            _ => None,
-        }
     }
 }
 
@@ -276,19 +276,19 @@ impl ActionType for Axis1d {
         }
     }
 
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Axis1d(state) => Some(state),
+            _ => None,
+        }
+    }
+
     type Internal = Self;
 
     fn appease_the_type_checker(
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Axis1d(state) => Some(state),
-            _ => None,
-        }
     }
 }
 
@@ -366,19 +366,19 @@ impl ActionType for Axis2d {
         }
     }
 
+    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
+        match state {
+            OutActionStateEnum::Axis2d(state) => Some(state),
+            _ => None,
+        }
+    }
+
     type Internal = Self;
 
     fn appease_the_type_checker(
         create_info: Self::CreateInfo,
     ) -> <<Self as ActionType>::Internal as ActionType>::CreateInfo {
         create_info
-    }
-
-    fn pick_state(state: &OutActionStateEnum) -> Option<&Self::State> {
-        match state {
-            OutActionStateEnum::Axis2d(state) => Some(state),
-            _ => None,
-        }
     }
 }
 

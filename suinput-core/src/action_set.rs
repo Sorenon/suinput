@@ -4,6 +4,8 @@ use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use suinput_types::action::ChildActionType;
 
+use crate::action::ParentActionType;
+use crate::internal::serial;
 use crate::{
     action::{Action, ActionCompoundType, ActionTypeEnum},
     types::action_type::ActionType,
@@ -71,7 +73,16 @@ impl ActionSet {
                 name: name.into(),
                 data_type: action_type,
                 compound: parent_action_type.map_or(ActionCompoundType::None, |ty| {
-                    ActionCompoundType::Parent { ty }
+                    ActionCompoundType::Parent {
+                        serial: match ty {
+                            ParentActionType::StickyBool { .. } => {
+                                serial::ParentActionType::StickyBool
+                            }
+                            ParentActionType::Axis1d { .. } => serial::ParentActionType::Axis1d,
+                            ParentActionType::Axis2d { .. } => serial::ParentActionType::Axis2d,
+                        },
+                        ty,
+                    }
                 }),
             }
         });
@@ -107,7 +118,18 @@ impl ActionSet {
         action
     }
 
-    pub fn create_action_layer(&self, _name: String, _default_priority: u32) {
-        todo!()
+    pub fn serialize(&self) -> serial::ActionSet {
+        serial::ActionSet {
+            name: &self.name,
+            default_priority: self.default_priority,
+            parent: None,
+            actions: self
+                .baked_actions
+                .get()
+                .unwrap()
+                .iter()
+                .filter_map(|action| action.serialize())
+                .collect(),
+        }
     }
 }

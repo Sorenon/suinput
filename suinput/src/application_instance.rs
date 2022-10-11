@@ -1,7 +1,8 @@
-use std::fs::File;
+use crate::{session::SuSession, Inner};
+use std::fmt::{Debug, Formatter};
 use std::num::NonZeroU128;
-use std::path::{Path, PathBuf};
-use crate::{Inner, SuSession};
+use std::path::Path;
+use suinput_core::application_instance::ApplicationInstance;
 
 #[derive(Clone)]
 pub struct SuApplicationInstance(
@@ -16,8 +17,12 @@ impl SuApplicationInstance {
         })
     }
 
-    pub fn make_persistent(&self) -> NonZeroU128 {
-        todo!()
+    /// `storage_path` should be a path to an empty / nonexistent file
+    pub fn make_persistent(&self, file_path: &Path) -> crate::Result<()> {
+        match &self.0 {
+            Inner::Embedded(inner) => inner.make_persistent(file_path),
+            Inner::FFI() => todo!(),
+        }
     }
 
     pub fn get_persistent_unique_id(&self) -> Option<NonZeroU128> {

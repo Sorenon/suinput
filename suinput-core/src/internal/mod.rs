@@ -14,5 +14,6 @@ pub mod interaction_profile_types;
 pub mod motion;
 pub mod parallel_arena;
 pub mod paths;
+pub mod serial;
 pub mod types;
 pub mod worker_thread;

@@ -6,8 +6,7 @@ use crate::action::ActionTypeEnum;
 use crate::internal::binding::binding_engine::processed_binding_layout::ProcessedBindingLayout;
 use crate::internal::types::HashMap;
 use crate::types::action_type::{
-    Axis1dActionState, Axis2dActionState, BooleanActionState,
-    Delta2dActionState, ValueActionState,
+    Axis1dActionState, Axis2dActionState, BooleanActionState, Delta2dActionState, ValueActionState,
 };
 
 #[derive(Default)]

@@ -52,7 +52,7 @@ struct Motion {
 pub enum CalibrationMode {
     Manual,
     Stillness { sensor_fusion: bool },
-    SensorFusion,
+    // SensorFusion,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -514,11 +514,10 @@ impl GamepadMotion {
                         &mut self.motion_calibration,
                     );
                     self.auto_calibration.no_sample_sensor_fusion();
-                }
-                CalibrationMode::SensorFusion => {
-                    self.auto_calibration.no_sample_stillness();
-                    todo!()
-                }
+                } // CalibrationMode::SensorFusion => {
+                  //     self.auto_calibration.no_sample_stillness();
+                  //     unimplemented!()
+                  // }
             }
         }
 

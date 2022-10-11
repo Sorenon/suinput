@@ -1,8 +1,10 @@
 use std::sync::{Arc, Weak};
 
+use serde::{Deserialize, Serialize};
 use suinput_types::action::ChildActionType;
 
 use crate::action_set::ActionSet;
+use crate::internal::serial;
 
 pub struct Action {
     pub handle: u64,
@@ -21,6 +23,7 @@ pub enum ActionCompoundType {
     },
     Parent {
         ty: ParentActionType,
+        serial: serial::ParentActionType,
     },
     None,
 }
@@ -45,7 +48,7 @@ pub enum ParentActionType {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionTypeEnum {
     Boolean,
     Delta2d,
@@ -56,7 +59,10 @@ pub enum ActionTypeEnum {
 
 impl Action {
     pub fn get_child_action(&self, ty: ChildActionType) -> u64 {
-        if let ActionCompoundType::Parent { ty: parent_type } = &self.compound {
+        if let ActionCompoundType::Parent {
+            ty: parent_type, ..
+        } = &self.compound
+        {
             match &parent_type {
                 ParentActionType::StickyBool {
                     sticky_press,
@@ -92,6 +98,22 @@ impl Action {
             }
         } else {
             todo!()
+        }
+    }
+
+    pub fn serialize(&self) -> Option<serial::Action> {
+        match &self.compound {
+            ActionCompoundType::Child { .. } => None,
+            ActionCompoundType::Parent { serial, .. } => Some(serial::Action {
+                name: &self.name,
+                data_type: self.data_type,
+                parent_type: Some(serial.clone()),
+            }),
+            ActionCompoundType::None => Some(serial::Action {
+                name: &self.name,
+                data_type: self.data_type,
+                parent_type: None,
+            }),
         }
     }
 }

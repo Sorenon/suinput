@@ -9,10 +9,12 @@ use std::{
 use raw_window_handle::HasRawWindowHandle;
 use suinput::{
     action_type::{
-        Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo, Delta2d,
+        Axis1d, Axis1dActionCreateInfo, Axis2d, Axis2dActionCreateInfo, BooleanActionCreateInfo,
+        Delta2d,
     },
     instance::{ApplicationInfo, ApplicationInstanceCreateInfo, SimpleBinding},
-    ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SuAction, SuSession,
+    session::SuSession,
+    ActionEvent, ActionEventEnum, ActionListener, ChildActionType, SuAction,
 };
 use winit::{
     event::{Event, WindowEvent},
@@ -76,7 +78,7 @@ impl ActionListener for Listener {
 }
 
 fn main() -> Result<(), anyhow::Error> {
-    let runtime = suinput::load_runtime(None);
+    let runtime = suinput::load_runtime();
     runtime.add_instance_driver(windows_driver::Win32HookingWindowDriver::new)?;
     runtime
         .add_runtime_driver(|interface| {
@@ -85,12 +87,7 @@ fn main() -> Result<(), anyhow::Error> {
         .unwrap();
     runtime.add_runtime_driver(windows_driver::Win32RawInputGenericDriver::new)?;
 
-    let instance = runtime.create_instance(Some(
-        &Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .join(Path::new("target/winit_testing.kdl")),
-    ));
+    let instance = runtime.create_instance();
 
     let action_set = instance.create_action_set("gameplay", 0);
     let priority_action_set = instance.create_action_set("higher_priority", 1);
@@ -239,6 +236,8 @@ fn main() -> Result<(), anyhow::Error> {
             action_sets: &[&action_set, &priority_action_set],
             binding_layouts: &[&default_mouse_and_keyboard, &default_dualsense],
         });
+
+    application_instance.make_persistent(&Path::new("target/winit_testing"))?;
 
     let session = application_instance.try_begin_session();
 

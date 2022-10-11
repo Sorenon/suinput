@@ -8,5 +8,4 @@ suinput-types = { path = "../suinput-types" }
 suinput-core = { path = "../suinput-core" }
 flume = "0.10"
 parking_lot = "0.12"
-thunderdome = "0.5"
 raw-window-handle = "0.4"

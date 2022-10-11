@@ -95,12 +95,14 @@ impl WorkingUser {
                     .filter_map(|action| match &action.compound {
                         ActionCompoundType::Parent {
                             ty: ParentActionType::StickyBool { .. },
+                            ..
                         } => Some((
                             action.handle,
                             Box::new(StickyBoolState::default()) as Box<dyn CompoundActionState>,
                         )),
                         ActionCompoundType::Parent {
                             ty: ParentActionType::Axis1d { .. },
+                            ..
                         } => Some((
                             action.handle,
                             Box::new(CompoundAxis1dState::default())
@@ -108,6 +110,7 @@ impl WorkingUser {
                         )),
                         ActionCompoundType::Parent {
                             ty: ParentActionType::Axis2d { .. },
+                            ..
                         } => Some((
                             action.handle,
                             Box::new(CompoundAxis2dState::default())

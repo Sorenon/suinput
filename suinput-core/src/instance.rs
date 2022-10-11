@@ -11,6 +11,7 @@ use crate::{
 
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
+use slotmap::{DefaultKey, SlotMap};
 use suinput_types::{
     binding::SimpleBinding, event::PathFormatError, CreateBindingLayoutError, SuPath,
 };
@@ -27,11 +28,13 @@ pub struct Instance {
     pub handle: u64,
     pub(crate) runtime: Weak<Runtime>,
 
-    storage_path: Option<PathBuf>,
+    pub(crate) storage_path: Option<PathBuf>,
 
     //TODO replace these with generational arenas
     pub(crate) action_sets: RwLock<Vec<Arc<ActionSet>>>,
     pub(crate) actions: RwLock<Vec<Arc<Action>>>,
+
+    pub(crate) application_instances: RwLock<SlotMap<DefaultKey, Arc<ApplicationInstance>>>,
 
     pub(crate) sessions: RwLock<Vec<Arc<Session>>>,
 
@@ -45,6 +48,7 @@ impl Instance {
             runtime: Arc::downgrade(runtime),
             storage_path: storage_path.map(|path| path.to_owned()),
             actions: RwLock::default(),
+            application_instances: Default::default(),
             sessions: RwLock::default(),
             default_binding_layouts: RwLock::default(),
             action_sets: RwLock::default(),
@@ -109,9 +113,9 @@ impl Instance {
             })
     }
 
-    pub fn create_application_instance<'a>(
+    pub fn create_application_instance(
         self: &Arc<Self>,
-        create_info: InternalApplicationInstanceCreateInfo<'a>,
+        create_info: InternalApplicationInstanceCreateInfo,
     ) -> Arc<ApplicationInstance> {
         let action_sets = create_info
             .action_sets
@@ -136,14 +140,23 @@ impl Instance {
             })
             .collect();
 
-        Arc::new(ApplicationInstance {
-            runtime: self.runtime.clone(),
-            instance: Arc::downgrade(self),
-            action_sets,
-            actions,
-            binding_layouts: create_info.binding_layouts,
-            session: RwLock::new(None),
-        })
+        let mut application_instances = self.application_instances.write();
+
+        let index = application_instances.insert_with_key(|index| {
+            Arc::new(ApplicationInstance {
+                runtime: self.runtime.clone(),
+                instance: Arc::downgrade(self),
+                index,
+                application_name: create_info.application.name.to_string(),
+                sub_name: create_info.sub_name.map(|s| s.to_string()),
+                action_sets,
+                actions,
+                binding_layouts: create_info.binding_layouts,
+                session: RwLock::new(None),
+            })
+        });
+
+        application_instances.get(index).unwrap().clone()
     }
 }
 

@@ -1,6 +1,7 @@
 use super::*;
 use crate::application_instance::SuApplicationInstance;
 use crate::{Inner, SuActionSet, SuBindingLayout};
+use std::num::NonZeroU128;
 
 use suinput_core::action_set::ActionSet;
 use suinput_core::instance::BindingLayout;
@@ -10,6 +11,10 @@ pub use suinput_types::binding::SimpleBinding;
 pub use suinput_types::CreateBindingLayoutError;
 use suinput_types::SuPath;
 
+/// Entrypoint into the SuInput API
+#[derive(Clone)]
+pub struct SuInstance(pub(crate) Inner<suinput_core::instance::Instance>);
+
 pub struct ApplicationInstanceCreateInfo<'a> {
     pub application_info: &'a ApplicationInfo<'a>,
     pub sub_name: Option<&'a str>,
@@ -17,11 +22,8 @@ pub struct ApplicationInstanceCreateInfo<'a> {
     pub binding_layouts: &'a [&'a SuBindingLayout],
 }
 
-#[derive(Clone)]
-pub struct SuInstance(pub(crate) Inner<suinput_core::instance::Instance>);
-
 impl SuInstance {
-    pub fn get_path(&self, path_string: &str) -> Result<SuPath, PathFormatError> {
+    pub fn get_path(&self, path_string: &str) -> core::result::Result<SuPath, PathFormatError> {
         match &self.0 {
             Inner::Embedded(inner) => inner.get_path(path_string),
             Inner::FFI() => todo!(),
@@ -42,7 +44,7 @@ impl SuInstance {
         name: &str,
         interaction_profile: SuPath,
         bindings: &[SimpleBinding],
-    ) -> Result<SuBindingLayout, CreateBindingLayoutError> {
+    ) -> core::result::Result<SuBindingLayout, CreateBindingLayoutError> {
         Ok(SuBindingLayout(match &self.0 {
             Inner::Embedded(inner) => {
                 Inner::Embedded(inner.create_binding_layout(name, interaction_profile, bindings)?)
@@ -78,10 +80,10 @@ impl SuInstance {
         })
     }
 
-    pub fn acquire_application_instance(
+    pub fn get_application_instance(
         &self,
-        persistent_unique_id: u128,
-    ) -> SuApplicationInstance {
+        persistent_unique_id: NonZeroU128,
+    ) -> Option<SuApplicationInstance> {
         todo!()
     }
 }

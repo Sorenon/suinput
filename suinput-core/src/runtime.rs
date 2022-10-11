@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{
     ops::Deref,
     path::Path,
@@ -8,7 +9,6 @@ use std::{
     thread::JoinHandle,
     time::{Duration, Instant},
 };
-use std::path::PathBuf;
 
 use flume::Sender;
 use itertools::Itertools;
@@ -34,8 +34,6 @@ use crate::{
 use super::instance::Instance;
 
 pub struct Runtime {
-    pub(crate) persistent_storage: Option<PathBuf>,
-
     pub(crate) paths: Arc<PathManager>,
     pub(crate) common_paths: CommonPaths,
     pub(crate) controller_paths: GameControllerPaths,
@@ -52,7 +50,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new(file_path: Option<&Path>) -> Arc<Self> {
+    pub fn new() -> Arc<Self> {
         let (worker_thread_sender, worker_thread_receiver) = flume::bounded(100);
 
         let paths = Arc::new(PathManager::new());
@@ -68,7 +66,6 @@ impl Runtime {
         let lock = ready.lock();
 
         let runtime = Arc::new_cyclic(|arc| Self {
-            persistent_storage: file_path.map(|x| x.to_owned()),
             worker_thread_sender,
             paths,
             _thread: worker_thread::spawn_thread(
